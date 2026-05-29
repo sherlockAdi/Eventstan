@@ -183,6 +183,7 @@ model VendorService {
   category    Category      @relation(fields: [categoryId], references: [id])
   packageItems PackageItem[]
 
+  @@unique([vendorId, title])
   @@index([categoryId, city, status])
   @@map("vendor_services")
 }
@@ -201,6 +202,7 @@ model EventPackage {
   vendor      Vendor        @relation(fields: [vendorId], references: [id])
   items       PackageItem[]
 
+  @@unique([vendorId, title])
   @@map("event_packages")
 }
 
