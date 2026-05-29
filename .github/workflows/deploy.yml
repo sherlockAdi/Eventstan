@@ -31,4 +31,4 @@ jobs:
             pm2 restart eventstan-api || pm2 start dist/main.js --name eventstan-api
             pm2 save
 
-            systemctl restart httpd
+            systemctl restart nginx
