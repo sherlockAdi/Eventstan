@@ -41,6 +41,7 @@ http://localhost:3000/docs-json
 - `master-data`: categories, countries, currencies
 - `vendors`: vendor creation, listing, verification status
 - `services`: vendor service listing and search
+- `sub-services`: separately stored add-ons/children under vendor services
 - `packages`: package creation and listing
 - `availability`: vendor calendar, blocked/offline/available dates, capacity
 - `cart`: customer cart for services and packages
@@ -52,12 +53,13 @@ http://localhost:3000/docs-json
 
 ## Demo Flow
 
-1. Add `svc_decoration` to cart for `usr_customer`.
-2. Checkout cart with optional coupon `EVENT10`.
-3. Create payment intent for the booking.
-4. Mark payment as succeeded.
-5. Vendor accepts the booking.
-6. Customer confirms the booking.
+1. Browse `svc_decoration` with sub-services such as `subsvc_floral_entry`.
+2. Add `svc_decoration` to cart for `usr_customer`.
+3. Checkout cart with optional coupon `EVENT10`.
+4. Create payment intent for the booking.
+5. Mark payment as succeeded.
+6. Vendor accepts the booking.
+7. Customer confirms the booking.
 
 ## Next Backend Step
 

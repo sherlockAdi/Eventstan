@@ -68,6 +68,40 @@ async function main() {
     },
   });
 
+  await prisma.vendorSubService.upsert({
+    where: {
+      serviceId_title: {
+        serviceId: service.id,
+        title: 'Premium Floral Entry',
+      },
+    },
+    update: {},
+    create: {
+      serviceId: service.id,
+      title: 'Premium Floral Entry',
+      description: 'Fresh flower arch, aisle markers, and entrance styling.',
+      amount: 7500,
+      currency: 'AED',
+    },
+  });
+
+  await prisma.vendorSubService.upsert({
+    where: {
+      serviceId_title: {
+        serviceId: service.id,
+        title: 'Stage Lighting Upgrade',
+      },
+    },
+    update: {},
+    create: {
+      serviceId: service.id,
+      title: 'Stage Lighting Upgrade',
+      description: 'Warm stage wash, moving heads, and ambient venue lighting.',
+      amount: 5000,
+      currency: 'AED',
+    },
+  });
+
   const eventPackage = await prisma.eventPackage.upsert({
     where: {
       vendorId_title: {

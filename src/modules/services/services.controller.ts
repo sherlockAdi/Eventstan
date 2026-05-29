@@ -1,5 +1,6 @@
 import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
 import { ApiCreatedResponse, ApiOkResponse, ApiQuery, ApiTags } from '@nestjs/swagger';
+import { CreateSubServiceDto } from './dto/create-sub-service.dto';
 import { CreateServiceDto } from './dto/create-service.dto';
 import { ServicesService } from './services.service';
 
@@ -14,6 +15,12 @@ export class ServicesController {
     return this.services.create(dto);
   }
 
+  @Post(':id/sub-services')
+  @ApiCreatedResponse({ description: 'Vendor creates a separately stored sub-service under a service.' })
+  createSubService(@Param('id') id: string, @Body() dto: CreateSubServiceDto) {
+    return this.services.createSubService(id, dto);
+  }
+
   @Get()
   @ApiQuery({ name: 'categoryId', required: false })
   @ApiQuery({ name: 'city', required: false })
@@ -25,5 +32,11 @@ export class ServicesController {
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.services.findOne(id);
+  }
+
+  @Get(':id/sub-services')
+  @ApiOkResponse({ description: 'Lists active sub-services for a service.' })
+  findSubServices(@Param('id') id: string) {
+    return this.services.findSubServices(id);
   }
 }

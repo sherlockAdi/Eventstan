@@ -62,6 +62,25 @@ export class DataStoreService {
     },
   ];
 
+  subServices = [
+    {
+      id: 'subsvc_floral_entry',
+      serviceId: 'svc_decoration',
+      title: 'Premium Floral Entry',
+      description: 'Fresh flower arch, aisle markers, and entrance styling.',
+      price: { amount: 7500, currency: 'AED' },
+      status: 'ACTIVE',
+    },
+    {
+      id: 'subsvc_stage_lighting',
+      serviceId: 'svc_decoration',
+      title: 'Stage Lighting Upgrade',
+      description: 'Warm stage wash, moving heads, and ambient venue lighting.',
+      price: { amount: 5000, currency: 'AED' },
+      status: 'ACTIVE',
+    },
+  ];
+
   packages = [
     {
       id: 'pkg_gold_wedding',
