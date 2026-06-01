@@ -174,7 +174,13 @@ model VendorService {
   description String
   city        String
   amount      Int
+  maxAmount   Int?
   currency    String        @default("AED")
+  priceUnit   String        @default("per event")
+  imageUrl    String?
+  tags        String[]
+  gallery     String[]
+  features    String[]
   status      ListingStatus @default(ACTIVE)
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
@@ -214,6 +220,12 @@ model EventPackage {
   description String
   amount      Int
   currency    String        @default("AED")
+  priceUnit   String        @default("package")
+  inclusions  String[]
+  features    String[]
+  maxGuests   Int?
+  durationHours Int?
+  isPopular   Boolean       @default(false)
   status      ListingStatus @default(ACTIVE)
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt

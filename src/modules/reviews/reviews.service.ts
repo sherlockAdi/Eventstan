@@ -1,6 +1,8 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
+import { ReviewStatus } from '@prisma/client';
 import { BookingsService } from '../bookings/bookings.service';
 import { DataStoreService } from '../../shared/data-store/data-store.service';
+import { PrismaService } from '../../shared/prisma/prisma.service';
 import { CreateReviewDto } from './dto/create-review.dto';
 
 @Injectable()
@@ -8,6 +10,7 @@ export class ReviewsService {
   constructor(
     private readonly store: DataStoreService,
     private readonly bookings: BookingsService,
+    private readonly prisma: PrismaService,
   ) {}
 
   create(dto: CreateReviewDto) {
@@ -29,7 +32,34 @@ export class ReviewsService {
     return review;
   }
 
-  list() {
-    return this.store.reviews;
+  async list() {
+    const reviews = await this.prisma.review.findMany({
+      where: { status: ReviewStatus.PUBLISHED },
+      include: {
+        customer: true,
+        booking: {
+          include: {
+            items: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return reviews.map((review) => {
+      const bookingItem = review.booking.items[0];
+      return {
+        id: review.id,
+        service_id: bookingItem?.itemId ?? '',
+        reviewer_name: review.customer.name,
+        reviewer_avatar: '',
+        rating: review.rating,
+        comment: review.comment,
+        event_type: bookingItem?.title ?? 'Event',
+        location: review.booking.eventAddress,
+        created_at: review.createdAt.toISOString(),
+        status: review.status,
+      };
+    });
   }
 }

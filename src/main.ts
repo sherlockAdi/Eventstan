@@ -43,7 +43,7 @@ async function bootstrap() {
     swaggerOptions: { persistAuthorization: true },
   });
 
-  await app.listen(config.get<number>('PORT', 3000));
+  await app.listen(config.get<number>('PORT', 4000));
 }
 
 void bootstrap();

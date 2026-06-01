@@ -25,11 +25,11 @@ export class BookingsService {
       if (!this.availability.canBook(item.vendorId, cartItem.eventDate)) {
         throw new BadRequestException(`Vendor ${item.vendorId} is not available on ${cartItem.eventDate}`);
       }
-      return { ...cartItem, vendorId: item.vendorId, title: item.title, unitPrice: item.price };
+      return { ...cartItem, vendorId: item.vendorId, title: item.title, unitPrice: this.getAmount(item.price) };
     });
 
     normalizedItems.forEach((item) => this.availability.reserve(item.vendorId, item.eventDate));
-    const subtotal = normalizedItems.reduce((sum, item) => sum + item.unitPrice.amount * item.quantity, 0);
+    const subtotal = normalizedItems.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
     const coupon = dto.couponCode ? this.store.coupons.find((item) => item.code === dto.couponCode && item.active) : undefined;
     const discountAmount = coupon ? Math.min(Math.round((subtotal * coupon.value) / 100), coupon.maxDiscountAmount) : 0;
     const totalAmount = subtotal - discountAmount;
@@ -129,5 +129,9 @@ export class BookingsService {
       refundPercent,
       refundAmount: { amount: Math.round((booking.total.amount * refundPercent) / 100), currency: booking.total.currency },
     };
+  }
+
+  private getAmount(price: number | { amount: number; currency: string }) {
+    return typeof price === 'number' ? price : price.amount;
   }
 }
