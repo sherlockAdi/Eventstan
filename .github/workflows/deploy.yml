@@ -50,7 +50,7 @@ jobs:
 
             cd ../Enentstan_Vendor_Pannel
             # npm install --force
-            npm run build
+            # npm run build
             PORT=3003 pm2 restart eventstan-vendor || PORT=3003 pm2 start npm --name eventstan-vendor -- start
 
             pm2 save
