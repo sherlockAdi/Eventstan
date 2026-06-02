@@ -1,6 +1,6 @@
 import { BASE_URL } from '@/lib/constants';
 
-type JsonBody = Record<string, unknown> | unknown[];
+type JsonBody = object | unknown[];
 const API_BASE_URL = `${BASE_URL}/api/v1`;
 
 function getVendorToken() {
