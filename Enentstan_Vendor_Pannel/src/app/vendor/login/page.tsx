@@ -13,8 +13,7 @@ import {
   ArrowRight,
   CheckCircle,
 } from "lucide-react";
-
-const BASE_URL = 'https://api.eventstan.com';
+import { BASE_URL } from "@/lib/constants";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 

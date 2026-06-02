@@ -7,6 +7,7 @@ import Modal from '@/components/admin/Modal';
 import ConfirmModal from '@/components/admin/ConfirmModal';
 import Button from '@/components/admin/Button';
 import Input from '@/components/admin/Input';
+import { BASE_API_URL } from '@/lib/constants';
 import toast from 'react-hot-toast';
 
 interface Vendor {
@@ -52,7 +53,7 @@ export default function VendorsPage() {
   const fetchVendors = async () => {
     try {
       setLoading(true);
-      const response = await fetch('https://api.eventstan.com/api/v1/vendors');
+      const response = await fetch(`${BASE_API_URL}vendors`);
       const data = await response.json();
       const vendorsWithSrNo = data.map((vendor: Vendor, index: number) => ({
         ...vendor,
@@ -83,7 +84,7 @@ export default function VendorsPage() {
   const confirmStatusChange = async () => {
     if (selected && pendingStatus) {
       try {
-        const response = await fetch(`https://api.eventstan.com/api/v1/vendors/${selected.id}/status`, {
+        const response = await fetch(`${BASE_API_URL}vendors/${selected.id}/status`, {
           method: 'PATCH',
           headers: {
             'Content-Type': 'application/json',
@@ -216,7 +217,7 @@ export default function VendorsPage() {
 
     try {
       if (selected) {
-        const response = await fetch(`https://api.eventstan.com/api/v1/vendors/${selected.id}`, {
+        const response = await fetch(`${BASE_API_URL}vendors/${selected.id}`, {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
@@ -232,7 +233,7 @@ export default function VendorsPage() {
           toast.error('Failed to update vendor');
         }
       } else {
-        const response = await fetch('https://api.eventstan.com/api/v1/vendors', {
+        const response = await fetch(`${BASE_API_URL}vendors`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -259,7 +260,7 @@ export default function VendorsPage() {
   const confirmDelete = async () => {
     if (selected) {
       try {
-        const response = await fetch(`https://api.eventstan.com/api/v1/vendors/${selected.id}`, {
+        const response = await fetch(`${BASE_API_URL}vendors/${selected.id}`, {
           method: 'DELETE',
         });
 

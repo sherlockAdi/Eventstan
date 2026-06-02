@@ -7,6 +7,7 @@ import {
   BookOpen, User, Bell, LogOut, ChevronRight, Menu, Loader2, X,
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
+import { BASE_URL } from '@/lib/constants';
 
 const navItems = [
   { href: '/vendor/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -62,7 +63,7 @@ async function logoutVendor() {
   const token = localStorage.getItem('vendor_token');
   if (token) {
     try {
-      await fetch('https://api.eventstan.com/api/v1/auth/logout', {
+      await fetch(`${BASE_URL}/api/v1/auth/logout`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,

@@ -8,6 +8,7 @@ import ConfirmModal from "@/components/admin/ConfirmModal";
 import Button from "@/components/admin/Button";
 import Input from "@/components/admin/Input";
 import { Column } from "@/lib/types";
+import { BASE_API_URL } from "@/lib/constants";
 import toast from "react-hot-toast";
 
 interface Category {
@@ -33,7 +34,7 @@ export default function CategoriesPage() {
   const fetchCategories = async (showToast = false) => {
     setLoading(true);
     try {
-      const response = await fetch('https://api.eventstan.com/api/v1/master-data/categories');
+      const response = await fetch(`${BASE_API_URL}master-data/categories`);
       if (!response.ok) throw new Error('Failed to fetch categories');
       const data = await response.json();
       setCategories(data);
@@ -53,7 +54,7 @@ export default function CategoriesPage() {
   // Add category to API
   const addCategoryToAPI = async (category: Omit<Category, 'id'>) => {
     try {
-      const response = await fetch('https://api.eventstan.com/api/v1/master-data/categories', {
+      const response = await fetch(`${BASE_API_URL}master-data/categories`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -73,7 +74,7 @@ export default function CategoriesPage() {
   // Update category in API
   const updateCategoryInAPI = async (id: string, category: Partial<Category>) => {
     try {
-      const response = await fetch(`https://api.eventstan.com/api/v1/master-data/categories/${id}`, {
+      const response = await fetch(`${BASE_API_URL}master-data/categories/${id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -93,7 +94,7 @@ export default function CategoriesPage() {
   // Delete category from API
   const deleteCategoryFromAPI = async (id: string) => {
     try {
-      const response = await fetch(`https://api.eventstan.com/api/v1/master-data/categories/${id}`, {
+      const response = await fetch(`${BASE_API_URL}master-data/categories/${id}`, {
         method: 'DELETE',
       });
       

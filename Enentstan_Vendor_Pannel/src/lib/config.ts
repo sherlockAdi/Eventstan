@@ -4,7 +4,7 @@
 //
 //  To switch env, set in .env:
 //    NEXT_PUBLIC_ENV=live   → uses LARAVEL_LIVE in next.config.ts
-//    (default)              → http://localhost:8000
+//    (default)              → http://localhost:4000
 // ─────────────────────────────────────────────────────────────
 
 const BASE = '/api/proxy';

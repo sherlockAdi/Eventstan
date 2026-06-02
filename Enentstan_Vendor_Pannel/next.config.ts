@@ -1,6 +1,6 @@
 import type { NextConfig } from "next";
 
-const LARAVEL_LOCAL = "http://localhost:8000";
+const LARAVEL_LOCAL = "http://localhost:4000";
 const LARAVEL_LIVE  = "https://your-live-domain.com"; // 🔁 Replace with your live domain
 
 const isLive = process.env.NEXT_PUBLIC_ENV === "live";

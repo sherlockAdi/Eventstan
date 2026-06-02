@@ -7,9 +7,8 @@ import {
   Shield, ArrowRight, CheckCircle, LayoutDashboard, TrendingUp, Award,
 } from 'lucide-react';
 import { saveSession } from '@/lib/auth';
+import { BASE_API_URL } from '@/lib/constants';
 import toast from 'react-hot-toast';
-
-const BASE_API_URL = process.env.NEXT_PUBLIC_BASE_URL || 'https://api.eventstan.com/api/v1/';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');

@@ -9,6 +9,7 @@ import Button from '@/components/admin/Button';
 import Input from '@/components/admin/Input';
 import StatsCard from '@/components/admin/StatsCard';
 import { Column } from '@/lib/types';
+import { BASE_API_URL } from '@/lib/constants';
 import toast from 'react-hot-toast';
 
 interface Coupon { 
@@ -64,7 +65,7 @@ export default function CouponsPage() {
   const fetchCoupons = async () => {
     setLoading(true);
     try {
-      const response = await fetch('https://api.eventstan.com/api/v1/coupons');
+      const response = await fetch(`${BASE_API_URL}coupons`);
       const apiData = await response.json();
       
       const convertedApiData: Coupon[] = apiData.map((apiCoupon: any, index: number) => ({
@@ -107,7 +108,7 @@ export default function CouponsPage() {
         active: couponData.active
       };
 
-      const response = await fetch('https://api.eventstan.com/api/v1/coupons', {
+      const response = await fetch(`${BASE_API_URL}coupons`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -136,7 +137,7 @@ export default function CouponsPage() {
     setValidating(true);
     setValidationResult(null);
     try {
-      const response = await fetch(`https://api.eventstan.com/api/v1/coupons/${code}/validate?amount=${amount}`);
+      const response = await fetch(`${BASE_API_URL}coupons/${code}/validate?amount=${amount}`);
       const data = await response.json();
       
       if (response.ok) {
@@ -168,7 +169,7 @@ export default function CouponsPage() {
 
   const updateCouponStatus = async (coupon: Coupon, newStatus: boolean) => {
     try {
-      const response = await fetch(`https://api.eventstan.com/api/v1/coupons/${coupon.id}`, {
+      const response = await fetch(`${BASE_API_URL}coupons/${coupon.id}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -193,7 +194,7 @@ export default function CouponsPage() {
 
   const deleteCoupon = async (couponId: string) => {
     try {
-      const response = await fetch(`https://api.eventstan.com/api/v1/coupons/${couponId}`, {
+      const response = await fetch(`${BASE_API_URL}coupons/${couponId}`, {
         method: 'DELETE',
       });
       
@@ -351,7 +352,7 @@ export default function CouponsPage() {
       return;
     }
     
-    if (form.minOrderAmount < 0) {
+    if (Number(form.minOrderAmount ?? 0) < 0) {
       toast.error('Minimum order amount must not be less than 0');
       return;
     }
@@ -412,7 +413,7 @@ export default function CouponsPage() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatsCard title="Total Coupons" value={coupons.length} icon={<Tag size={18} />} color="orange" />
         <StatsCard title="Active Coupons" value={active} icon={<Tag size={18} />} color="green" />
-        <StatsCard title="Inactive" value={inactive} icon={<Tag size={18} />} color="yellow" />
+        <StatsCard title="Inactive" value={inactive} icon={<Tag size={18} />} color="orange" />
         <StatsCard title="Expired" value={expired} icon={<Tag size={18} />} color="purple" />
       </div>
 

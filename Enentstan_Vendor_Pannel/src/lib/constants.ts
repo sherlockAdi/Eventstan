@@ -1,2 +1,2 @@
-// Live system
-export const BASE_URL = 'https://api.eventstan.com';
+export const BASE_URL =
+  process.env.NEXT_PUBLIC_BASE_URL?.replace(/\/$/, '') ?? 'http://localhost:4000';
