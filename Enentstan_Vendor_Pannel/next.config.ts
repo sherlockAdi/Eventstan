@@ -1,17 +1,13 @@
 import type { NextConfig } from "next";
 
-const LARAVEL_LOCAL = "http://localhost:4000";
-const LARAVEL_LIVE  = "https://your-live-domain.com"; // 🔁 Replace with your live domain
-
-const isLive = process.env.NEXT_PUBLIC_ENV === "live";
-const LARAVEL_BASE = isLive ? LARAVEL_LIVE : LARAVEL_LOCAL;
+const apiBaseUrl = process.env.NEXT_PUBLIC_BASE_URL ?? "http://localhost:4000";
 
 const nextConfig: NextConfig = {
   async rewrites() {
     return [
       {
-        source:      "/api/proxy/:path*",
-        destination: `${LARAVEL_BASE}/:path*`,
+        source: "/api/proxy/:path*",
+        destination: `${apiBaseUrl}/:path*`,
       },
     ];
   },
@@ -19,12 +15,8 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       {
-        // Add X-Requested-With on all proxied requests so Laravel's
-        // VerifyCsrfToken middleware treats them as AJAX (API) calls.
         source: "/api/proxy/:path*",
-        headers: [
-          { key: "X-Requested-With", value: "XMLHttpRequest" },
-        ],
+        headers: [{ key: "X-Requested-With", value: "XMLHttpRequest" }],
       },
     ];
   },
