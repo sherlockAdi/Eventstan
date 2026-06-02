@@ -28,28 +28,28 @@ jobs:
             # API
 
             cd Api
-            npm install --force
+            # npm install --force
             npm run build
-            pm2 restart eventstan-api || pm2 start dist/main.js --name eventstan-api
+            pm2 restart eventstan-api || pm2 start npm --name eventstan-api -- run start
 
             # Admin Panel (3001)
 
             cd ../Enentatan_Admin_Panel
-            npm install --force
+            # npm install --force
             npm run build
             PORT=3001 pm2 restart eventstan-admin || PORT=3001 pm2 start npm --name eventstan-admin -- start
 
             # Customer Panel (3002)
 
             cd ../Enentstan_Customer_Panel
-            npm install --force
+            # npm install --force
             npm run build
             PORT=3002 pm2 restart eventstan-customer || PORT=3002 pm2 start npm --name eventstan-customer -- start
 
             # Vendor Panel (3003)
 
             cd ../Enentstan_Vendor_Pannel
-            npm install --force
+            # npm install --force
             npm run build
             PORT=3003 pm2 restart eventstan-vendor || PORT=3003 pm2 start npm --name eventstan-vendor -- start
 
