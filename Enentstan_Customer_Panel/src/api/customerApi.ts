@@ -21,6 +21,22 @@ async function apiGet<T>(path: string): Promise<T> {
   return response.json() as Promise<T>;
 }
 
+export async function uploadImage(file: File, folder = "customers") {
+  const body = new FormData();
+  body.append("file", file);
+
+  const response = await fetch(`${API_BASE_URL}/uploads/images?folder=${encodeURIComponent(folder)}`, {
+    method: "POST",
+    body,
+  });
+
+  if (!response.ok) {
+    throw new Error(`Image upload failed: ${response.status} ${response.statusText}`);
+  }
+
+  return response.json() as Promise<{ bucket: string; key: string; url: string; contentType: string; size: number }>;
+}
+
 export async function getServices() {
   return apiGet<Service[]>("/services");
 }

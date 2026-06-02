@@ -31,6 +31,21 @@ function jsonOptions(method: string, body?: JsonBody, token?: string | null): Re
 }
 
 export const adminApi = {
+  uploads: {
+    image: async (file: File, folder = 'admin') => {
+      const body = new FormData();
+      body.append('file', file);
+
+      const response = await fetch(`${BASE_API_URL}uploads/images?folder=${encodeURIComponent(folder)}`, {
+        method: 'POST',
+        body,
+      });
+
+      if (!response.ok) throw new Error(`Image upload failed: ${response.status}`);
+      return response.json() as Promise<{ bucket: string; key: string; url: string; contentType: string; size: number }>;
+    },
+  },
+
   login: (payload: { email: string; password: string }) =>
     request<any>('auth/login', jsonOptions('POST', payload)),
 

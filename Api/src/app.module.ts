@@ -12,6 +12,7 @@ import { PaymentsModule } from './modules/payments/payments.module';
 import { ReviewsModule } from './modules/reviews/reviews.module';
 import { ServicesModule } from './modules/services/services.module';
 import { SettlementsModule } from './modules/settlements/settlements.module';
+import { UploadsModule } from './modules/uploads/uploads.module';
 import { VendorsModule } from './modules/vendors/vendors.module';
 import { DataStoreModule } from './shared/data-store/data-store.module';
 import { PrismaModule } from './shared/prisma/prisma.module';
@@ -34,6 +35,7 @@ import { PrismaModule } from './shared/prisma/prisma.module';
     CouponsModule,
     ReviewsModule,
     SettlementsModule,
+    UploadsModule,
   ],
 })
 export class AppModule {}

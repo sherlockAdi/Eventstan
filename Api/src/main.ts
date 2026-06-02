@@ -36,6 +36,7 @@ async function bootstrap() {
     .addTag('coupons')
     .addTag('reviews')
     .addTag('settlements')
+    .addTag('uploads')
     .build();
 
   const document = SwaggerModule.createDocument(app, swaggerConfig);
