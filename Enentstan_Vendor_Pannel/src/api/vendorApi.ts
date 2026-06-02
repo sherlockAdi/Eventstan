@@ -60,12 +60,13 @@ export const vendorApi = {
 
   services: {
     list: <T = unknown[]>() =>
-      request<T>('services', {
+      request<T>('services?includeAll=true', {
         cache: 'no-store',
         headers: headers(getVendorToken()),
       }),
     get: <T = unknown>(id: string) => request<T>(`services/${id}`, { headers: headers() }),
     create: <T = unknown>(payload: JsonBody) => request<T>('services', jsonOptions('POST', payload)),
+    update: <T = unknown>(id: string, payload: JsonBody) => request<T>(`services/${id}`, jsonOptions('PUT', payload)),
     updateStatus: (id: string, status: string) =>
       request<unknown>(`services/${id}`, jsonOptions('PATCH', { status })),
     delete: (id: string) => request<void>(`services/${id}`, jsonOptions('DELETE')),

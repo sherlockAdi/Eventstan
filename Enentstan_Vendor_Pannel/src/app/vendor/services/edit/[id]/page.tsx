@@ -1,312 +1,305 @@
-'use client';
+"use client";
 
-import { useState, useEffect, useRef, useCallback } from 'react';
-import { useRouter, useParams } from 'next/navigation';
-import { serviceStore, generateSlug, ServiceWithSlug } from '@/lib/store';
+import { useEffect, useRef, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
 import {
-  ArrowLeft, AlertTriangle, CheckCircle2,
-  ImagePlus, X, Loader2, Star, Link2,
-} from 'lucide-react';
+  AlertTriangle,
+  ArrowLeft,
+  CheckCircle2,
+  ImagePlus,
+  Loader2,
+  Save,
+  X,
+} from "lucide-react";
+import { vendorApi } from "@/api/vendorApi";
 
-const CATEGORIES = ['Venue', 'Catering', 'Decoration', 'Entertainment', 'Photography', 'Other'] as const;
-const PRICE_UNITS = ['per event', 'per person', 'per hour', 'per day'] as const;
+const PRICE_UNITS = ["per event", "per person", "per hour", "per day"] as const;
+const CURRENCIES = ["AED", "USD", "EUR", "SAR"] as const;
 
-interface PreviewFile {
-  preview: string;
-  primary: boolean;
-  isNew: boolean;
+interface ApiService {
+  id: string;
+  vendorId: string;
+  categoryId: string;
+  title: string;
+  category?: string;
+  description?: string;
+  city?: string;
+  price?: { amount: number; currency: string };
+  price_max?: number;
+  price_unit?: string;
+  image_url?: string;
+  status: string;
 }
 
+const emptyForm = {
+  vendorId: "",
+  categoryId: "",
+  title: "",
+  description: "",
+  city: "",
+  amount: "",
+  currency: "AED",
+  priceMax: "",
+  priceUnit: "per event",
+  imageUrl: "",
+  status: "ACTIVE",
+};
+
 export default function EditServicePage() {
-  const router  = useRouter();
-  const { id }  = useParams<{ id: string }>();
+  const router = useRouter();
+  const params = useParams<{ id: string }>();
+  const id = params?.id;
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const [original, setOriginal] = useState<ServiceWithSlug | null>(null);
-  const [form, setForm]         = useState({
-    name: '', category: 'Venue' as typeof CATEGORIES[number],
-    description: '', priceMin: 0, priceMax: 0, priceUnit: 'per event' as typeof PRICE_UNITS[number],
-  });
-  const [slug, setSlug]             = useState('');
-  const [slugManual, setSlugManual] = useState(false);
-  const [images, setImages]         = useState<PreviewFile[]>([]);
-  const [loading, setLoading]       = useState(true);
-  const [saving, setSaving]         = useState(false);
-  const [formError, setFormError]   = useState('');
-  const [notFound, setNotFound]     = useState(false);
+  const [service, setService] = useState<ApiService | null>(null);
+  const [form, setForm] = useState(emptyForm);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    const svc = serviceStore.getById(id);
-    if (!svc) { setNotFound(true); setLoading(false); return; }
-    setOriginal(svc);
-    setForm({
-      name:        svc.name,
-      category:    svc.category,
-      description: svc.description,
-      priceMin:    svc.priceMin,
-      priceMax:    svc.priceMax,
-      priceUnit:   svc.priceUnit,
-    });
-    setSlug(svc.slug);
-    setImages(svc.images.map((url, i) => ({ preview: url, primary: i === 0, isNew: false })));
-    setLoading(false);
+    const load = async () => {
+      if (!id) return;
+      try {
+        setLoading(true);
+        setError("");
+        const data = await vendorApi.services.get<ApiService>(id);
+        setService(data);
+        setForm({
+          vendorId: data.vendorId || "",
+          categoryId: data.categoryId || "",
+          title: data.title || "",
+          description: data.description || "",
+          city: data.city || "",
+          amount: String(data.price?.amount ?? ""),
+          currency: data.price?.currency || "AED",
+          priceMax: String(data.price_max ?? data.price?.amount ?? ""),
+          priceUnit: data.price_unit || "per event",
+          imageUrl: data.image_url || "",
+          status: data.status || "ACTIVE",
+        });
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to load service");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    void load();
   }, [id]);
 
-  // Auto-sync slug only if not manually edited
-  useEffect(() => {
-    if (!slugManual && original) setSlug(generateSlug(form.name));
-  }, [form.name, slugManual, original]);
-
-  const set = (key: keyof typeof form, val: string | number) => {
-    setForm(f => ({ ...f, [key]: val }));
-    setFormError('');
+  const set = (key: keyof typeof form, value: string) => {
+    setForm((current) => ({ ...current, [key]: value }));
+    setError("");
   };
 
-  const onFilesSelected = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const picked = Array.from(e.target.files ?? []);
-    if (!picked.length) return;
-    const next: PreviewFile[] = picked.map((file, i) => ({
-      preview: URL.createObjectURL(file),
-      primary: images.length === 0 && i === 0,
-      isNew: true,
-    }));
-    setImages(prev => [...prev, ...next]);
-    e.target.value = '';
-  }, [images.length]);
-
-  const removeImage = (idx: number) => {
-    setImages(prev => {
-      const next = prev.filter((_, i) => i !== idx);
-      if (prev[idx].primary && next.length > 0) next[0].primary = true;
-      return [...next];
-    });
-  };
-
-  const setPrimary = (idx: number) => {
-    setImages(prev => prev.map((img, i) => ({ ...img, primary: i === idx })));
+  const uploadImage = async (file?: File) => {
+    if (!file) return;
+    try {
+      setUploading(true);
+      const result = await vendorApi.uploads.image(file, "services");
+      set("imageUrl", result.url);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Image upload failed");
+    } finally {
+      setUploading(false);
+    }
   };
 
   const validate = () => {
-    if (!form.name.trim())        return 'Service name is required.';
-    if (!form.description.trim()) return 'Description is required.';
-    if (!form.priceMin || !form.priceMax) return 'Price range is required.';
-    if (Number(form.priceMin) > Number(form.priceMax)) return 'Min price cannot exceed max price.';
-    return '';
+    if (!form.vendorId) return "Vendor ID is missing.";
+    if (!form.categoryId) return "Category ID is missing.";
+    if (!form.title.trim()) return "Service title is required.";
+    if (!form.description.trim()) return "Description is required.";
+    if (!form.city.trim()) return "City is required.";
+    if (!form.amount || Number(form.amount) <= 0) return "Valid price is required.";
+    if (form.priceMax && Number(form.priceMax) < Number(form.amount)) return "Max price cannot be less than base price.";
+    return "";
   };
 
-  const handleSave = () => {
-    const err = validate();
-    if (err) { setFormError(err); return; }
-    setSaving(true);
+  const save = async () => {
+    if (!id) return;
+    const validationError = validate();
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
 
-    const finalSlug = generateSlug(slug) || generateSlug(form.name);
-    const updated: ServiceWithSlug = {
-      ...original!,
-      name:        form.name.trim(),
-      category:    form.category,
-      description: form.description.trim(),
-      priceMin:    Number(form.priceMin),
-      priceMax:    Number(form.priceMax),
-      priceUnit:   form.priceUnit,
-      slug:        finalSlug,
-      images:      images.map(i => i.preview),
-    };
-
-    serviceStore.save(updated);
-    sessionStorage.setItem('svc_success', `"${updated.name}" updated successfully!`);
-    router.push('/vendor/services');
+    try {
+      setSaving(true);
+      setError("");
+      await vendorApi.services.update(id, {
+        vendorId: form.vendorId,
+        categoryId: form.categoryId,
+        title: form.title.trim(),
+        description: form.description.trim(),
+        city: form.city.trim(),
+        price: {
+          amount: Number(form.amount),
+          currency: form.currency,
+        },
+        priceMax: form.priceMax ? Number(form.priceMax) : Number(form.amount),
+        priceUnit: form.priceUnit,
+        imageUrl: form.imageUrl,
+        status: form.status,
+      });
+      router.push("/vendor/services");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to update service");
+    } finally {
+      setSaving(false);
+    }
   };
 
-  if (loading) return (
-    <div className="max-w-2xl mx-auto text-center py-20">
-      <Loader2 size={24} className="animate-spin text-orange-400 mx-auto" />
-      <p className="text-gray-400 text-sm mt-3">Loading service…</p>
-    </div>
-  );
+  if (loading) {
+    return (
+      <div className="max-w-2xl mx-auto text-center py-20">
+        <Loader2 size={24} className="animate-spin text-orange-400 mx-auto" />
+        <p className="text-gray-400 text-sm mt-3">Loading service...</p>
+      </div>
+    );
+  }
 
-  if (notFound) return (
-    <div className="max-w-2xl mx-auto text-center py-20">
-      <p className="text-gray-500">Service not found. ID: <code className="bg-gray-100 px-2 py-0.5 rounded text-sm">{id}</code></p>
-      <button onClick={() => router.push('/vendor/services')} className="mt-4 text-orange-500 text-sm underline">Back to Services</button>
-    </div>
-  );
+  if (!service && error) {
+    return (
+      <div className="max-w-2xl mx-auto text-center py-20">
+        <div className="bg-red-50 border border-red-200 rounded-2xl p-6">
+          <AlertTriangle size={32} className="text-red-500 mx-auto mb-3" />
+          <p className="text-gray-800 font-semibold">Service not found</p>
+          <p className="text-sm text-gray-500 mt-1">ID: {id}</p>
+          <button onClick={() => router.push("/vendor/services")} className="mt-4 text-orange-500 text-sm underline">
+            Back to Services
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
-      {/* Header */}
+    <div className="max-w-3xl mx-auto space-y-6">
       <div className="flex items-center gap-4">
-        <button onClick={() => router.back()}
-          className="p-2 rounded-xl border border-gray-200 text-gray-500 hover:bg-gray-50 transition-colors">
+        <button onClick={() => router.back()} className="p-2 rounded-xl border border-gray-200 text-gray-500 hover:bg-gray-50 transition-colors">
           <ArrowLeft size={18} />
         </button>
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Edit Service</h1>
           <p className="text-sm text-gray-500 mt-0.5">
-            {original?.id} &middot; Editing: <span className="font-medium">{original?.name}</span>
+            {id} {service?.category ? `- ${service.category}` : ""}
           </p>
         </div>
       </div>
 
-      {/* URL breadcrumb */}
-      <div className="bg-orange-50 border border-orange-100 rounded-xl px-4 py-2.5 flex items-center gap-2 text-sm">
-        <Link2 size={13} className="text-orange-400" />
-        <span className="text-orange-600 font-medium">Edit URL:</span>
-        <code className="text-orange-700 font-mono text-xs">/vendor/services/edit/{id}</code>
-      </div>
-
-      {formError && (
+      {error && (
         <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-xl">
-          <AlertTriangle size={15} /> {formError}
+          <AlertTriangle size={15} /> {error}
         </div>
       )}
 
       <div className="bg-white rounded-2xl border border-gray-100 divide-y divide-gray-50">
-
-        {/* Basic Info */}
         <div className="p-6 space-y-4">
           <h2 className="font-semibold text-gray-800 text-sm uppercase tracking-wide">Basic Information</h2>
-
-          <div>
-            <label className="text-xs font-semibold text-gray-700 mb-1.5 block">Service Name *</label>
-            <input value={form.name} onChange={e => set('name', e.target.value)}
-              className="w-full px-4 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-orange-400"
-            />
-          </div>
-
-          {/* Slug field */}
-          <div>
-            <label className="text-xs font-semibold text-gray-700 mb-1.5 flex items-center gap-1.5">
-              <Link2 size={11} /> URL Slug
-              <span className="text-gray-400 font-normal ml-1">(auto-generated from name)</span>
-            </label>
-            <div className="flex items-center border border-gray-200 rounded-xl overflow-hidden focus-within:ring-2 focus-within:ring-orange-200 focus-within:border-orange-400">
-              <span className="px-3 py-2.5 bg-gray-50 text-gray-400 text-xs border-r border-gray-200 shrink-0">/services/</span>
-              <input
-                value={slug}
-                onChange={e => { setSlug(e.target.value); setSlugManual(true); }}
-                className="flex-1 px-3 py-2.5 text-sm focus:outline-none font-mono text-gray-700"
-              />
-              {slugManual && (
-                <button onClick={() => { setSlugManual(false); setSlug(generateSlug(form.name)); }}
-                  className="px-3 py-2.5 text-xs text-orange-500 hover:text-orange-600 border-l border-gray-200 shrink-0">
-                  Reset
-                </button>
-              )}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="text-xs font-semibold text-gray-700 mb-1.5 block">Vendor ID</label>
+              <input value={form.vendorId} onChange={(event) => set("vendorId", event.target.value)} className="w-full px-4 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-orange-400 font-mono" />
             </div>
-            {slug && <p className="text-xs text-gray-400 mt-1">View page: <span className="font-mono text-orange-600">/vendor/services/view/{slug}</span></p>}
+            <div>
+              <label className="text-xs font-semibold text-gray-700 mb-1.5 block">Category ID</label>
+              <input value={form.categoryId} onChange={(event) => set("categoryId", event.target.value)} className="w-full px-4 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-orange-400 font-mono" />
+              {service?.category && <p className="text-xs text-gray-400 mt-1">Current category: {service.category}</p>}
+            </div>
           </div>
 
           <div>
-            <label className="text-xs font-semibold text-gray-700 mb-1.5 block">Category *</label>
-            <select value={form.category} onChange={e => set('category', e.target.value)}
-              className="w-full px-4 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-orange-400">
-              {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
-            </select>
+            <label className="text-xs font-semibold text-gray-700 mb-1.5 block">Service Title *</label>
+            <input value={form.title} onChange={(event) => set("title", event.target.value)} className="w-full px-4 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-orange-400" />
+          </div>
+
+          <div>
+            <label className="text-xs font-semibold text-gray-700 mb-1.5 block">City *</label>
+            <input value={form.city} onChange={(event) => set("city", event.target.value)} className="w-full px-4 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-orange-400" />
           </div>
 
           <div>
             <label className="text-xs font-semibold text-gray-700 mb-1.5 block">Description *</label>
-            <textarea value={form.description} onChange={e => set('description', e.target.value)}
-              rows={4}
-              className="w-full px-4 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-orange-400 resize-none"
-            />
+            <textarea value={form.description} onChange={(event) => set("description", event.target.value)} rows={4} className="w-full px-4 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-orange-400 resize-none" />
           </div>
         </div>
 
-        {/* Pricing */}
         <div className="p-6 space-y-4">
           <h2 className="font-semibold text-gray-800 text-sm uppercase tracking-wide">Pricing</h2>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
             <div>
-              <label className="text-xs font-semibold text-gray-700 mb-1.5 block">Min Price (AED) *</label>
-              <input type="number" min="0" value={form.priceMin || ''}
-                onChange={e => set('priceMin', e.target.value)} placeholder="1000"
-                className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-orange-400"
-              />
+              <label className="text-xs font-semibold text-gray-700 mb-1.5 block">Base Price *</label>
+              <input type="number" min="0" value={form.amount} onChange={(event) => set("amount", event.target.value)} className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-orange-400" />
             </div>
             <div>
-              <label className="text-xs font-semibold text-gray-700 mb-1.5 block">Max Price (AED) *</label>
-              <input type="number" min="0" value={form.priceMax || ''}
-                onChange={e => set('priceMax', e.target.value)} placeholder="5000"
-                className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-orange-400"
-              />
+              <label className="text-xs font-semibold text-gray-700 mb-1.5 block">Max Price</label>
+              <input type="number" min="0" value={form.priceMax} onChange={(event) => set("priceMax", event.target.value)} className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-orange-400" />
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-gray-700 mb-1.5 block">Currency</label>
+              <select value={form.currency} onChange={(event) => set("currency", event.target.value)} className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-orange-400">
+                {CURRENCIES.map((currency) => <option key={currency} value={currency}>{currency}</option>)}
+              </select>
             </div>
             <div>
               <label className="text-xs font-semibold text-gray-700 mb-1.5 block">Unit</label>
-              <select value={form.priceUnit} onChange={e => set('priceUnit', e.target.value)}
-                className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-orange-400">
-                {PRICE_UNITS.map(u => <option key={u} value={u}>{u}</option>)}
+              <select value={form.priceUnit} onChange={(event) => set("priceUnit", event.target.value)} className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-orange-400">
+                {PRICE_UNITS.map((unit) => <option key={unit} value={unit}>{unit}</option>)}
               </select>
             </div>
           </div>
-          {form.priceMin && form.priceMax && Number(form.priceMin) <= Number(form.priceMax) && (
-            <div className="bg-orange-50 border border-orange-100 rounded-xl px-4 py-3 text-sm text-orange-700">
-              Price range: <strong>AED {Number(form.priceMin).toLocaleString()} – {Number(form.priceMax).toLocaleString()}</strong> {form.priceUnit}
-            </div>
-          )}
         </div>
 
-        {/* Images */}
-        <div className="p-6 space-y-3">
-          <div className="flex items-center justify-between">
-            <h2 className="font-semibold text-gray-800 text-sm uppercase tracking-wide">
-              Images {images.length > 0 && <span className="text-orange-500 ml-1">({images.length})</span>}
-            </h2>
-            {images.length > 0 && <p className="text-xs text-gray-400">★ = primary image</p>}
-          </div>
-
-          {images.length > 0 && (
-            <div className="grid grid-cols-3 gap-3">
-              {images.map((img, idx) => (
-                <div key={idx} className={`relative group rounded-xl overflow-hidden aspect-square ${img.isNew ? 'border-2 border-dashed border-orange-300' : 'border border-gray-100'}`}>
-                  <img src={img.preview} alt="" className="w-full h-full object-cover" />
-                  {img.primary && (
-                    <span className="absolute top-1.5 left-1.5 bg-orange-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-md">Primary</span>
-                  )}
-                  {img.isNew && (
-                    <span className="absolute bottom-1.5 right-1.5 bg-orange-400/80 text-white text-[10px] px-1.5 py-0.5 rounded-md">New</span>
-                  )}
-                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                    {!img.primary && (
-                      <button onClick={() => setPrimary(idx)} className="p-1.5 bg-white/90 rounded-lg text-orange-500 hover:bg-white transition-colors">
-                        <Star size={14} />
-                      </button>
-                    )}
-                    <button onClick={() => removeImage(idx)} className="p-1.5 bg-white/90 rounded-lg text-red-500 hover:bg-white transition-colors">
-                      <X size={14} />
-                    </button>
-                  </div>
+        <div className="p-6 space-y-4">
+          <h2 className="font-semibold text-gray-800 text-sm uppercase tracking-wide">Image & Status</h2>
+          <div className="flex flex-col md:flex-row gap-4">
+            <div className="w-full md:w-40">
+              {form.imageUrl ? (
+                <div className="relative w-40 h-40 rounded-xl overflow-hidden border border-gray-100">
+                  <img src={form.imageUrl} alt={form.title} className="w-full h-full object-cover" />
+                  <button onClick={() => set("imageUrl", "")} className="absolute top-2 right-2 p-1.5 bg-white/90 rounded-lg text-red-500 hover:bg-white">
+                    <X size={14} />
+                  </button>
                 </div>
-              ))}
-              <button onClick={() => fileRef.current?.click()}
-                className="aspect-square border-2 border-dashed border-gray-200 rounded-xl flex flex-col items-center justify-center gap-1 text-gray-400 hover:border-orange-300 hover:text-orange-400 transition-colors">
-                <ImagePlus size={20} />
-                <span className="text-xs">Add more</span>
-              </button>
+              ) : (
+                <button onClick={() => fileRef.current?.click()} className="w-40 h-40 border-2 border-dashed border-gray-200 rounded-xl flex flex-col items-center justify-center gap-2 text-gray-400 hover:border-orange-300 hover:text-orange-400">
+                  <ImagePlus size={24} />
+                  <span className="text-xs">Upload image</span>
+                </button>
+              )}
             </div>
-          )}
-
-          {images.length === 0 && (
-            <button onClick={() => fileRef.current?.click()}
-              className="w-full border-2 border-dashed border-gray-200 rounded-2xl h-36 flex flex-col items-center justify-center gap-2 text-gray-400 hover:border-orange-300 hover:text-orange-400 transition-colors">
-              <ImagePlus size={28} />
-              <p className="text-sm font-medium">Click to upload images</p>
-            </button>
-          )}
-
-          <input ref={fileRef} type="file" accept="image/*" multiple className="hidden" onChange={onFilesSelected} />
+            <div className="flex-1 space-y-4">
+              <div>
+                <label className="text-xs font-semibold text-gray-700 mb-1.5 block">Image URL</label>
+                <input value={form.imageUrl} onChange={(event) => set("imageUrl", event.target.value)} className="w-full px-4 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-orange-400" />
+              </div>
+              <button type="button" onClick={() => fileRef.current?.click()} disabled={uploading} className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-orange-200 text-orange-600 text-sm font-semibold hover:bg-orange-50 disabled:opacity-60">
+                {uploading ? <Loader2 size={15} className="animate-spin" /> : <ImagePlus size={15} />}
+                {uploading ? "Uploading..." : "Upload New Image"}
+              </button>
+              <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={(event) => uploadImage(event.target.files?.[0])} />
+              <div>
+                <label className="text-xs font-semibold text-gray-700 mb-1.5 block">Status</label>
+                <select value={form.status} onChange={(event) => set("status", event.target.value)} className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-orange-400">
+                  <option value="ACTIVE">Active</option>
+                  <option value="INACTIVE">Inactive</option>
+                  <option value="DRAFT">Draft</option>
+                </select>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Actions */}
       <div className="flex gap-3 pb-6">
-        <button onClick={() => router.back()}
-          className="flex-1 py-3 rounded-xl border border-gray-200 text-gray-600 font-medium hover:bg-gray-50 transition-colors">
+        <button type="button" onClick={() => router.back()} className="flex-1 py-3 rounded-xl border border-gray-200 text-gray-600 font-medium hover:bg-gray-50 transition-colors">
           Cancel
         </button>
-        <button onClick={handleSave} disabled={saving}
-          className="flex-1 py-3 rounded-xl bg-orange-500 hover:bg-orange-600 disabled:opacity-60 text-white font-semibold transition-colors flex items-center justify-center gap-2">
-          {saving ? <><Loader2 size={16} className="animate-spin" /> Saving…</> : <><CheckCircle2 size={16} /> Save Changes</>}
+        <button type="button" onClick={save} disabled={saving || uploading} className="flex-1 py-3 rounded-xl bg-orange-500 hover:bg-orange-600 disabled:opacity-60 text-white font-semibold transition-colors flex items-center justify-center gap-2">
+          {saving ? <><Loader2 size={16} className="animate-spin" /> Saving...</> : <><Save size={16} /> Save Changes</>}
         </button>
       </div>
     </div>

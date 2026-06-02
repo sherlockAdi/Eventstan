@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Put } from '@nestjs/common';
 import { ApiCreatedResponse, ApiOkResponse, ApiTags } from '@nestjs/swagger';
 import { CreatePackageDto } from './dto/create-package.dto';
 import { PackagesService } from './packages.service';
@@ -18,5 +18,20 @@ export class PackagesController {
   @ApiOkResponse({ description: 'Lists active packages.' })
   findAll() {
     return this.packages.findAll();
+  }
+
+  @Put(':id')
+  update(@Param('id') id: string, @Body() dto: Partial<CreatePackageDto> & { status?: string }) {
+    return this.packages.update(id, dto);
+  }
+
+  @Patch(':id')
+  updatePartial(@Param('id') id: string, @Body() dto: Partial<CreatePackageDto> & { status?: string }) {
+    return this.packages.update(id, dto);
+  }
+
+  @Delete(':id')
+  delete(@Param('id') id: string) {
+    return this.packages.delete(id);
   }
 }

@@ -34,11 +34,46 @@ export class PackagesService {
 
   async findAll() {
     const packages = await this.prisma.eventPackage.findMany({
-      where: { status: ListingStatus.ACTIVE },
       include: this.packageInclude,
       orderBy: { createdAt: 'desc' },
     });
     return packages.map((item) => this.toCustomerPackage(item));
+  }
+
+  async update(id: string, dto: Partial<CreatePackageDto> & { status?: string }) {
+    if (dto.itemIds?.length) {
+      const services = await this.prisma.vendorService.findMany({
+        where: { id: { in: dto.itemIds } },
+      });
+      const missingService = dto.itemIds.find((serviceId) => !services.some((service) => service.id === serviceId));
+      if (missingService) throw new NotFoundException(`Package item not found: ${missingService}`);
+    }
+
+    const updated = await this.prisma.eventPackage.update({
+      where: { id },
+      data: {
+        ...(dto.title ? { title: dto.title } : {}),
+        ...(dto.description ? { description: dto.description } : {}),
+        ...(dto.price ? { amount: dto.price.amount, currency: dto.price.currency } : {}),
+        ...(dto.status ? { status: dto.status as ListingStatus } : {}),
+        ...(dto.itemIds
+          ? {
+              items: {
+                deleteMany: {},
+                create: dto.itemIds.map((serviceId) => ({ serviceId })),
+              },
+            }
+          : {}),
+      },
+      include: this.packageInclude,
+    });
+
+    return this.toCustomerPackage(updated);
+  }
+
+  async delete(id: string) {
+    await this.prisma.packageItem.deleteMany({ where: { packageId: id } });
+    return this.prisma.eventPackage.delete({ where: { id } });
   }
 
   private readonly packageInclude = {
