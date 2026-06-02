@@ -9,10 +9,13 @@ import {
   Calendar, Users, MapPin, Phone, Mail, Briefcase
 } from 'lucide-react';
 import Link from 'next/link';
+import type { Booking, BookingStatus } from '@/lib/types';
 import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis,
   CartesianGrid, Tooltip, ResponsiveContainer
 } from 'recharts';
+
+type DashboardBooking = Booking & { rejectionReason?: string };
 
 const statusColor: Record<string, string> = {
   'Pending': 'bg-amber-50 text-amber-700 border border-amber-200',
@@ -32,12 +35,12 @@ function getGreeting() {
 
 export default function DashboardPage() {
   const [firstName, setFirstName] = useState('');
-  const [selectedBooking, setSelectedBooking] = useState<any>(null);
+  const [selectedBooking, setSelectedBooking] = useState<DashboardBooking | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [showRejectDialog, setShowRejectDialog] = useState(false);
   const [rejectionReason, setRejectionReason] = useState('');
-  const [bookings, setBookings] = useState(mockBookings);
+  const [bookings, setBookings] = useState<DashboardBooking[]>(mockBookings);
   
   const recentBookings = bookings.slice(0, 5);
 
@@ -46,7 +49,7 @@ export default function DashboardPage() {
     if (user) setFirstName(user.firstName);
   }, []);
 
-  const handleBookingClick = (booking: any) => {
+  const handleBookingClick = (booking: DashboardBooking) => {
     setSelectedBooking(booking);
     setShowModal(true);
   };
@@ -61,9 +64,10 @@ export default function DashboardPage() {
 
   const confirmAccept = () => {
     if (selectedBooking) {
-      const updatedBookings = bookings.map(booking =>
+      const confirmedStatus: BookingStatus = 'Confirmed';
+      const updatedBookings = bookings.map((booking): DashboardBooking =>
         booking.id === selectedBooking.id
-          ? { ...booking, status: 'Confirmed' }
+          ? { ...booking, status: confirmedStatus }
           : booking
       );
       setBookings(updatedBookings);
@@ -76,9 +80,10 @@ export default function DashboardPage() {
 
   const confirmReject = () => {
     if (selectedBooking && rejectionReason.trim()) {
-      const updatedBookings = bookings.map(booking =>
+      const rejectedStatus: BookingStatus = 'Rejected (Vendor)';
+      const updatedBookings = bookings.map((booking): DashboardBooking =>
         booking.id === selectedBooking.id
-          ? { ...booking, status: 'Rejected (Vendor)', rejectionReason: rejectionReason }
+          ? { ...booking, status: rejectedStatus, rejectionReason: rejectionReason }
           : booking
       );
       setBookings(updatedBookings);

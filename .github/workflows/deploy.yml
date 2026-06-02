@@ -26,30 +26,33 @@ jobs:
             git pull origin main
 
             # API
+
             cd Api
             npm install --force
             npm run build
             pm2 restart eventstan-api || pm2 start dist/main.js --name eventstan-api
 
-            # Admin Panel
+            # Admin Panel (3001)
+
             cd ../Enentatan_Admin_Panel
             npm install --force
             npm run build
-            pm2 restart eventstan-admin || pm2 start npm --name eventstan-admin -- start
+            PORT=3001 pm2 restart eventstan-admin || PORT=3001 pm2 start npm --name eventstan-admin -- start
 
-            # Customer Panel
+            # Customer Panel (3002)
+
             cd ../Enentstan_Customer_Panel
             npm install --force
             npm run build
-            pm2 restart eventstan-customer || pm2 start npm --name eventstan-customer -- start
+            PORT=3002 pm2 restart eventstan-customer || PORT=3002 pm2 start npm --name eventstan-customer -- start
 
-            # Vendor Panel
+            # Vendor Panel (3003)
+
             cd ../Enentstan_Vendor_Pannel
             npm install --force
             npm run build
-            pm2 restart eventstan-vendor || pm2 start npm --name eventstan-vendor -- start
+            PORT=3003 pm2 restart eventstan-vendor || PORT=3003 pm2 start npm --name eventstan-vendor -- start
 
             pm2 save
 
             systemctl restart nginx
-
