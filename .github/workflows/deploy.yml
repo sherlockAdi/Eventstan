@@ -21,7 +21,7 @@ jobs:
           script: |
             set -e
 
-            cd /var/www/EventstanApi
+            cd /var/www/Eventstan
 
             git pull origin main
 
