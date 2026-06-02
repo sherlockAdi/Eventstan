@@ -15,7 +15,7 @@ import {
   AlertTriangle,
   DollarSign,
 } from 'lucide-react';
-import { BASE_URL } from '@/lib/constants';
+import { vendorApi } from '@/api/vendorApi';
 
 interface SubService {
   id: string;
@@ -74,27 +74,10 @@ export default function ServiceDetailPage() {
         setLoading(true);
         setError(null);
 
-        const token = localStorage.getItem('vendor_token');
-
-        const response = await fetch(`${BASE_URL}/api/v1/services/${id}`, {
-          method: 'GET',
-          headers: {
-            'Accept': 'application/json',
-            'Content-Type': 'application/json',
-            ...(token && { Authorization: `Bearer ${token}` }),
-          },
-        });
-
-        if (!response.ok) {
-          if (response.status === 404) throw new Error('Service not found');
-          if (response.status === 401) throw new Error('Unauthorized. Please login again.');
-          throw new Error(`Failed to fetch service: ${response.status}`);
-        }
-
-        const data = await response.json();
+        const data = await vendorApi.services.get(id);
         setService(data);
-      } catch (err: any) {
-        setError(err.message || 'Failed to load service');
+      } catch (err: unknown) {
+        setError(err instanceof Error ? err.message : 'Failed to load service');
       } finally {
         setLoading(false);
       }

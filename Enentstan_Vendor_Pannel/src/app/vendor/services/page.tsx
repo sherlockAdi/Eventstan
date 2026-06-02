@@ -20,7 +20,7 @@ import {
   Loader2,
   ChevronsUpDown,
 } from "lucide-react";
-import { BASE_URL } from "@/lib/constants";
+import { vendorApi } from "@/api/vendorApi";
 
 type SortKey = "title" | "categoryId" | "priceMin" | "status" | "city";
 type SortDir = "asc" | "desc";
@@ -173,20 +173,7 @@ export default function ServicesPage() {
   const fetchServices = async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem("vendor_token");
-      const controller = new AbortController();
-      const response = await fetch(`${BASE_URL}/api/v1/services`, {
-        signal: controller.signal,
-        cache: "no-store",
-        headers: {
-          Accept: "application/json",
-          ...(token && { Authorization: `Bearer ${token}` }),
-        },
-      });
-      if (!response.ok) {
-        throw new Error(`Failed to fetch services: ${response.status}`);
-      }
-      const data = await response.json();
+      const data = await vendorApi.services.list();
       setServices(data);
       setError(null);
     } catch (err) {
@@ -199,18 +186,7 @@ export default function ServicesPage() {
   const handleDelete = async () => {
     if (!deleteTarget) return;
     try {
-      const token = localStorage.getItem("vendor_token");
-      const response = await fetch(
-        `${BASE_URL}/api/v1/services/${deleteTarget.id}`,
-        {
-          method: "DELETE",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-        },
-      );
-      if (!response.ok) throw new Error("Failed to delete service");
+      await vendorApi.services.delete(deleteTarget.id);
       setServices((prev) => prev.filter((item) => item.id !== deleteTarget.id));
       setDeleteTarget(null);
       setSuccess(`"${deleteTarget.title}" deleted.`);
@@ -226,19 +202,7 @@ export default function ServicesPage() {
     try {
       const newStatus =
         toggleTarget.status === "ACTIVE" ? "INACTIVE" : "ACTIVE";
-      const token = localStorage.getItem("vendor_token");
-      const response = await fetch(
-        `${BASE_URL}/api/v1/services/${toggleTarget.id}`,
-        {
-          method: "PATCH",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ status: newStatus }),
-        },
-      );
-      if (!response.ok) throw new Error("Failed to update service status");
+      await vendorApi.services.updateStatus(toggleTarget.id, newStatus);
       await fetchServices();
       setServices((prev) =>
         prev.map((item) =>

@@ -9,7 +9,7 @@ import Button from '@/components/admin/Button';
 import Input from '@/components/admin/Input';
 import StatsCard from '@/components/admin/StatsCard';
 import { Column } from '@/lib/types';
-import { BASE_API_URL } from '@/lib/constants';
+import { adminApi } from '@/api/adminApi';
 import toast from 'react-hot-toast';
 
 interface Coupon { 
@@ -65,8 +65,7 @@ export default function CouponsPage() {
   const fetchCoupons = async () => {
     setLoading(true);
     try {
-      const response = await fetch(`${BASE_API_URL}coupons`);
-      const apiData = await response.json();
+      const apiData = await adminApi.coupons.list();
       
       const convertedApiData: Coupon[] = apiData.map((apiCoupon: any, index: number) => ({
         id: apiCoupon.id,
@@ -108,24 +107,10 @@ export default function CouponsPage() {
         active: couponData.active
       };
 
-      const response = await fetch(`${BASE_API_URL}coupons`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-      });
-      
-      if (response.ok) {
-        const newCoupon = await response.json();
-        toast.success('Coupon created successfully!');
-        fetchCoupons();
-        return newCoupon;
-      } else {
-        const error = await response.json();
-        toast.error(error.message || 'Failed to create coupon');
-        return null;
-      }
+      const newCoupon = await adminApi.coupons.create(payload);
+      toast.success('Coupon created successfully!');
+      fetchCoupons();
+      return newCoupon;
     } catch (error) {
       console.error('Error creating coupon:', error);
       toast.error('Failed to create coupon');
@@ -137,24 +122,14 @@ export default function CouponsPage() {
     setValidating(true);
     setValidationResult(null);
     try {
-      const response = await fetch(`${BASE_API_URL}coupons/${code}/validate?amount=${amount}`);
-      const data = await response.json();
-      
-      if (response.ok) {
-        setValidationResult({
-          valid: true,
-          message: 'Coupon is valid!',
-          discountAmount: data.discountAmount,
-          finalAmount: data.finalAmount
-        });
-        toast.success('Coupon validated successfully!');
-      } else {
-        setValidationResult({
-          valid: false,
-          message: data.message || 'Invalid coupon code'
-        });
-        toast.error(data.message || 'Invalid coupon code');
-      }
+      const data = await adminApi.coupons.validate(code, amount);
+      setValidationResult({
+        valid: true,
+        message: 'Coupon is valid!',
+        discountAmount: data.discountAmount,
+        finalAmount: data.finalAmount
+      });
+      toast.success('Coupon validated successfully!');
     } catch (error) {
       console.error('Error validating coupon:', error);
       setValidationResult({
@@ -169,22 +144,10 @@ export default function CouponsPage() {
 
   const updateCouponStatus = async (coupon: Coupon, newStatus: boolean) => {
     try {
-      const response = await fetch(`${BASE_API_URL}coupons/${coupon.id}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ active: newStatus }),
-      });
-      
-      if (response.ok) {
-        toast.success(`Coupon ${newStatus ? 'activated' : 'deactivated'} successfully!`);
-        fetchCoupons();
-        return true;
-      } else {
-        toast.error('Failed to update coupon status');
-        return false;
-      }
+      await adminApi.coupons.updateStatus(coupon.id!, newStatus);
+      toast.success(`Coupon ${newStatus ? 'activated' : 'deactivated'} successfully!`);
+      fetchCoupons();
+      return true;
     } catch (error) {
       console.error('Error updating coupon status:', error);
       toast.error('Failed to update coupon status');
@@ -194,18 +157,10 @@ export default function CouponsPage() {
 
   const deleteCoupon = async (couponId: string) => {
     try {
-      const response = await fetch(`${BASE_API_URL}coupons/${couponId}`, {
-        method: 'DELETE',
-      });
-      
-      if (response.ok) {
-        toast.success('Coupon deleted successfully!');
-        fetchCoupons();
-        return true;
-      } else {
-        toast.error('Failed to delete coupon');
-        return false;
-      }
+      await adminApi.coupons.delete(couponId);
+      toast.success('Coupon deleted successfully!');
+      fetchCoupons();
+      return true;
     } catch (error) {
       console.error('Error deleting coupon:', error);
       toast.error('Failed to delete coupon');

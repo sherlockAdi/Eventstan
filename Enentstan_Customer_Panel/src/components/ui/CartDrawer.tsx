@@ -30,18 +30,6 @@ export default function CartDrawer() {
 
   useEffect(() => setMounted(true), []);
 
-  useEffect(() => {
-    const missing = items
-      .filter((i) => !(typeof i.image_url === "string" && i.image_url.trim()))
-      .map((i) => ({ itemId: i.id, title: i.title, type: i.type }));
-
-    if (missing.length === 0) return;
-
-    // #region agent log
-    fetch('http://127.0.0.1:7390/ingest/a3e994ce-a9eb-43f3-b313-113a0ac6b299',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'55dc61'},body:JSON.stringify({sessionId:'55dc61',runId:'pre-fix',hypothesisId:'H-I',location:'src/components/ui/CartDrawer.tsx:useEffect',message:'Cart has items with missing image_url',data:{count:missing.length,missing},timestamp:Date.now()})}).catch(()=>{});
-    // #endregion
-  }, [items]);
-
   // Reset to cart step when drawer closes
   useEffect(() => {
     if (!isOpen) {

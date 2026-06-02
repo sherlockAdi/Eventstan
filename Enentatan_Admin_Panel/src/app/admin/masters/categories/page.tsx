@@ -8,7 +8,7 @@ import ConfirmModal from "@/components/admin/ConfirmModal";
 import Button from "@/components/admin/Button";
 import Input from "@/components/admin/Input";
 import { Column } from "@/lib/types";
-import { BASE_API_URL } from "@/lib/constants";
+import { adminApi } from "@/api/adminApi";
 import toast from "react-hot-toast";
 
 interface Category {
@@ -34,9 +34,7 @@ export default function CategoriesPage() {
   const fetchCategories = async (showToast = false) => {
     setLoading(true);
     try {
-      const response = await fetch(`${BASE_API_URL}master-data/categories`);
-      if (!response.ok) throw new Error('Failed to fetch categories');
-      const data = await response.json();
+      const data = await adminApi.categories.list();
       setCategories(data);
       if (showToast) {
         toast.success('Categories loaded successfully!');
@@ -54,16 +52,7 @@ export default function CategoriesPage() {
   // Add category to API
   const addCategoryToAPI = async (category: Omit<Category, 'id'>) => {
     try {
-      const response = await fetch(`${BASE_API_URL}master-data/categories`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(category),
-      });
-      
-      if (!response.ok) throw new Error('Failed to add category');
-      const data = await response.json();
+      const data = await adminApi.categories.create(category);
       return data;
     } catch (error) {
       console.error('Error adding category:', error);
@@ -74,16 +63,7 @@ export default function CategoriesPage() {
   // Update category in API
   const updateCategoryInAPI = async (id: string, category: Partial<Category>) => {
     try {
-      const response = await fetch(`${BASE_API_URL}master-data/categories/${id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(category),
-      });
-      
-      if (!response.ok) throw new Error('Failed to update category');
-      const data = await response.json();
+      const data = await adminApi.categories.update(id, category);
       return data;
     } catch (error) {
       console.error('Error updating category:', error);
@@ -94,11 +74,7 @@ export default function CategoriesPage() {
   // Delete category from API
   const deleteCategoryFromAPI = async (id: string) => {
     try {
-      const response = await fetch(`${BASE_API_URL}master-data/categories/${id}`, {
-        method: 'DELETE',
-      });
-      
-      if (!response.ok) throw new Error('Failed to delete category');
+      await adminApi.categories.delete(id);
       return true;
     } catch (error) {
       console.error('Error deleting category:', error);

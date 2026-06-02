@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { serviceStore, ServiceWithSlug } from '@/lib/store';
-import { BASE_URL } from '@/lib/constants';
+import { vendorApi } from '@/api/vendorApi';
 import {
   ArrowLeft, CheckCircle2, AlertTriangle, Search,
   CheckSquare, Square, Star, Layers, Percent, Info, X, ImageOff, ChevronDown,
@@ -27,6 +27,18 @@ interface ApiPackage {
     amount: number;
     currency: string;
   };
+}
+
+interface ApiService {
+  id: string;
+  title: string;
+  categoryId: string;
+  price: {
+    amount: number;
+    currency: string;
+  };
+  status: string;
+  description: string;
 }
 
 // ── Searchable Service Dropdown ─────────────────────────────────
@@ -333,29 +345,13 @@ export default function AddPackagePage() {
   const [formError, setFormError] = useState('');
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    fetchServices();
-  }, []);
-
   const fetchServices = async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem('vendor_token');
-      const response = await fetch(`${BASE_URL}/api/v1/services`, {
-        headers: {
-          'Accept': '*/*',
-          ...(token && { 'Authorization': `Bearer ${token}` })
-        }
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch services');
-      }
-
-      const data = await response.json();
+      const data = await vendorApi.services.list<ApiService[]>();
       
       // Transform API services to ServiceWithSlug format
-      const transformedServices: ServiceWithSlug[] = data.map((svc: any) => ({
+      const transformedServices: ServiceWithSlug[] = data.map((svc) => ({
         id: svc.id,
         name: svc.title,
         slug: svc.id,
@@ -378,6 +374,14 @@ export default function AddPackagePage() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    const timeout = window.setTimeout(() => {
+      void fetchServices();
+    }, 0);
+
+    return () => window.clearTimeout(timeout);
+  }, []);
 
   const set = (key: string, val: string) => { 
     setForm(f => ({ ...f, [key]: val })); 
@@ -439,7 +443,6 @@ export default function AddPackagePage() {
     setSaving(true);
     
     try {
-      const token = localStorage.getItem('vendor_token');
       const vendorData = localStorage.getItem('vendor_data');
       let vendorId = 'ven_luxe_events'; // Default vendor ID
       
@@ -465,22 +468,7 @@ export default function AddPackagePage() {
         }
       };
 
-      const response = await fetch(`${BASE_URL}/api/v1/packages`, {
-        method: 'POST',
-        headers: {
-          'Accept': '*/*',
-          'Content-Type': 'application/json',
-          ...(token && { 'Authorization': `Bearer ${token}` })
-        },
-        body: JSON.stringify(packageData)
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to create package');
-      }
-
-      const result = await response.json();
+      const result = await vendorApi.packages.create(packageData);
       console.log('Package created:', result);
       
       sessionStorage.setItem('pkg_success', `Package "${form.title}" created successfully!`);

@@ -8,7 +8,7 @@ import ConfirmModal from "@/components/admin/ConfirmModal";
 import Button from "@/components/admin/Button";
 import Input from "@/components/admin/Input";
 import { Column } from "@/lib/types";
-import { BASE_API_URL } from "@/lib/constants";
+import { adminApi } from "@/api/adminApi";
 import toast from "react-hot-toast";
 
 interface Country {
@@ -109,8 +109,7 @@ export default function CountriesPage() {
   const fetchCountries = async () => {
     try {
       setIsLoading(true);
-      const response = await fetch(`${BASE_API_URL}master-data/countries`);
-      const data = await response.json();
+      const data = await adminApi.countries.list();
       
       // Transform API data to our Country interface with auto-generated IDs
       const transformedData: Country[] = data.map((item: any, index: number) => ({

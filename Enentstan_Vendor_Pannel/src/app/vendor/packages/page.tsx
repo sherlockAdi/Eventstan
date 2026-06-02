@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { serviceStore, ServiceWithSlug } from '@/lib/store';
 import type { Package } from '@/lib/types';
-import { BASE_URL } from '@/lib/constants';
+import { vendorApi } from '@/api/vendorApi';
 import {
   Plus, Edit3, Trash2, Eye, ToggleLeft, ToggleRight,
   Layers, Search, Star, X, ChevronUp, ChevronDown,
@@ -26,6 +26,18 @@ interface ApiPackage {
     currency: string;
   };
   status: string;
+}
+
+interface ApiService {
+  id: string;
+  title: string;
+  categoryId: string;
+  price: {
+    amount: number;
+    currency: string;
+  };
+  status: string;
+  description: string;
 }
 
 // Extend for internal use
@@ -167,20 +179,7 @@ export default function PackagesPage() {
   const fetchPackages = async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem('vendor_token');
-      
-      const response = await fetch(`${BASE_URL}/api/v1/packages`, {
-        headers: {
-          'Accept': '*/*',
-          ...(token && { 'Authorization': `Bearer ${token}` })
-        }
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to fetch packages: ${response.status}`);
-      }
-
-      const data: ApiPackage[] = await response.json();
+      const data: ApiPackage[] = await vendorApi.packages.list();
       console.log('Fetched packages:', data);
       
       // Transform API data to internal format
@@ -203,18 +202,10 @@ export default function PackagesPage() {
 
   const fetchServices = async () => {
     try {
-      const token = localStorage.getItem('vendor_token');
-      const response = await fetch(`${BASE_URL}/api/v1/services`, {
-        headers: {
-          'Accept': '*/*',
-          ...(token && { 'Authorization': `Bearer ${token}` })
-        }
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
+      {
+        const data = await vendorApi.services.list<ApiService[]>();
         // Transform services data to match ServiceWithSlug format
-        const transformedServices = data.map((svc: any) => ({
+        const transformedServices = data.map((svc) => ({
           id: svc.id,
           name: svc.title,
           slug: svc.id,
@@ -239,18 +230,7 @@ export default function PackagesPage() {
     if (!deleteTarget) return;
     
     try {
-      const token = localStorage.getItem('vendor_token');
-      const response = await fetch(`${BASE_URL}/api/v1/packages/${deleteTarget.id}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to delete package');
-      }
+      await vendorApi.packages.delete(deleteTarget.id);
 
       await fetchPackages(); // Refresh the list
       setDeleteTarget(null);
@@ -268,20 +248,7 @@ export default function PackagesPage() {
     
     try {
       const newStatus = toggleTarget.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
-      const token = localStorage.getItem('vendor_token');
-      
-      const response = await fetch(`${BASE_URL}/api/v1/packages/${toggleTarget.id}`, {
-        method: 'PATCH',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ status: newStatus })
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to update package status');
-      }
+      await vendorApi.packages.updateStatus(toggleTarget.id, newStatus);
 
       await fetchPackages(); // Refresh the list
       setToggleTarget(null);

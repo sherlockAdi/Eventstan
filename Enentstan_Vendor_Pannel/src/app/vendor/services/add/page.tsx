@@ -6,7 +6,7 @@ import {
   ArrowLeft, AlertTriangle, CheckCircle2,
   Loader2, Plus, Trash2,
 } from 'lucide-react';
-import { BASE_URL } from '@/lib/constants';
+import { vendorApi } from '@/api/vendorApi';
 
 const CATEGORIES = [
   { id: 'cat_wedding', label: 'Wedding' },
@@ -45,6 +45,12 @@ interface SubServiceForm {
   priceCurrency: typeof CURRENCIES[number];
 }
 
+interface Country {
+  code: string;
+  name: string;
+  defaultCurrency: typeof CURRENCIES[number];
+}
+
 export default function AddServicePage() {
   const router = useRouter();
 
@@ -52,21 +58,18 @@ export default function AddServicePage() {
   const [subServices, setSubServices] = useState<SubServiceForm[]>([]);
   const [formError, setFormError] = useState('');
   const [saving, setSaving] = useState(false);
-  const [countries, setCountries] = useState<{code: string, name: string, defaultCurrency: string}[]>([]);
+  const [countries, setCountries] = useState<Country[]>([]);
 
   // Fetch countries to get default currency (optional)
   useEffect(() => {
     const fetchCountries = async () => {
       try {
-        const response = await fetch(`${BASE_URL}/api/v1/master-data/countries`);
-        if (response.ok) {
-          const data = await response.json();
-          setCountries(data);
-          // Set default currency from UAE if available
-          const uae = data.find((c: any) => c.code === 'AE');
-          if (uae && uae.defaultCurrency) {
-            setForm(f => ({ ...f, priceCurrency: uae.defaultCurrency }));
-          }
+        const data = await vendorApi.masterData.countries<Country[]>();
+        setCountries(data);
+        // Set default currency from UAE if available
+        const uae = data.find((c) => c.code === 'AE');
+        if (uae && uae.defaultCurrency) {
+          setForm(f => ({ ...f, priceCurrency: uae.defaultCurrency }));
         }
       } catch (err) {
         console.error('Error fetching countries:', err);
@@ -124,66 +127,40 @@ export default function AddServicePage() {
     setSaving(true);
 
     try {
-      const token = localStorage.getItem('vendor_token');
       const selectedCity = CITIES.find(c => c.id === form.cityId);
       const cityName = selectedCity ? selectedCity.name : form.cityId;
 
-      const response = await fetch(`${BASE_URL}/api/v1/services`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          ...(token && { Authorization: `Bearer ${token}` }),
+      const createdService = await vendorApi.services.create({
+        vendorId: form.vendorId,
+        categoryId: form.categoryId,
+        title: form.title.trim(),
+        description: form.description.trim(),
+        city: cityName,
+        price: {
+          amount: Number(form.priceAmount),
+          currency: form.priceCurrency,
         },
-        body: JSON.stringify({
-          vendorId: form.vendorId,
-          categoryId: form.categoryId,
-          title: form.title.trim(),
-          description: form.description.trim(),
-          city: cityName,
-          price: {
-            amount: Number(form.priceAmount),
-            currency: form.priceCurrency,
-          },
-        }),
       });
-
-      if (!response.ok) {
-        const errData = await response.json().catch(() => ({}));
-        throw new Error(errData?.message || `Failed to create service (${response.status})`);
-      }
-
-      const createdService = await response.json();
       const serviceId = createdService.id;
 
       if (subServices.length > 0) {
         await Promise.all(
           subServices.map(sub =>
-            fetch(`${BASE_URL}/api/v1/services/${serviceId}/sub-services`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json',
-                ...(token && { Authorization: `Bearer ${token}` }),
-              },
-              body: JSON.stringify({
+            vendorApi.services.createSubService(serviceId, {
                 title: sub.title.trim(),
                 description: sub.description.trim(),
                 price: {
                   amount: Number(sub.priceAmount),
                   currency: sub.priceCurrency,
                 },
-              }),
-            }).then(r => {
-              if (!r.ok) throw new Error(`Failed to create sub-service: ${sub.title}`);
-            })
+              })
           )
         );
       }
 
       router.push('/vendor/services');
-    } catch (err: any) {
-      setFormError(err.message || 'Failed to create service. Please try again.');
+    } catch (err: unknown) {
+      setFormError(err instanceof Error ? err.message : 'Failed to create service. Please try again.');
     } finally {
       setSaving(false);
     }
@@ -326,7 +303,7 @@ export default function AddServicePage() {
 
           {subServices.length === 0 ? (
             <p className="text-xs text-gray-400 italic">
-              No sub-services added. Click "Add Sub-Service" to include packages or variants.
+              No sub-services added. Click &quot;Add Sub-Service&quot; to include packages or variants.
             </p>
           ) : (
             <div className="space-y-4">

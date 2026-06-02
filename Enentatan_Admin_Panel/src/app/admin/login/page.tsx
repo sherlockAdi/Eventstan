@@ -7,7 +7,7 @@ import {
   Shield, ArrowRight, CheckCircle, LayoutDashboard, TrendingUp, Award,
 } from 'lucide-react';
 import { saveSession } from '@/lib/auth';
-import { BASE_API_URL } from '@/lib/constants';
+import { adminApi } from '@/api/adminApi';
 import toast from 'react-hot-toast';
 
 export default function LoginPage() {
@@ -24,28 +24,12 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const response = await fetch(`${BASE_API_URL}auth/login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-        body: JSON.stringify({
-          email: email.trim(),
-          password: password,
-        }),
+      const data = await adminApi.login({
+        email: email.trim(),
+        password,
       });
-      
-      const responseText = await response.text();
-      
-      let data;
-      try {
-        data = JSON.parse(responseText);
-      } catch (parseError) {
-        throw new Error('Invalid response format from server');
-      }
 
-      if (response.ok) {
+      {
         let token = null;
         let userData = null;
 
@@ -90,10 +74,6 @@ export default function LoginPage() {
         } else {
           throw new Error(`No token received from server. Response structure: ${Object.keys(data).join(', ')}`);
         }
-      } else {
-        const errorMessage = data.message || data.error || data.msg || 'Invalid email or password. Please try again.';
-        setError(errorMessage);
-        toast.error(errorMessage);
       }
     } catch (err: any) {
       console.error('Login error:', err);

@@ -7,7 +7,7 @@ import Modal from '@/components/admin/Modal';
 import ConfirmModal from '@/components/admin/ConfirmModal';
 import Button from '@/components/admin/Button';
 import Input from '@/components/admin/Input';
-import { BASE_API_URL } from '@/lib/constants';
+import { adminApi } from '@/api/adminApi';
 import toast from 'react-hot-toast';
 
 interface Vendor {
@@ -53,8 +53,7 @@ export default function VendorsPage() {
   const fetchVendors = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${BASE_API_URL}vendors`);
-      const data = await response.json();
+      const data = await adminApi.vendors.list();
       const vendorsWithSrNo = data.map((vendor: Vendor, index: number) => ({
         ...vendor,
         srNo: index + 1
@@ -84,22 +83,11 @@ export default function VendorsPage() {
   const confirmStatusChange = async () => {
     if (selected && pendingStatus) {
       try {
-        const response = await fetch(`${BASE_API_URL}vendors/${selected.id}/status`, {
-          method: 'PATCH',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ status: pendingStatus }),
-        });
-
-        if (response.ok) {
-          setVendors(vendors.map(v => 
-            v.id === selected.id ? { ...v, status: pendingStatus } : v
-          ));
-          toast.success(`Vendor ${pendingStatus === 'APPROVED' ? 'approved' : 'rejected'} successfully!`);
-        } else {
-          toast.error('Failed to update vendor status');
-        }
+        await adminApi.vendors.updateStatus(selected.id, pendingStatus);
+        setVendors(vendors.map(v => 
+          v.id === selected.id ? { ...v, status: pendingStatus } : v
+        ));
+        toast.success(`Vendor ${pendingStatus === 'APPROVED' ? 'approved' : 'rejected'} successfully!`);
       } catch (error) {
         console.error('Error updating status:', error);
         toast.error('Failed to update vendor status');
@@ -217,37 +205,13 @@ export default function VendorsPage() {
 
     try {
       if (selected) {
-        const response = await fetch(`${BASE_API_URL}vendors/${selected.id}`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(submitData),
-        });
-
-        if (response.ok) {
-          const updatedVendor = await response.json();
-          setVendors(vendors.map(v => v.id === selected.id ? { ...updatedVendor, srNo: v.srNo } : v));
-          toast.success('Vendor updated successfully!');
-        } else {
-          toast.error('Failed to update vendor');
-        }
+        const updatedVendor = await adminApi.vendors.update(selected.id, submitData);
+        setVendors(vendors.map(v => v.id === selected.id ? { ...updatedVendor, srNo: v.srNo } : v));
+        toast.success('Vendor updated successfully!');
       } else {
-        const response = await fetch(`${BASE_API_URL}vendors`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(submitData),
-        });
-
-        if (response.ok) {
-          const newVendor = await response.json();
-          setVendors([...vendors, { ...newVendor, srNo: vendors.length + 1 }]);
-          toast.success('Vendor created successfully!');
-        } else {
-          toast.error('Failed to create vendor');
-        }
+        const newVendor = await adminApi.vendors.create(submitData);
+        setVendors([...vendors, { ...newVendor, srNo: vendors.length + 1 }]);
+        toast.success('Vendor created successfully!');
       }
     } catch (error) {
       console.error('Error saving vendor:', error);
@@ -260,16 +224,9 @@ export default function VendorsPage() {
   const confirmDelete = async () => {
     if (selected) {
       try {
-        const response = await fetch(`${BASE_API_URL}vendors/${selected.id}`, {
-          method: 'DELETE',
-        });
-
-        if (response.ok) {
-          setVendors(vendors.filter(v => v.id !== selected.id));
-          toast.success('Vendor deleted successfully!');
-        } else {
-          toast.error('Failed to delete vendor');
-        }
+        await adminApi.vendors.delete(selected.id);
+        setVendors(vendors.filter(v => v.id !== selected.id));
+        toast.success('Vendor deleted successfully!');
       } catch (error) {
         console.error('Error deleting vendor:', error);
         toast.error('Failed to delete vendor');

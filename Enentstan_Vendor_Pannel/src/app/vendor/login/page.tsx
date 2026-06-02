@@ -13,7 +13,7 @@ import {
   ArrowRight,
   CheckCircle,
 } from "lucide-react";
-import { BASE_URL } from "@/lib/constants";
+import { vendorApi } from "@/api/vendorApi";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -33,19 +33,8 @@ interface LoginApiResponse {
 // ─── Auth helpers ─────────────────────────────────────────────────────────────
 
 async function loginVendor(email: string, password: string): Promise<LoginApiResponse> {
-  const res = await fetch(`${BASE_URL}/api/v1/auth/login`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Accept": "application/json",
-    },
-    body: JSON.stringify({ email, password }),
-  });
-
-  const json = await res.json();
-  
+  const json = await vendorApi.auth.login(email, password);
   console.log("API Response:", json);
-  
   return json;
 }
 
@@ -80,7 +69,8 @@ function saveSession(token: string, data: Record<string, unknown>) {
     localStorage.setItem("vendor_data", JSON.stringify(data));
     // Also store user role for authorization
     if (data.user && typeof data.user === 'object' && 'role' in data.user) {
-      localStorage.setItem("user_role", (data.user as any).role);
+      const user = data.user as { role?: string };
+      if (user.role) localStorage.setItem("user_role", user.role);
     }
   }
 }

@@ -4,8 +4,8 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Users, Truck, BookOpen, DollarSign, Star, CalendarCheck, TrendingUp, RefreshCw } from 'lucide-react';
 import StatsCard from '@/components/admin/StatsCard';
-import { BASE_API_URL } from '@/lib/constants';
-import { getToken, clearSession } from '@/lib/auth';
+import { getToken } from '@/lib/auth';
+import { adminApi } from '@/api/adminApi';
 import toast from 'react-hot-toast';
 
 const recentBookings = [
@@ -37,12 +37,7 @@ export default function DashboardPage() {
     if (isRefresh) { setRefreshing(true); toast.loading('Refreshing…', { id: 'dash' }); }
     else setLoading(true);
     try {
-      const res = await fetch(`${BASE_API_URL}dashboard`, {
-        method: 'POST',
-        headers: { Authorization: getToken(), 'Content-Type': 'application/json' },
-      });
-      if (res.status === 401) { clearSession(); router.replace('/admin/login'); return; }
-      const data = await res.json();
+      const data = await adminApi.dashboard(getToken());
       if (data.data) setStats(data.data);
       if (isRefresh) toast.success('Dashboard updated!', { id: 'dash' });
     } catch {

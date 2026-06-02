@@ -7,7 +7,7 @@ import {
   BookOpen, User, Bell, LogOut, ChevronRight, Menu, Loader2, X,
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
-import { BASE_URL } from '@/lib/constants';
+import { vendorApi } from '@/api/vendorApi';
 
 const navItems = [
   { href: '/vendor/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -63,13 +63,7 @@ async function logoutVendor() {
   const token = localStorage.getItem('vendor_token');
   if (token) {
     try {
-      await fetch(`${BASE_URL}/api/v1/auth/logout`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
+      await vendorApi.auth.logout();
     } catch (error) {
       console.error('Logout error:', error);
     }

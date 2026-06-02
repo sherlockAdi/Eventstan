@@ -2,7 +2,7 @@
 
 import { Check, Package, Eye, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { BASE_URL } from '@/lib/constants'; // Adjust path as needed
+import { adminApi } from '@/api/adminApi';
 
 interface ServiceItem {
   name: string;
@@ -69,13 +69,7 @@ export default function MarketingPackagesPage() {
   const fetchPackages = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${BASE_URL}/api/v1/packages`);
-      
-      if (!response.ok) {
-        throw new Error(`Failed to fetch packages: ${response.status}`);
-      }
-      
-      const data: ApiPackage[] = await response.json();
+      const data: ApiPackage[] = await adminApi.packages.list();
       
       const transformedPackages: MarketingPackage[] = data.map((pkg, index) => {
         const colors = ['border-gray-200', 'border-blue-200', 'border-orange-300', 'border-purple-200'];

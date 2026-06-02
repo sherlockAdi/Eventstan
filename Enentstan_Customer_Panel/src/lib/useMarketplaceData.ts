@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getMarketplaceData } from "@/services/api/baseApi";
+import { getMarketplaceData } from "@/api/customerApi";
 import { Package, Review, Service } from "@/types";
 
 interface MarketplaceState {
