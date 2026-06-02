@@ -1,0 +1,46 @@
+import { Package, Review, Service } from "@/types";
+
+const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, "") ??
+  "http://localhost:4000/api/v1";
+
+async function apiGet<T>(path: string): Promise<T> {
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    cache: "no-store",
+    headers: {
+      Accept: "application/json",
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`API request failed: ${response.status} ${response.statusText}`);
+  }
+
+  return response.json() as Promise<T>;
+}
+
+export async function getServices() {
+  return apiGet<Service[]>("/services");
+}
+
+export async function getService(id: string) {
+  return apiGet<Service>(`/services/${encodeURIComponent(id)}`);
+}
+
+export async function getPackages() {
+  return apiGet<Package[]>("/packages");
+}
+
+export async function getReviews() {
+  return apiGet<Review[]>("/reviews");
+}
+
+export async function getMarketplaceData() {
+  const [services, packages, reviews] = await Promise.all([
+    getServices(),
+    getPackages(),
+    getReviews(),
+  ]);
+
+  return { services, packages, reviews };
+}

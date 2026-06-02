@@ -1,0 +1,198 @@
+import Link from "next/link";
+import EventTypePills from "@/components/ui/EventTypePills";
+
+const EVENT_TYPES = [
+  {
+    slug: "weddings",
+    name: "Weddings",
+    emoji: "💍",
+    tagline: "Your perfect day, flawlessly planned",
+    description: "From intimate garden ceremonies to grand ballroom receptions, EventStan connects you with the finest wedding vendors. Our curated network of venues, florists, caterers, and entertainers ensures every moment of your wedding day is exactly as you've always dreamed.",
+    services: ["Luxury ballrooms & garden venues", "Bespoke floral arrangements", "Multi-cuisine catering & open bars", "Live bands, DJs & string quartets"],
+    image: "https://images.unsplash.com/photo-1519167758481-83f550bb49b3?w=700&q=80",
+    gallery: [
+      "https://images.unsplash.com/photo-1464366400600-7168b8af9bc3?w=400&q=80",
+      "https://images.unsplash.com/photo-1519225421980-715cb0215aed?w=400&q=80",
+      "https://images.unsplash.com/photo-1555244162-803834f70033?w=400&q=80",
+    ],
+    category: "Venue",
+  },
+  {
+    slug: "birthdays",
+    name: "Birthdays",
+    emoji: "🎂",
+    tagline: "Celebrate every milestone in style",
+    description: "Whether it's a kids party, a milestone 30th, or a lavish 50th, we have vendors for every birthday vision. From whimsical balloon decor to gourmet cake experiences and DJ sets that keep the dance floor packed.",
+    services: ["Themed decoration & balloon art", "Custom birthday cakes & dessert bars", "DJ & entertainment acts", "Party venues for all sizes"],
+    image: "https://images.unsplash.com/photo-1530103862676-de8c9debad1d?w=700&q=80",
+    gallery: [
+      "https://images.unsplash.com/photo-1481833761820-0509d3217039?w=400&q=80",
+      "https://plus.unsplash.com/premium_photo-1663839412165-0d60a57e7a91?q=80&w=1287&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D%201287w",
+      "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=400&q=80",
+    ],
+    category: "Entertainment",
+  },
+  {
+    slug: "corporate",
+    name: "Corporate Events",
+    emoji: "💼",
+    tagline: "Impress clients and inspire your team",
+    description: "Professional corporate events demand professional execution. From product launches and annual galas to team offsites and conference dinners, our vendors deliver polished, on-brand experiences that reflect your company's values.",
+    services: ["Conference & banquet halls", "AV & stage production", "Corporate catering & coffee stations", "Team building & entertainment"],
+    image: "https://plus.unsplash.com/premium_photo-1723867267202-169dfe3b197a?q=80&w=871&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D%20871w",
+    gallery: [
+      "https://images.unsplash.com/photo-1519167758481-83f550bb49b3?w=400&q=80",
+      "https://images.unsplash.com/photo-1555244162-803834f70033?w=400&q=80",
+      "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=400&q=80",
+    ],
+    category: "Venue",
+  },
+  {
+    slug: "proposals",
+    name: "Proposals",
+    emoji: "💐",
+    tagline: "Make the moment unforgettable",
+    description: "The most important question deserves the most beautiful setting. Our proposal specialists create breathtaking scenarios — from rooftop rose petal setups to candlelit beach arrangements — tailored to your partner's personality.",
+    services: ["Intimate venue setup", "Custom floral & candle arrangements", "Private dining experiences", "Photographers & videographers"],
+    image: "https://images.unsplash.com/photo-1519225421980-715cb0215aed?w=700&q=80",
+    gallery: [
+      "https://images.unsplash.com/photo-1464366400600-7168b8af9bc3?w=400&q=80",
+      "https://images.unsplash.com/photo-1519225421980-715cb0215aed?w=400&q=80",
+      "https://images.unsplash.com/photo-1561181286-d3fee7d55364?w=400&q=80",
+    ],
+    category: "Decor",
+  },
+  {
+    slug: "baby-showers",
+    name: "Baby Showers",
+    emoji: "🍼",
+    tagline: "Welcome the little one with love",
+    description: "Celebrate the arrival of a new life with a beautifully styled baby shower. Our vendors specialize in soft, whimsical themes — from gender reveals to elegant brunch setups — creating memories that last a lifetime.",
+    services: ["Pastel & themed decoration", "Brunch & dessert catering", "Gender reveal setups", "Cake & cupcake towers"],
+    image: "https://images.unsplash.com/photo-1481833761820-0509d3217039?w=700&q=80",
+    gallery: [
+      "https://images.unsplash.com/photo-1519225421980-715cb0215aed?w=400&q=80",
+      "https://images.unsplash.com/photo-1555244162-803834f70033?w=400&q=80",
+      "https://images.unsplash.com/photo-1530103862676-de8c9debad1d?w=400&q=80",
+    ],
+    category: "Decor",
+  },
+  {
+    slug: "graduations",
+    name: "Graduations",
+    emoji: "🎓",
+    tagline: "Honor the achievement, celebrate the future",
+    description: "Graduation is one of life's greatest milestones. We help you throw a party as epic as the achievement — whether it's an intimate family dinner or a blowout celebration with friends, our vendors deliver unforgettable experiences.",
+    services: ["Party venues & outdoor spaces", "Graduation-themed decor", "Full catering & BBQ setups", "Photo booths & entertainment"],
+    image: "https://images.unsplash.com/photo-1676054988250-bc5d81b610e4?fm=jpg&q=60&w=3000&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
+    gallery: [
+      "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=400&q=80",
+      "https://images.unsplash.com/photo-1555244162-803834f70033?w=400&q=80",
+      "https://images.unsplash.com/photo-1519167758481-83f550bb49b3?w=400&q=80",
+    ],
+    category: "Catering",
+  },
+];
+
+export default function EventTypesPage() {
+  return (
+    <div>
+      {/* Hero */}
+      {/* <section className="bg-gradient-to-br from-orange-50 via-white to-amber-50 py-16 px-4 text-center">
+        <span className="inline-block bg-orange-100 text-orange-600 text-sm font-semibold px-4 py-1.5 rounded-full mb-4">All Event Types</span>
+        <h1 className="text-5xl font-bold text-gray-900 mb-3">Every Occasion, Perfectly Planned</h1>
+        <p className="text-xl text-gray-500 max-w-2xl mx-auto">
+          From intimate proposals to grand corporate galas, EventStan has expert vendors for every type of event.
+        </p>
+      </section> */}
+      <section
+        className="py-20 px-4 text-center"
+        style={{ background: 'linear-gradient(135deg, #fff5f0 0%, #fff8f5 40%, #fffaf0 70%, #fff5e0 100%)' }}
+      >
+        <p className="text-xs font-semibold tracking-widest uppercase text-orange-600 mb-5">
+          What We Offer
+        </p>
+        <h1 className="text-5xl font-bold leading-tight text-gray-900 mb-5 max-w-xl mx-auto">
+          Every Event,{' '}
+          <span className="text-orange-600">
+            Expertly<br />Done
+          </span>
+        </h1>
+        <p className="text-base text-gray-500 max-w-md mx-auto leading-relaxed mb-9">
+          From weddings to corporate galas, baby showers to proposals — explore the types of events we specialize in and see the magic we've helped create.
+        </p>
+        <EventTypePills />
+      </section>
+
+      {/* Event Type Sections */}
+      <div className="max-w-6xl mx-auto px-4 py-8 space-y-16">
+        {EVENT_TYPES.map((event, idx) => (
+          <div
+            key={event.slug}
+            id={event.slug}
+            className={`grid grid-cols-1 lg:grid-cols-2 gap-10 items-center ${idx % 2 === 1 ? "lg:flex-row-reverse" : ""}`}
+          >
+            <div className={idx % 2 === 1 ? "lg:order-2" : ""}>
+              <div className="flex items-center gap-3 mb-3">
+                <span className="text-4xl">{event.emoji}</span>
+                <h2 className="text-3xl font-bold text-gray-900">{event.name}</h2>
+              </div>
+              <p className="text-orange-500 font-semibold mb-3">{event.tagline}</p>
+              <p className="text-gray-600 leading-relaxed mb-5">{event.description}</p>
+
+              <ul className="space-y-2 mb-6">
+                {event.services.map((s) => (
+                  <li key={s} className="flex items-center gap-2 text-sm text-gray-600">
+                    <div className="w-5 h-5 bg-orange-100 rounded-full flex items-center justify-center flex-shrink-0">
+                      <svg className="w-3 h-3 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                    </div>
+                    {s}
+                  </li>
+                ))}
+              </ul>
+
+              <Link
+                href={`/services?category=${event.category}`}
+                className="inline-flex items-center gap-2 bg-orange-500 text-white px-6 py-3 rounded-full font-semibold hover:bg-orange-600 transition-colors"
+              >
+                Find {event.name} Vendors →
+              </Link>
+            </div>
+
+            <div className={`space-y-3 ${idx % 2 === 1 ? "lg:order-1" : ""}`}>
+              <div className="rounded-2xl overflow-hidden h-56">
+                <img src={event.image} alt={event.name} className="w-full h-full object-cover hover:scale-105 transition-transform duration-500" />
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                {event.gallery.map((img, i) => (
+                  <div key={i} className="rounded-xl overflow-hidden h-24">
+                    <img src={img} alt={`${event.name} gallery ${i}`} className="w-full h-full object-cover hover:scale-110 transition-transform duration-500" />
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* CTA */}
+      <section className="py-12 px-4 max-w-4xl mx-auto">
+        <div className="bg-orange-500 rounded-3xl p-10 text-center">
+          <h2 className="text-3xl font-bold text-white mb-3">Ready to Plan Your Event?
+          </h2>
+          <p className="text-orange-100 mb-6">We support hundreds of event types. Browse all our services or contact us directly.</p>
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            {/* <Link href="/services" className="bg-white text-orange-500 px-7 py-3 rounded-full font-semibold hover:bg-orange-50">
+              Browse All Services
+            </Link> */}
+            <Link href="/about" className="bg-gray-900 text-white px-7 py-3 rounded-full font-semibold hover:bg-gray-800">
+              View All Services
+            </Link>
+          </div>
+        </div>
+      </section>
+    </div>
+  );
+}
