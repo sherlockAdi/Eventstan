@@ -1,6 +1,7 @@
 import { BASE_URL } from '@/lib/constants';
 
 type JsonBody = Record<string, unknown> | unknown[];
+const API_BASE_URL = `${BASE_URL}/api/v1`;
 
 function getVendorToken() {
   if (typeof window === 'undefined') return null;
@@ -16,7 +17,7 @@ function headers(token = getVendorToken(), accept = 'application/json'): Headers
 }
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const response = await fetch(`${BASE_URL}/api/v1/${path}`, options);
+  const response = await fetch(`${API_BASE_URL}/${path}`, options);
 
   if (!response.ok) {
     const errorBody = await response.json().catch(() => null);
@@ -41,7 +42,7 @@ export const vendorApi = {
       const body = new FormData();
       body.append('file', file);
 
-      const response = await fetch(`${BASE_URL}/api/v1/uploads/images?folder=${encodeURIComponent(folder)}`, {
+      const response = await fetch(`${API_BASE_URL}/uploads/images?folder=${encodeURIComponent(folder)}`, {
         method: 'POST',
         body,
       });

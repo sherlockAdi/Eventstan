@@ -1,8 +1,9 @@
-import { BadRequestException, Injectable, OnModuleInit } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Client } from 'minio';
 import { randomUUID } from 'node:crypto';
 import { extname } from 'node:path';
+import type { Readable } from 'node:stream';
 
 interface UploadedImage {
   buffer: Buffer;
@@ -50,7 +51,7 @@ export class UploadsService implements OnModuleInit {
     }
   }
 
-  async uploadImage(file: UploadedImage, folder: string) {
+  async uploadImage(file: UploadedImage, folder: string, baseUrl: string) {
     if (!file.mimetype.startsWith('image/')) {
       throw new BadRequestException('Only image files are allowed');
     }
@@ -71,10 +72,29 @@ export class UploadsService implements OnModuleInit {
     return {
       bucket: this.bucket,
       key,
-      url: `${this.publicBaseUrl.replace(/\/$/, '')}/${key}`,
+      url: `${this.publicBaseUrl.replace(/\/$/, '')}/${this.encodeKey(key)}`,
       contentType: file.mimetype,
       size: file.size,
     };
+  }
+
+  async getImage(key: string): Promise<{ stream: Readable; contentType: string; size?: number }> {
+    const safeKey = key.replace(/^\/+/, '');
+    if (!safeKey || safeKey.includes('..')) {
+      throw new NotFoundException('Image not found');
+    }
+
+    try {
+      const stat = await this.client.statObject(this.bucket, safeKey);
+      const stream = await this.client.getObject(this.bucket, safeKey);
+      return {
+        stream,
+        contentType: stat.metaData?.['content-type'] ?? 'application/octet-stream',
+        size: stat.size,
+      };
+    } catch {
+      throw new NotFoundException('Image not found');
+    }
   }
 
   private safeSegment(value: string) {
@@ -92,5 +112,9 @@ export class UploadsService implements OnModuleInit {
     if (mimeType === 'image/webp') return '.webp';
     if (mimeType === 'image/gif') return '.gif';
     return '.jpg';
+  }
+
+  private encodeKey(key: string) {
+    return key.split('/').map((segment) => encodeURIComponent(segment)).join('/');
   }
 }

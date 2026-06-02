@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Put, Query } from '@nestjs/common';
 import { ApiCreatedResponse, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { CouponsService } from './coupons.service';
 import { CreateCouponDto } from './dto/create-coupon.dto';
@@ -23,5 +23,20 @@ export class CouponsController {
   @ApiQuery({ name: 'amount', example: 10000 })
   validate(@Param('code') code: string, @Query('amount') amount: string) {
     return this.coupons.validate(code, Number(amount));
+  }
+
+  @Put(':id')
+  update(@Param('id') id: string, @Body() dto: Partial<CreateCouponDto>) {
+    return this.coupons.update(id, dto);
+  }
+
+  @Patch(':id')
+  updatePartial(@Param('id') id: string, @Body() body: Partial<CreateCouponDto>) {
+    return this.coupons.update(id, body);
+  }
+
+  @Delete(':id')
+  delete(@Param('id') id: string) {
+    return this.coupons.delete(id);
   }
 }

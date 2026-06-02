@@ -1,13 +1,18 @@
 import {
   BadRequestException,
   Controller,
+  Get,
+  Param,
   Post,
   Query,
+  Req,
+  Res,
   UploadedFile,
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBody, ApiConsumes, ApiCreatedResponse, ApiQuery, ApiTags } from '@nestjs/swagger';
+import type { Request, Response } from 'express';
 import { UploadsService } from './uploads.service';
 
 interface UploadedImage {
@@ -39,8 +44,42 @@ export class UploadsController {
     },
   })
   @ApiCreatedResponse({ description: 'Uploads an image to MinIO and returns its URL.' })
-  uploadImage(@UploadedFile() file: UploadedImage | undefined, @Query('folder') folder = 'images') {
+  uploadImage(@UploadedFile() file: UploadedImage | undefined, @Query('folder') folder = 'images', @Req() req: Request) {
     if (!file) throw new BadRequestException('Image file is required');
-    return this.uploads.uploadImage(file, folder);
+    return this.uploads.uploadImage(file, folder, this.imageBaseUrl(req));
+  }
+
+  @Get('images/:folder/:date/:file')
+  async getDatedImage(
+    @Param('folder') folder: string,
+    @Param('date') date: string,
+    @Param('file') file: string,
+    @Res() res: Response,
+  ) {
+    return this.streamImage(`${folder}/${date}/${file}`, res);
+  }
+
+  @Get('images/*')
+  async getImage(@Req() req: Request, @Res() res: Response) {
+    const marker = '/uploads/images/';
+    const requestPath = req.originalUrl.split('?')[0] ?? '';
+    const markerIndex = requestPath.indexOf(marker);
+    const encodedKey = markerIndex >= 0 ? requestPath.slice(markerIndex + marker.length) : '';
+    const key = decodeURIComponent(encodedKey);
+    return this.streamImage(key, res);
+  }
+
+  private async streamImage(key: string, res: Response) {
+    const image = await this.uploads.getImage(key);
+
+    res.setHeader('Content-Type', image.contentType);
+    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+    if (image.size) res.setHeader('Content-Length', String(image.size));
+
+    return image.stream.pipe(res);
+  }
+
+  private imageBaseUrl(req: Request) {
+    return `${req.protocol}://${req.get('host')}${req.baseUrl}/images`;
   }
 }

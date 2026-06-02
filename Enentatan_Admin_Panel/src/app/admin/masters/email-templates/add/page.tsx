@@ -1,167 +1,80 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { ArrowLeft, Save } from 'lucide-react';
-import Link from 'next/link';
-import Button from '@/components/admin/Button';
-import Input from '@/components/admin/Input';
-import toast from 'react-hot-toast';
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { ArrowLeft, Save } from "lucide-react";
+import Link from "next/link";
+import { adminApi } from "@/api/adminApi";
+import Button from "@/components/admin/Button";
+import Input from "@/components/admin/Input";
+import toast from "react-hot-toast";
 
-interface Permission { module: string; view: boolean; create: boolean; edit: boolean; delete: boolean; }
+const emptyForm = {
+  name: "",
+  subject: "",
+  trigger: "",
+  body: "",
+  status: "Active",
+};
 
-const modules = ['Dashboard', 'Users', 'Vendors', 'Vendor Services', 'Bookings', 'Masters', 'Coupons', 'Marketing Packages', 'Feedback', 'Notifications', 'Affiliate Links', 'Reports'];
-
-const defaultPerms = (): Permission[] => modules.map(m => ({ module: m, view: false, create: false, edit: false, delete: false }));
-
-export default function AddRolePage() {
+export default function AddEmailTemplatePage() {
   const router = useRouter();
-  const [form, setForm] = useState({
-    name: '',
-    description: '',
-    status: 'Active'
-  });
-  const [perms, setPerms] = useState<Permission[]>(defaultPerms());
+  const [form, setForm] = useState(emptyForm);
+  const [saving, setSaving] = useState(false);
 
-  const togglePerm = (module: string, key: keyof Permission) => {
-    setPerms(perms.map(p => p.module === module ? { ...p, [key]: !p[key] } : p));
-  };
-
-  const toggleAll = (key: keyof Permission, value: boolean) => {
-    setPerms(perms.map(p => ({ ...p, [key]: value })));
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!form.name) {
-      toast.error('Please enter role name');
+  const save = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!form.name || !form.subject || !form.trigger || !form.body) {
+      toast.error("Please fill all required fields");
       return;
     }
-    
-    // Save logic here - API call
-    toast.success('Role created successfully!');
-    router.push('/admin/masters/role-permission');
+
+    setSaving(true);
+    try {
+      await adminApi.emailTemplates.create(form);
+      toast.success("Email template created");
+      router.push("/admin/masters/email-templates");
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to create template");
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
-        <Link href="/admin/masters/role-permission">
-          <button className="p-2 rounded-lg hover:bg-gray-100 transition">
-            <ArrowLeft size={20} />
-          </button>
-        </Link>
+        <Link href="/admin/masters/email-templates"><button className="p-2 rounded-lg hover:bg-gray-100 transition"><ArrowLeft size={20} /></button></Link>
         <div>
-          <h1 className="text-xl font-bold text-gray-900">Add New Role</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Create a new role and assign permissions</p>
+          <h1 className="text-xl font-bold text-gray-900">New Email Template</h1>
+          <p className="text-sm text-gray-500 mt-0.5">Create a database-backed email template</p>
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-6">
-        {/* Left Side - Basic Info */}
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <Input 
-              label="Role Name" 
-              value={form.name} 
-              onChange={e => setForm({ ...form, name: e.target.value })} 
-              placeholder="e.g. Editor, Moderator"
-              required 
-            />
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Description</label>
-              <textarea 
-                value={form.description} 
-                onChange={e => setForm({ ...form, description: e.target.value })} 
-                rows={4} 
-                className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm bg-gray-50/50 focus:outline-none focus:ring-2 focus:ring-orange-400" 
-                placeholder="Describe what this role can do..."
-              />
-            </div>
-            
-            <div>
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+        <form onSubmit={save} className="space-y-4">
+          <div className="grid grid-cols-2 gap-x-4">
+            <Input label="Template Name" value={form.name} onChange={event => setForm({ ...form, name: event.target.value })} required />
+            <Input label="Subject" value={form.subject} onChange={event => setForm({ ...form, subject: event.target.value })} required />
+            <Input label="Trigger" value={form.trigger} onChange={event => setForm({ ...form, trigger: event.target.value })} placeholder="Booking Confirmed" required />
+            <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-1.5">Status</label>
-              <select 
-                value={form.status} 
-                onChange={e => setForm({ ...form, status: e.target.value })} 
-                className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm bg-gray-50/50 focus:outline-none focus:ring-2 focus:ring-orange-400"
-              >
+              <select value={form.status} onChange={event => setForm({ ...form, status: event.target.value })} className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm bg-gray-50/50 focus:outline-none focus:ring-2 focus:ring-orange-400">
                 <option>Active</option>
                 <option>Inactive</option>
               </select>
             </div>
-            
-            <div className="flex justify-end gap-3 pt-4">
-              <Link href="/admin/masters/role-permission">
-                <Button type="button" variant="secondary">Cancel</Button>
-              </Link>
-              <Button type="submit">
-                <Save size={15} />
-                Create Role
-              </Button>
-            </div>
-          </form>
-        </div>
-
-        {/* Right Side - Permissions */}
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-          <div className="flex items-center justify-between mb-4">
-            <label className="block text-sm font-medium text-gray-700">Module Permissions</label>
-            <div className="flex gap-2">
-              {(['view', 'create', 'edit', 'delete'] as const).map(k => (
-                <button
-                  key={k}
-                  type="button"
-                  onClick={() => toggleAll(k, true)}
-                  className="text-xs bg-orange-50 text-orange-600 px-2 py-1 rounded hover:bg-orange-100 transition capitalize"
-                >
-                  All {k}
-                </button>
-              ))}
-              <button
-                type="button"
-                onClick={() => setPerms(defaultPerms())}
-                className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded hover:bg-gray-200 transition"
-              >
-                Clear All
-              </button>
-            </div>
           </div>
-          
-          <div className="border border-gray-200 rounded-xl overflow-hidden max-h-[500px] overflow-y-auto">
-            <table className="w-full text-sm">
-              <thead className="sticky top-0 bg-gray-50">
-                <tr className="border-b border-gray-200">
-                  <th className="text-left px-4 py-3 text-gray-600 font-semibold text-xs uppercase">Module</th>
-                  {(['view', 'create', 'edit', 'delete'] as const).map(k => (
-                    <th key={k} className="px-3 py-3 text-gray-600 font-semibold text-xs uppercase capitalize">{k}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {perms.map(p => (
-                  <tr key={p.module} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 text-gray-700 font-medium">{p.module}</td>
-                    {(['view', 'create', 'edit', 'delete'] as const).map(k => (
-                      <td key={k} className="px-3 py-3 text-center">
-                        <input 
-                          type="checkbox" 
-                          checked={p[k] as boolean} 
-                          onChange={() => togglePerm(p.module, k)} 
-                          className="accent-orange-500 w-4 h-4 cursor-pointer" 
-                        />
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">Body</label>
+            <textarea value={form.body} onChange={event => setForm({ ...form, body: event.target.value })} rows={12} className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm bg-gray-50/50 focus:outline-none focus:ring-2 focus:ring-orange-400 font-mono" placeholder="<p>Dear {{name}},</p>" required />
           </div>
-          <div className="mt-3 text-xs text-gray-400 text-center">
-            ✅ Select permissions for each module
+          <div className="flex justify-end gap-3">
+            <Link href="/admin/masters/email-templates"><Button type="button" variant="secondary">Cancel</Button></Link>
+            <Button type="submit" disabled={saving}><Save size={15} />{saving ? "Saving..." : "Save"}</Button>
           </div>
-        </div>
+        </form>
       </div>
     </div>
   );

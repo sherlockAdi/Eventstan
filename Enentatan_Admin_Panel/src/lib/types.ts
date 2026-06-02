@@ -19,8 +19,10 @@ export interface Vendor {
 export interface Service {
   id: number;
   name: string;
+  category?: string;
+  price?: number;
   status: string;
-  image: string;
+  image?: string;
 }
 
 export interface Booking {

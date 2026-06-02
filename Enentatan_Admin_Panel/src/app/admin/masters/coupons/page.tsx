@@ -46,7 +46,6 @@ export default function CouponsPage() {
   const [isStatusModalOpen, setIsStatusModalOpen] = useState(false);
   const [isValidateModalOpen, setIsValidateModalOpen] = useState(false);
   const [selected, setSelected] = useState<Coupon | null>(null);
-  const [pendingStatus, setPendingStatus] = useState<boolean>(false);
   const [validationCode, setValidationCode] = useState('');
   const [validationAmount, setValidationAmount] = useState('');
   const [validationResult, setValidationResult] = useState<ValidationResult | null>(null);
@@ -94,26 +93,39 @@ export default function CouponsPage() {
     }
   };
 
+  const couponPayload = (couponData: Partial<Coupon>) => ({
+    code: couponData.code,
+    type: couponData.type,
+    value: Number(couponData.value),
+    maxDiscountAmount: Number(couponData.maxDiscountAmount ?? 0),
+    currency: couponData.currency,
+    minOrderAmount: Number(couponData.minOrderAmount ?? 0),
+    expiresAt: couponData.expiresAt,
+    active: couponData.active
+  });
+
   const createCoupon = async (couponData: Partial<Coupon>) => {
     try {
-      const payload = {
-        code: couponData.code,
-        type: couponData.type,
-        value: Number(couponData.value),
-        maxDiscountAmount: Number(couponData.maxDiscountAmount),
-        currency: couponData.currency,
-        minOrderAmount: Number(couponData.minOrderAmount),
-        expiresAt: couponData.expiresAt,
-        active: couponData.active
-      };
-
-      const newCoupon = await adminApi.coupons.create(payload);
+      const newCoupon = await adminApi.coupons.create(couponPayload(couponData));
       toast.success('Coupon created successfully!');
       fetchCoupons();
       return newCoupon;
     } catch (error) {
       console.error('Error creating coupon:', error);
       toast.error('Failed to create coupon');
+      return null;
+    }
+  };
+
+  const updateCoupon = async (couponId: string, couponData: Partial<Coupon>) => {
+    try {
+      const updatedCoupon = await adminApi.coupons.update(couponId, couponPayload(couponData));
+      toast.success('Coupon updated successfully!');
+      fetchCoupons();
+      return updatedCoupon;
+    } catch (error) {
+      console.error('Error updating coupon:', error);
+      toast.error('Failed to update coupon');
       return null;
     }
   };
@@ -321,7 +333,7 @@ export default function CouponsPage() {
     const submitData = { ...form, expiresAt: isoDate };
     
     if (selected) {
-      await updateCouponStatus(selected, form.active || false);
+      if (selected.id) await updateCoupon(selected.id, submitData);
       setIsModalOpen(false);
     } else {
       await createCoupon(submitData);

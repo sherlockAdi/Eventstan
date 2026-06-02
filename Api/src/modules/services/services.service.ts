@@ -43,14 +43,85 @@ export class ServicesService {
         description: dto.description,
         amount: dto.price.amount,
         currency: dto.price.currency,
+        imageUrl: dto.imageUrl,
       },
     });
   }
 
-  async search(categoryId?: string, city?: string) {
+  async update(id: string, dto: Partial<CreateServiceDto> & { status?: string }) {
+    const service = await this.prisma.vendorService.update({
+      where: { id },
+      data: {
+        ...(dto.vendorId ? { vendorId: dto.vendorId } : {}),
+        ...(dto.categoryId ? { categoryId: dto.categoryId } : {}),
+        ...(dto.title ? { title: dto.title } : {}),
+        ...(dto.description ? { description: dto.description } : {}),
+        ...(dto.city ? { city: dto.city } : {}),
+        ...(dto.price ? { amount: dto.price.amount, currency: dto.price.currency } : {}),
+        ...(dto.priceMax !== undefined ? { maxAmount: dto.priceMax } : {}),
+        ...(dto.priceUnit ? { priceUnit: dto.priceUnit } : {}),
+        ...(dto.imageUrl !== undefined ? { imageUrl: dto.imageUrl } : {}),
+        ...(dto.tags ? { tags: dto.tags } : {}),
+        ...(dto.gallery ? { gallery: dto.gallery } : {}),
+        ...(dto.features ? { features: dto.features } : {}),
+        ...(dto.status ? { status: dto.status as ListingStatus } : {}),
+      },
+      include: this.serviceInclude,
+    });
+    return this.toCustomerService(service);
+  }
+
+  async delete(id: string) {
+    return this.prisma.vendorService.delete({ where: { id } });
+  }
+
+  async findAllSubServices() {
+    const subServices = await this.prisma.vendorSubService.findMany({
+      include: {
+        service: {
+          include: {
+            vendor: true,
+            category: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return subServices.map((subService) => this.normalizeSubService(subService));
+  }
+
+  async updateSubService(id: string, dto: Partial<CreateSubServiceDto> & { status?: string }) {
+    const subService = await this.prisma.vendorSubService.update({
+      where: { id },
+      data: {
+        ...(dto.title ? { title: dto.title } : {}),
+        ...(dto.description ? { description: dto.description } : {}),
+        ...(dto.price ? { amount: dto.price.amount, currency: dto.price.currency } : {}),
+        ...(dto.imageUrl !== undefined ? { imageUrl: dto.imageUrl } : {}),
+        ...(dto.status ? { status: dto.status as ListingStatus } : {}),
+      },
+      include: {
+        service: {
+          include: {
+            vendor: true,
+            category: true,
+          },
+        },
+      },
+    });
+
+    return this.normalizeSubService(subService);
+  }
+
+  async deleteSubService(id: string) {
+    return this.prisma.vendorSubService.delete({ where: { id } });
+  }
+
+  async search(categoryId?: string, city?: string, includeAll = false) {
     const services = await this.prisma.vendorService.findMany({
       where: {
-        status: ListingStatus.ACTIVE,
+        ...(includeAll ? {} : { status: ListingStatus.ACTIVE }),
         ...(city ? { city: { equals: city, mode: 'insensitive' } } : {}),
         ...(categoryId
           ? {
@@ -79,10 +150,11 @@ export class ServicesService {
 
   async findSubServices(serviceId: string) {
     await this.findOne(serviceId);
-    return this.prisma.vendorSubService.findMany({
+    const subServices = await this.prisma.vendorSubService.findMany({
       where: { serviceId, status: ListingStatus.ACTIVE },
       orderBy: { createdAt: 'desc' },
     });
+    return subServices.map((subService) => this.normalizeSubService(subService));
   }
 
   private readonly serviceInclude = {
@@ -97,7 +169,7 @@ export class ServicesService {
   private toCustomerService(service: Awaited<ReturnType<typeof this.prisma.vendorService.findFirst>> & {
     vendor: { contactPerson: string; email: string; phone: string };
     category: { name: string };
-    subServices: unknown[];
+    subServices: Array<{ imageUrl?: string | null }>;
   }) {
     return {
       id: service.id,
@@ -123,7 +195,14 @@ export class ServicesService {
       features: service.features,
       created_at: service.createdAt.toISOString(),
       status: service.status,
-      subServices: service.subServices,
+      subServices: service.subServices.map((subService) => this.normalizeSubService(subService)),
+    };
+  }
+
+  private normalizeSubService<T extends { imageUrl?: string | null }>(subService: T) {
+    return {
+      ...subService,
+      imageUrl: subService.imageUrl ?? '',
     };
   }
 }

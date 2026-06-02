@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsString, ValidateNested } from 'class-validator';
+import { IsOptional, IsString, ValidateNested } from 'class-validator';
 import { MoneyDto } from '../../../common/dto/money.dto';
 
 export class CreateSubServiceDto {
@@ -16,4 +16,9 @@ export class CreateSubServiceDto {
   @ValidateNested()
   @Type(() => MoneyDto)
   price!: MoneyDto;
+
+  @ApiProperty({ example: 'https://example.com/sub-service.jpg', required: false })
+  @IsOptional()
+  @IsString()
+  imageUrl?: string;
 }

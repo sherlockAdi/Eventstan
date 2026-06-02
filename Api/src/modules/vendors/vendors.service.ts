@@ -1,35 +1,58 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { DataStoreService, VendorStatus } from '../../shared/data-store/data-store.service';
+import { VendorStatus } from '@prisma/client';
+import { PrismaService } from '../../shared/prisma/prisma.service';
 import { CreateVendorDto } from './dto/create-vendor.dto';
 
 @Injectable()
 export class VendorsService {
-  constructor(private readonly store: DataStoreService) {}
+  constructor(private readonly prisma: PrismaService) {}
 
   create(dto: CreateVendorDto) {
-    const vendor = {
-      id: this.store.nextId('ven'),
-      ...dto,
-      vatNumber: dto.vatNumber ?? '',
-      status: 'PENDING_VERIFICATION' as VendorStatus,
-    };
-    this.store.vendors.push(vendor);
-    return vendor;
+    return this.prisma.vendor.create({
+      data: {
+        ...dto,
+        commissionPercent: dto.commissionPercent,
+        vatNumber: dto.vatNumber ?? null,
+        status: VendorStatus.PENDING_VERIFICATION,
+      },
+    });
   }
 
   findAll(status?: VendorStatus) {
-    return status ? this.store.vendors.filter((vendor) => vendor.status === status) : this.store.vendors;
+    return this.prisma.vendor.findMany({
+      where: status ? { status } : {},
+      orderBy: { createdAt: 'desc' },
+    });
   }
 
-  findOne(id: string) {
-    const vendor = this.store.vendors.find((item) => item.id === id);
+  async findOne(id: string) {
+    const vendor = await this.prisma.vendor.findUnique({ where: { id } });
     if (!vendor) throw new NotFoundException('Vendor not found');
     return vendor;
   }
 
+  update(id: string, dto: Partial<CreateVendorDto>) {
+    return this.prisma.vendor.update({
+      where: { id },
+      data: {
+        ...(dto.companyName ? { companyName: dto.companyName } : {}),
+        ...(dto.contactPerson ? { contactPerson: dto.contactPerson } : {}),
+        ...(dto.email ? { email: dto.email } : {}),
+        ...(dto.phone ? { phone: dto.phone } : {}),
+        ...(dto.tradeLicenseNumber ? { tradeLicenseNumber: dto.tradeLicenseNumber } : {}),
+        ...(dto.vatNumber !== undefined ? { vatNumber: dto.vatNumber } : {}),
+        ...(dto.cities ? { cities: dto.cities } : {}),
+        ...(dto.capacityPerDay !== undefined ? { capacityPerDay: dto.capacityPerDay } : {}),
+        ...(dto.commissionPercent !== undefined ? { commissionPercent: dto.commissionPercent } : {}),
+      },
+    });
+  }
+
   updateStatus(id: string, status: VendorStatus, reason?: string) {
-    const vendor = this.findOne(id);
-    vendor.status = status;
-    return { ...vendor, statusReason: reason };
+    return this.prisma.vendor.update({ where: { id }, data: { status } }).then((vendor) => ({ ...vendor, statusReason: reason }));
+  }
+
+  delete(id: string) {
+    return this.prisma.vendor.delete({ where: { id } });
   }
 }

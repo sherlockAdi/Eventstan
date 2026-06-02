@@ -1,6 +1,6 @@
-import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Put, Query } from '@nestjs/common';
 import { ApiCreatedResponse, ApiOkResponse, ApiQuery, ApiTags } from '@nestjs/swagger';
-import { VendorStatus } from '../../shared/data-store/data-store.service';
+import { VendorStatus } from '@prisma/client';
 import { CreateVendorDto } from './dto/create-vendor.dto';
 import { UpdateVendorStatusDto } from './dto/update-vendor-status.dto';
 import { VendorsService } from './vendors.service';
@@ -31,5 +31,15 @@ export class VendorsController {
   @Patch(':id/status')
   updateStatus(@Param('id') id: string, @Body() dto: UpdateVendorStatusDto) {
     return this.vendors.updateStatus(id, dto.status as VendorStatus, dto.reason);
+  }
+
+  @Put(':id')
+  update(@Param('id') id: string, @Body() dto: Partial<CreateVendorDto>) {
+    return this.vendors.update(id, dto);
+  }
+
+  @Delete(':id')
+  delete(@Param('id') id: string) {
+    return this.vendors.delete(id);
   }
 }

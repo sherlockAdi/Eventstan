@@ -68,7 +68,7 @@ export default function VendorServicesPage() {
   });
 
   // Get unique vendors for dropdown
-  const uniqueVendors = ['All', ...new Set(services.map(s => s.vendor))];
+  const uniqueVendors = ['All', ...Array.from(new Set(services.map(s => s.vendor)))];
 
   // Filter by selected vendor
   const filtered = selectedVendor === 'All' 

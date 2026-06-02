@@ -166,6 +166,47 @@ model Category {
   @@map("categories")
 }
 
+model Country {
+  id              Int      @id @default(autoincrement())
+  code            String   @unique
+  name            String
+  defaultCurrency String
+  flag            String?
+  currencySymbol  String?
+  phoneCode       String?
+  status          String   @default("Active")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("countries")
+}
+
+model EventSlot {
+  id        Int      @id @default(autoincrement())
+  name      String
+  startTime String
+  endTime   String
+  duration  String
+  status    String   @default("Active")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("event_slots")
+}
+
+model EmailTemplate {
+  id        Int      @id @default(autoincrement())
+  name      String
+  subject   String
+  trigger   String
+  body      String
+  status    String   @default("Active")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("email_templates")
+}
+
 model VendorService {
   id          String        @id @default(cuid())
   vendorId    String
@@ -202,6 +243,7 @@ model VendorSubService {
   description String
   amount      Int
   currency    String        @default("AED")
+  imageUrl    String?
   status      ListingStatus @default(ACTIVE)
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt

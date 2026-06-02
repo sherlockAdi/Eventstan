@@ -71,11 +71,16 @@ export const adminApi = {
 
   countries: {
     list: () => request<any[]>('master-data/countries'),
+    create: (payload: JsonBody) => request<any>('master-data/countries', jsonOptions('POST', payload)),
+    update: (id: number, payload: JsonBody) =>
+      request<any>(`master-data/countries/${id}`, jsonOptions('PUT', payload)),
+    delete: (id: number) => request<void>(`master-data/countries/${id}`, { method: 'DELETE' }),
   },
 
   coupons: {
     list: () => request<any[]>('coupons'),
     create: (payload: JsonBody) => request<any>('coupons', jsonOptions('POST', payload)),
+    update: (id: string, payload: JsonBody) => request<any>(`coupons/${id}`, jsonOptions('PUT', payload)),
     validate: (code: string, amount: number) =>
       request<any>(`coupons/${code}/validate?amount=${amount}`),
     updateStatus: (id: string, active: boolean) =>
@@ -85,5 +90,38 @@ export const adminApi = {
 
   packages: {
     list: () => request<any[]>('packages'),
+  },
+
+  services: {
+    list: () => request<any[]>('services?includeAll=true'),
+    create: (payload: JsonBody) => request<any>('services', jsonOptions('POST', payload)),
+    update: (id: string, payload: JsonBody) => request<any>(`services/${id}`, jsonOptions('PUT', payload)),
+    delete: (id: string) => request<void>(`services/${id}`, { method: 'DELETE' }),
+  },
+
+  subServices: {
+    list: () => request<any[]>('services/sub-services'),
+    create: (serviceId: string, payload: JsonBody) =>
+      request<any>(`services/${serviceId}/sub-services`, jsonOptions('POST', payload)),
+    update: (id: string, payload: JsonBody) =>
+      request<any>(`services/sub-services/${id}`, jsonOptions('PUT', payload)),
+    delete: (id: string) => request<void>(`services/sub-services/${id}`, { method: 'DELETE' }),
+  },
+
+  eventSlots: {
+    list: () => request<any[]>('master-data/event-slots'),
+    create: (payload: JsonBody) => request<any>('master-data/event-slots', jsonOptions('POST', payload)),
+    update: (id: number, payload: JsonBody) =>
+      request<any>(`master-data/event-slots/${id}`, jsonOptions('PUT', payload)),
+    delete: (id: number) => request<void>(`master-data/event-slots/${id}`, { method: 'DELETE' }),
+  },
+
+  emailTemplates: {
+    list: () => request<any[]>('master-data/email-templates'),
+    get: (id: number) => request<any>(`master-data/email-templates/${id}`),
+    create: (payload: JsonBody) => request<any>('master-data/email-templates', jsonOptions('POST', payload)),
+    update: (id: number, payload: JsonBody) =>
+      request<any>(`master-data/email-templates/${id}`, jsonOptions('PUT', payload)),
+    delete: (id: number) => request<void>(`master-data/email-templates/${id}`, { method: 'DELETE' }),
   },
 };
