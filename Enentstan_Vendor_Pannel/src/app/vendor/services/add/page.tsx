@@ -51,6 +51,10 @@ interface Country {
   defaultCurrency: typeof CURRENCIES[number];
 }
 
+interface CreatedService {
+  id: string;
+}
+
 export default function AddServicePage() {
   const router = useRouter();
 
@@ -130,7 +134,7 @@ export default function AddServicePage() {
       const selectedCity = CITIES.find(c => c.id === form.cityId);
       const cityName = selectedCity ? selectedCity.name : form.cityId;
 
-      const createdService = await vendorApi.services.create({
+      const createdService = await vendorApi.services.create<CreatedService>({
         vendorId: form.vendorId,
         categoryId: form.categoryId,
         title: form.title.trim(),

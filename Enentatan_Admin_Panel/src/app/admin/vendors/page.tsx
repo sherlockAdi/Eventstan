@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Plus, Eye, Edit, Trash2, ToggleLeft, ToggleRight, X, Mail, Briefcase } from 'lucide-react';
+import { Plus, Eye, Edit, Trash2, ToggleLeft, ToggleRight, X, Mail, Briefcase, Upload, Loader2, FileText } from 'lucide-react';
 import Table from '@/components/admin/Table';
 import Modal from '@/components/admin/Modal';
 import ConfirmModal from '@/components/admin/ConfirmModal';
@@ -16,14 +16,68 @@ interface Vendor {
   contactPerson: string;
   email: string;
   phone: string;
+  about?: string;
+  firstName?: string;
+  lastName?: string;
+  userName?: string;
+  primaryEmail?: string;
+  telephone?: string;
+  primaryMobile?: string;
+  specialization?: string;
+  businessLocation?: string;
+  visaType?: string;
+  address?: string;
   status: string;
   tradeLicenseNumber: string;
   vatNumber: string;
   cities: string[];
   capacityPerDay: number;
   commissionPercent: number;
+  planDetails?: string;
+  planExpiry?: string;
+  agreementFileUrl?: string;
+  agreementFileKey?: string;
+  bankName?: string;
+  accountFullName?: string;
+  ibanNo?: string;
+  accountNumber?: string;
+  swift?: string;
+  branchAddress?: string;
   srNo?: number;
 }
+
+const emptyVendorForm: Partial<Vendor> = {
+  companyName: '',
+  contactPerson: '',
+  email: '',
+  phone: '',
+  about: '',
+  firstName: '',
+  lastName: '',
+  userName: '',
+  primaryEmail: '',
+  telephone: '',
+  primaryMobile: '',
+  specialization: '',
+  businessLocation: '',
+  visaType: 'UAE Work Visa',
+  address: '',
+  tradeLicenseNumber: '',
+  vatNumber: '',
+  cities: [],
+  capacityPerDay: 1,
+  commissionPercent: 0,
+  planDetails: '',
+  planExpiry: '',
+  agreementFileUrl: '',
+  agreementFileKey: '',
+  bankName: '',
+  accountFullName: '',
+  ibanNo: '',
+  accountNumber: '',
+  swift: '',
+  branchAddress: ''
+};
 
 export default function VendorsPage() {
   const [vendors, setVendors] = useState<Vendor[]>([]);
@@ -34,17 +88,8 @@ export default function VendorsPage() {
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [selected, setSelected] = useState<Vendor | null>(null);
   const [pendingStatus, setPendingStatus] = useState<string>('');
-  const [form, setForm] = useState<Partial<Vendor>>({ 
-    companyName: '',
-    contactPerson: '',
-    email: '',
-    phone: '',
-    tradeLicenseNumber: '',
-    vatNumber: '',
-    cities: [],
-    capacityPerDay: 0,
-    commissionPercent: 0
-  });
+  const [form, setForm] = useState<Partial<Vendor>>(emptyVendorForm);
+  const [uploadingAgreement, setUploadingAgreement] = useState(false);
 
   useEffect(() => {
     fetchVendors();
@@ -106,7 +151,10 @@ export default function VendorsPage() {
 
   const openEdit = (vendor: Vendor) => {
     setSelected(vendor);
-    setForm(vendor);
+    setForm({
+      ...vendor,
+      planExpiry: vendor.planExpiry ? vendor.planExpiry.slice(0, 10) : ''
+    });
     setIsModalOpen(true);
   };
 
@@ -174,33 +222,38 @@ export default function VendorsPage() {
 
   const openAdd = () => { 
     setSelected(null); 
-    setForm({ 
-      companyName: '',
-      contactPerson: '',
-      email: '',
-      phone: '',
-      tradeLicenseNumber: '',
-      vatNumber: '',
-      cities: [],
-      capacityPerDay: 0,
-      commissionPercent: 0
-    }); 
+    setForm({ ...emptyVendorForm }); 
     setIsModalOpen(true); 
+  };
+
+  const uploadAgreement = async (file: File | null) => {
+    if (!file) return;
+    try {
+      setUploadingAgreement(true);
+      const uploaded = await adminApi.uploads.file(file, 'agreements');
+      setForm(current => ({
+        ...current,
+        agreementFileUrl: uploaded.url,
+        agreementFileKey: uploaded.key
+      }));
+      toast.success('Agreement uploaded successfully!');
+    } catch (error) {
+      console.error('Agreement upload failed:', error);
+      toast.error('Agreement upload failed');
+    } finally {
+      setUploadingAgreement(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     const submitData = {
-      companyName: form.companyName,
-      contactPerson: form.contactPerson,
-      email: form.email,
-      phone: form.phone,
-      tradeLicenseNumber: form.tradeLicenseNumber,
-      vatNumber: form.vatNumber,
-      cities: form.cities,
-      capacityPerDay: form.capacityPerDay,
-      commissionPercent: form.commissionPercent
+      ...form,
+      cities: form.cities ?? [],
+      capacityPerDay: Number(form.capacityPerDay || 1),
+      commissionPercent: Number(form.commissionPercent || 0),
+      planExpiry: form.planExpiry || undefined
     };
 
     try {
@@ -319,6 +372,57 @@ export default function VendorsPage() {
               onChange={e => setForm({ ...form, commissionPercent: parseInt(e.target.value) || 0 })} 
             />
           </div>
+          <div className="mt-2 border-t border-gray-100 pt-4">
+            <h3 className="mb-3 text-sm font-semibold text-gray-900">Professional Registration</h3>
+            <div className="grid grid-cols-2 gap-4">
+              <Input label="About" value={form.about || ''} onChange={e => setForm({ ...form, about: e.target.value })} />
+              <Input label="User Name" value={form.userName || ''} onChange={e => setForm({ ...form, userName: e.target.value })} />
+              <Input label="First Name" value={form.firstName || ''} onChange={e => setForm({ ...form, firstName: e.target.value })} />
+              <Input label="Last Name" value={form.lastName || ''} onChange={e => setForm({ ...form, lastName: e.target.value })} />
+              <Input label="Primary Email" type="email" value={form.primaryEmail || ''} onChange={e => setForm({ ...form, primaryEmail: e.target.value })} />
+              <Input label="Primary Mobile" value={form.primaryMobile || ''} onChange={e => setForm({ ...form, primaryMobile: e.target.value })} />
+              <Input label="Telephone" value={form.telephone || ''} onChange={e => setForm({ ...form, telephone: e.target.value })} />
+              <Input label="Specialization" value={form.specialization || ''} onChange={e => setForm({ ...form, specialization: e.target.value })} />
+              <Input label="Business Location" value={form.businessLocation || ''} onChange={e => setForm({ ...form, businessLocation: e.target.value })} />
+              <Input label="Visa Type" value={form.visaType || ''} onChange={e => setForm({ ...form, visaType: e.target.value })} />
+              <Input label="Address" value={form.address || ''} onChange={e => setForm({ ...form, address: e.target.value })} />
+            </div>
+          </div>
+          <div className="mt-2 border-t border-gray-100 pt-4">
+            <h3 className="mb-3 text-sm font-semibold text-gray-900">Professional Plan</h3>
+            <div className="grid grid-cols-2 gap-4">
+              <Input label="Details of Plan" value={form.planDetails || ''} onChange={e => setForm({ ...form, planDetails: e.target.value })} />
+              <Input label="Plan Expiry" type="date" value={form.planExpiry || ''} onChange={e => setForm({ ...form, planExpiry: e.target.value })} />
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">Agreement File Upload</label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="file"
+                    onChange={e => uploadAgreement(e.target.files?.[0] ?? null)}
+                    className="w-full text-sm text-gray-600 file:mr-3 file:rounded-lg file:border-0 file:bg-gray-100 file:px-3 file:py-2 file:text-sm file:font-medium file:text-gray-700 hover:file:bg-gray-200"
+                  />
+                  {uploadingAgreement ? <Loader2 className="h-4 w-4 animate-spin text-orange-500" /> : <Upload className="h-4 w-4 text-gray-400" />}
+                </div>
+                {form.agreementFileUrl && (
+                  <a href={form.agreementFileUrl} target="_blank" rel="noreferrer" className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-orange-600">
+                    <FileText size={13} /> View agreement
+                  </a>
+                )}
+              </div>
+              <Input label="Agreement File Key" value={form.agreementFileKey || ''} onChange={e => setForm({ ...form, agreementFileKey: e.target.value })} />
+            </div>
+          </div>
+          <div className="mt-2 border-t border-gray-100 pt-4">
+            <h3 className="mb-3 text-sm font-semibold text-gray-900">Payment Bank Details</h3>
+            <div className="grid grid-cols-2 gap-4">
+              <Input label="Bank Name" value={form.bankName || ''} onChange={e => setForm({ ...form, bankName: e.target.value })} />
+              <Input label="Account Full Name" value={form.accountFullName || ''} onChange={e => setForm({ ...form, accountFullName: e.target.value })} />
+              <Input label="IBAN No." value={form.ibanNo || ''} onChange={e => setForm({ ...form, ibanNo: e.target.value })} />
+              <Input label="Account Number" value={form.accountNumber || ''} onChange={e => setForm({ ...form, accountNumber: e.target.value })} />
+              <Input label="Swift" value={form.swift || ''} onChange={e => setForm({ ...form, swift: e.target.value })} />
+              <Input label="Branch Address" value={form.branchAddress || ''} onChange={e => setForm({ ...form, branchAddress: e.target.value })} />
+            </div>
+          </div>
           <div className="flex justify-end gap-3 pt-2">
             <Button type="button" variant="secondary" onClick={() => setIsModalOpen(false)}>Cancel</Button>
             <Button type="submit">{selected ? 'Update' : 'Create'}</Button>
@@ -398,6 +502,67 @@ export default function VendorsPage() {
                     <div>
                       <label className="text-xs text-gray-500">Commission</label>
                       <p className="text-sm text-gray-900 font-semibold text-green-600">{selected.commissionPercent}%</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                    <FileText size={14} className="text-orange-500" />
+                    Professional Registration
+                  </h4>
+                  <div className="grid grid-cols-2 gap-4 pl-6">
+                    {[
+                      ['About', selected.about],
+                      ['User Name', selected.userName],
+                      ['First Name', selected.firstName],
+                      ['Last Name', selected.lastName],
+                      ['Primary Email', selected.primaryEmail],
+                      ['Primary Mobile', selected.primaryMobile],
+                      ['Telephone', selected.telephone],
+                      ['Specialization', selected.specialization],
+                      ['Business Location', selected.businessLocation],
+                      ['Visa Type', selected.visaType],
+                      ['Address', selected.address],
+                    ].map(([label, value]) => (
+                      <div key={label}>
+                        <label className="text-xs text-gray-500">{label}</label>
+                        <p className="text-sm text-gray-900">{value || 'Not provided'}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                    <FileText size={14} className="text-orange-500" />
+                    Plan & Bank Details
+                  </h4>
+                  <div className="grid grid-cols-2 gap-4 pl-6">
+                    {[
+                      ['Plan Details', selected.planDetails],
+                      ['Plan Expiry', selected.planExpiry ? selected.planExpiry.slice(0, 10) : ''],
+                      ['Bank Name', selected.bankName],
+                      ['Account Full Name', selected.accountFullName],
+                      ['IBAN No.', selected.ibanNo],
+                      ['Account Number', selected.accountNumber],
+                      ['Swift', selected.swift],
+                      ['Branch Address', selected.branchAddress],
+                    ].map(([label, value]) => (
+                      <div key={label}>
+                        <label className="text-xs text-gray-500">{label}</label>
+                        <p className="text-sm text-gray-900">{value || 'Not provided'}</p>
+                      </div>
+                    ))}
+                    <div>
+                      <label className="text-xs text-gray-500">Agreement File</label>
+                      {selected.agreementFileUrl ? (
+                        <a href={selected.agreementFileUrl} target="_blank" rel="noreferrer" className="block text-sm font-medium text-orange-600">
+                          View agreement
+                        </a>
+                      ) : (
+                        <p className="text-sm text-gray-900">Not provided</p>
+                      )}
                     </div>
                   </div>
                 </div>

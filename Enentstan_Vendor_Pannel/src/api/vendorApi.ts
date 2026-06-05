@@ -50,11 +50,23 @@ export const vendorApi = {
       if (!response.ok) throw new Error(`Image upload failed: ${response.status}`);
       return response.json() as Promise<{ bucket: string; key: string; url: string; contentType: string; size: number }>;
     },
+    file: async (file: File, folder = 'agreements') => {
+      const body = new FormData();
+      body.append('file', file);
+
+      const response = await fetch(`${API_BASE_URL}/uploads/files?folder=${encodeURIComponent(folder)}`, {
+        method: 'POST',
+        body,
+      });
+
+      if (!response.ok) throw new Error(`File upload failed: ${response.status}`);
+      return response.json() as Promise<{ bucket: string; key: string; url: string; contentType: string; size: number }>;
+    },
   },
 
   auth: {
-    login: (email: string, password: string) =>
-      request<unknown>('auth/login', jsonOptions('POST', { email, password })),
+    login: <T = unknown>(email: string, password: string) =>
+      request<T>('auth/login', jsonOptions('POST', { email, password })),
     logout: () => request<void>('auth/logout', jsonOptions('POST')),
   },
 
@@ -80,6 +92,12 @@ export const vendorApi = {
     updateStatus: (id: string, status: string) =>
       request<unknown>(`packages/${id}`, jsonOptions('PATCH', { status })),
     delete: (id: string) => request<void>(`packages/${id}`, jsonOptions('DELETE')),
+  },
+
+  vendors: {
+    list: <T = unknown[]>() => request<T>('vendors', { headers: headers() }),
+    get: <T = unknown>(id: string) => request<T>(`vendors/${id}`, { headers: headers() }),
+    update: <T = unknown>(id: string, payload: JsonBody) => request<T>(`vendors/${id}`, jsonOptions('PUT', payload)),
   },
 
   masterData: {

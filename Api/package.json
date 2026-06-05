@@ -14,6 +14,7 @@
     "prisma:generate": "prisma generate",
     "db:push": "prisma db push",
     "db:migrate": "prisma migrate dev",
+    "db:vendor-registration-fields": "node scripts/apply-vendor-registration-fields.js",
     "db:studio": "prisma studio",
     "db:seed": "ts-node prisma/seed.ts"
   },

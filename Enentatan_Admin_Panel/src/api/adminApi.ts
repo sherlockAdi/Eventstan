@@ -44,6 +44,18 @@ export const adminApi = {
       if (!response.ok) throw new Error(`Image upload failed: ${response.status}`);
       return response.json() as Promise<{ bucket: string; key: string; url: string; contentType: string; size: number }>;
     },
+    file: async (file: File, folder = 'admin') => {
+      const body = new FormData();
+      body.append('file', file);
+
+      const response = await fetch(`${BASE_API_URL}uploads/files?folder=${encodeURIComponent(folder)}`, {
+        method: 'POST',
+        body,
+      });
+
+      if (!response.ok) throw new Error(`File upload failed: ${response.status}`);
+      return response.json() as Promise<{ bucket: string; key: string; url: string; contentType: string; size: number }>;
+    },
   },
 
   login: (payload: { email: string; password: string }) =>

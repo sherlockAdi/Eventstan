@@ -49,6 +49,28 @@ export class UploadsController {
     return this.uploads.uploadImage(file, folder, this.imageBaseUrl(req));
   }
 
+  @Post('files')
+  @UseInterceptors(FileInterceptor('file'))
+  @ApiConsumes('multipart/form-data')
+  @ApiQuery({ name: 'folder', required: false, example: 'agreements' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        file: {
+          type: 'string',
+          format: 'binary',
+        },
+      },
+      required: ['file'],
+    },
+  })
+  @ApiCreatedResponse({ description: 'Uploads a file to MinIO and returns its URL.' })
+  uploadFile(@UploadedFile() file: UploadedImage | undefined, @Query('folder') folder = 'files', @Req() req: Request) {
+    if (!file) throw new BadRequestException('File is required');
+    return this.uploads.uploadFile(file, folder, this.fileBaseUrl(req));
+  }
+
   @Get('images/:folder/:date/:file')
   async getDatedImage(
     @Param('folder') folder: string,
@@ -81,5 +103,9 @@ export class UploadsController {
 
   private imageBaseUrl(req: Request) {
     return `${req.protocol}://${req.get('host')}${req.baseUrl}/images`;
+  }
+
+  private fileBaseUrl(req: Request) {
+    return `${req.protocol}://${req.get('host')}${req.baseUrl}/files`;
   }
 }

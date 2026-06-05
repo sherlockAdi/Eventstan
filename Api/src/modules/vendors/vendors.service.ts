@@ -10,9 +10,7 @@ export class VendorsService {
   create(dto: CreateVendorDto) {
     return this.prisma.vendor.create({
       data: {
-        ...dto,
-        commissionPercent: dto.commissionPercent,
-        vatNumber: dto.vatNumber ?? null,
+        ...(this.vendorData(dto) as any),
         status: VendorStatus.PENDING_VERIFICATION,
       },
     });
@@ -34,17 +32,7 @@ export class VendorsService {
   update(id: string, dto: Partial<CreateVendorDto>) {
     return this.prisma.vendor.update({
       where: { id },
-      data: {
-        ...(dto.companyName ? { companyName: dto.companyName } : {}),
-        ...(dto.contactPerson ? { contactPerson: dto.contactPerson } : {}),
-        ...(dto.email ? { email: dto.email } : {}),
-        ...(dto.phone ? { phone: dto.phone } : {}),
-        ...(dto.tradeLicenseNumber ? { tradeLicenseNumber: dto.tradeLicenseNumber } : {}),
-        ...(dto.vatNumber !== undefined ? { vatNumber: dto.vatNumber } : {}),
-        ...(dto.cities ? { cities: dto.cities } : {}),
-        ...(dto.capacityPerDay !== undefined ? { capacityPerDay: dto.capacityPerDay } : {}),
-        ...(dto.commissionPercent !== undefined ? { commissionPercent: dto.commissionPercent } : {}),
-      },
+      data: this.vendorData(dto) as any,
     });
   }
 
@@ -54,5 +42,49 @@ export class VendorsService {
 
   delete(id: string) {
     return this.prisma.vendor.delete({ where: { id } });
+  }
+
+  private vendorData(dto: Partial<CreateVendorDto>) {
+    const data: Record<string, unknown> = {};
+
+    const stringFields: Array<keyof CreateVendorDto> = [
+      'companyName',
+      'contactPerson',
+      'email',
+      'phone',
+      'about',
+      'firstName',
+      'lastName',
+      'userName',
+      'primaryEmail',
+      'telephone',
+      'primaryMobile',
+      'specialization',
+      'businessLocation',
+      'visaType',
+      'address',
+      'tradeLicenseNumber',
+      'vatNumber',
+      'planDetails',
+      'agreementFileUrl',
+      'agreementFileKey',
+      'bankName',
+      'accountFullName',
+      'ibanNo',
+      'accountNumber',
+      'swift',
+      'branchAddress',
+    ];
+
+    for (const field of stringFields) {
+      if (dto[field] !== undefined) data[field] = dto[field] || null;
+    }
+
+    if (dto.cities !== undefined) data.cities = dto.cities;
+    if (dto.capacityPerDay !== undefined) data.capacityPerDay = dto.capacityPerDay;
+    if (dto.commissionPercent !== undefined) data.commissionPercent = dto.commissionPercent;
+    if (dto.planExpiry !== undefined) data.planExpiry = dto.planExpiry ? new Date(dto.planExpiry) : null;
+
+    return data;
   }
 }

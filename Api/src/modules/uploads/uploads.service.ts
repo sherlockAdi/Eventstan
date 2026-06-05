@@ -5,7 +5,7 @@ import { randomUUID } from 'node:crypto';
 import { extname } from 'node:path';
 import type { Readable } from 'node:stream';
 
-interface UploadedImage {
+interface UploadedFile {
   buffer: Buffer;
   mimetype: string;
   originalname: string;
@@ -51,17 +51,25 @@ export class UploadsService implements OnModuleInit {
     }
   }
 
-  async uploadImage(file: UploadedImage, folder: string, baseUrl: string) {
+  async uploadImage(file: UploadedFile, folder: string, baseUrl: string) {
     if (!file.mimetype.startsWith('image/')) {
       throw new BadRequestException('Only image files are allowed');
     }
 
-    const maxSize = 10 * 1024 * 1024;
+    return this.upload(file, folder || 'images', 10, baseUrl);
+  }
+
+  async uploadFile(file: UploadedFile, folder: string, baseUrl: string) {
+    return this.upload(file, folder || 'files', 20, baseUrl);
+  }
+
+  private async upload(file: UploadedFile, folder: string, maxSizeMb: number, baseUrl: string) {
+    const maxSize = maxSizeMb * 1024 * 1024;
     if (file.size > maxSize) {
-      throw new BadRequestException('Image must be 10MB or smaller');
+      throw new BadRequestException(`File must be ${maxSizeMb}MB or smaller`);
     }
 
-    const safeFolder = this.safeSegment(folder || 'images');
+    const safeFolder = this.safeSegment(folder);
     const extension = this.safeExtension(file.originalname, file.mimetype);
     const key = `${safeFolder}/${new Date().toISOString().slice(0, 10)}/${randomUUID()}${extension}`;
 

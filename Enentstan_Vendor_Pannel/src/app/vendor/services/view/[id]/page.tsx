@@ -74,7 +74,7 @@ export default function ServiceDetailPage() {
         setLoading(true);
         setError(null);
 
-        const data = await vendorApi.services.get(id);
+        const data = await vendorApi.services.get<Service>(id);
         setService(data);
       } catch (err: unknown) {
         setError(err instanceof Error ? err.message : 'Failed to load service');

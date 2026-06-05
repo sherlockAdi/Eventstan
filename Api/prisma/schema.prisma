@@ -118,12 +118,33 @@ model Vendor {
   contactPerson      String
   email              String       @unique
   phone              String
+  about              String?
+  firstName          String?
+  lastName           String?
+  userName           String?      @unique
+  primaryEmail       String?
+  telephone          String?
+  primaryMobile      String?
+  specialization     String?
+  businessLocation   String?
+  visaType           String?
+  address            String?
   tradeLicenseNumber String
   vatNumber          String?
   status             VendorStatus @default(PENDING_VERIFICATION)
   cities             String[]
   capacityPerDay     Int          @default(1)
   commissionPercent  Decimal      @db.Decimal(5, 2)
+  planDetails        String?
+  planExpiry         DateTime?
+  agreementFileUrl   String?
+  agreementFileKey   String?
+  bankName           String?
+  accountFullName    String?
+  ibanNo             String?
+  accountNumber      String?
+  swift              String?
+  branchAddress      String?
   createdAt          DateTime     @default(now())
   updatedAt          DateTime     @updatedAt
 
