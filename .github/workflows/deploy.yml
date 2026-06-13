@@ -1,71 +1,58 @@
 name: Deploy EventStan Applications
 
 on:
-push:
-branches:
-- main
+  push:
+   branches:
+    - main
 
 jobs:
-deploy:
-runs-on: ubuntu-latest
+  deploy:
+    runs-on: ubuntu-latest
 
 
-steps:
-  - name: Deploy to server
-    uses: appleboy/ssh-action@v1.0.3
+    steps:
+      - name: Deploy to server
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          password: ${{ secrets.SERVER_PASSWORD }}
+          port: 22
+          script: |
+            set -e
 
-    with:
-      host: ${{ secrets.SERVER_HOST }}
-      username: ${{ secrets.SERVER_USER }}
-      password: ${{ secrets.SERVER_PASSWORD }}
-      port: 22
+            cd /var/www/Eventstan
 
-      script: |
-        set -e
+            git pull origin main
 
-        cd /var/www/Eventstan
+            # API
 
-        # Force server to exactly match GitHub main branch
-        git fetch origin main
-        git reset --hard origin/main
+            cd Api
+            # npm install --force
+            npm run build
+            pm2 restart eventstan-api || pm2 start npm --name eventstan-api -- run start
 
-        # API
-        cd Api
+            # Admin Panel (3001)
 
-        # npm install --force
-        npm run build
+            cd ../Enentatan_Admin_Panel
+            # npm install --force
+            npm run build
+            PORT=3001 pm2 restart eventstan-admin || PORT=3001 pm2 start npm --name eventstan-admin -- start
 
-        pm2 restart eventstan-api || \
-        pm2 start npm --name eventstan-api -- run start
+            # Customer Panel (3002)
 
-        # Admin Panel (3001)
-        cd ../Enentatan_Admin_Panel
+            cd ../Enentstan_Customer_Panel
+            # npm install --force
+            npm run build
+            PORT=3002 pm2 restart eventstan-customer || PORT=3002 pm2 start npm --name eventstan-customer -- start
 
-        # npm install --force
-        npm run build
+            # Vendor Panel (3003)
 
-        PORT=3001 pm2 restart eventstan-admin || \
-        PORT=3001 pm2 start npm --name eventstan-admin -- start
+            cd ../Enentstan_Vendor_Pannel
+            # npm install --force
+            # npm run build
+            PORT=3003 pm2 restart eventstan-vendor || PORT=3003 pm2 start npm --name eventstan-vendor -- start
 
-        # Customer Panel (3002)
-        cd ../Enentstan_Customer_Panel
+            pm2 save
 
-        # npm install --force
-        npm run build
-
-        PORT=3002 pm2 restart eventstan-customer || \
-        PORT=3002 pm2 start npm --name eventstan-customer -- start
-
-        # Vendor Panel (3003)
-        cd ../Enentstan_Vendor_Pannel
-
-        # npm install --force
-        # npm run build
-
-        PORT=3003 pm2 restart eventstan-vendor || \
-        PORT=3003 pm2 start npm --name eventstan-vendor -- start
-
-        pm2 save
-
-        systemctl restart httpd
-
+            systemctl restart httpd
