@@ -1,0 +1,198 @@
+node:internal/process/promises:289
+            triggerUncaughtException(err, true /* fromPromise */);
+            ^
+
+Error [ERR_TLS_CERT_ALTNAME_INVALID]: Hostname/IP does not match certificate's altnames: Host: minio.eventstan.com. is not in the cert's altnames: DNS:eventstan.com, DNS:www.eventstan.com
+    at Object.checkServerIdentity (node:tls:337:12)
+    at TLSSocket.onConnectSecure (node:_tls_wrap:1684:27)
+    at TLSSocket.emit (node:events:519:28)
+    at TLSSocket._finishInit (node:_tls_wrap:1085:8)
+    at ssl.onhandshakedone (node:_tls_wrap:871:12) {
+  code: 'ERR_TLS_CERT_ALTNAME_INVALID',
+  reason: "Host: minio.eventstan.com. is not in the cert's altnames: DNS:eventstan.com, DNS:www.eventstan.com",
+  host: 'minio.eventstan.com',
+  cert: {
+    subject: [Object: null prototype] { CN: 'www.eventstan.com' },
+    issuer: [Object: null prototype] { C: 'US', O: "Let's Encrypt", CN: 'YR2' },
+    subjectaltname: 'DNS:eventstan.com, DNS:www.eventstan.com',
+    infoAccess: [Object: null prototype] {
+      'CA Issuers - URI': [ 'http://yr2.i.lencr.org/' ]
+    },
+    ca: false,
+    modulus: '9B19395272CB13CBCC37BBBD20E23BBFB9DB6AF0F369ACBB45EC60AC05EDD8145BE62102EFC13014232B5E074867575E55FB3A2E8BBE92DC2DD0EBDFCD7B3FE8006FE36823C3345A2162B6C776CD86541E16DE05D8511F08FB1629194B9A09EE16FFE667417ECB2B7E65E5FEEE2DCC69415AF05A80844E251BEF806466CF53D02C9ADEF8706892D82B67E8678B21ACA69663D95AF4FFEAE5F4731C7E08A98AFCB0476BEA4D4B315D5C56C30E65FE2A6E20435EB14B873107658B6E85D8A07BDDE3C51227F0A4E096F71F064C9194C824E29B5BD78CEA7944555948BF799CFFBB508ABFB90050638EDA9167DC87388CD808DE80E279A03C31117F27A8EC294E35',
+    bits: 2048,
+    exponent: '0x10001',
+    pubkey: Buffer(294) [Uint8Array] [
+       48, 130,   1,  34,  48,  13,   6,   9,  42, 134,  72, 134,
+      247,  13,   1,   1,   1,   5,   0,   3, 130,   1,  15,   0,
+       48, 130,   1,  10,   2, 130,   1,   1,   0, 155,  25,  57,
+       82, 114, 203,  19, 203, 204,  55, 187, 189,  32, 226,  59,
+      191, 185, 219, 106, 240, 243, 105, 172, 187,  69, 236,  96,
+      172,   5, 237, 216,  20,  91, 230,  33,   2, 239, 193,  48,
+       20,  35,  43,  94,   7,  72, 103,  87,  94,  85, 251,  58,
+       46, 139, 190, 146, 220,  45, 208, 235, 223, 205, 123,  63,
+      232,   0, 111, 227,
+      ... 194 more items
+    ],
+    valid_from: 'Jun  6 12:06:31 2026 GMT',
+    valid_to: 'Sep  4 12:06:30 2026 GMT',
+    fingerprint: '36:88:58:D6:D8:4F:99:20:49:1B:A1:7B:3F:36:8B:79:54:8A:3E:ED',
+    fingerprint256: 'C0:94:24:1A:83:B2:D4:A4:DB:1F:21:6E:76:C5:EF:0E:90:A8:70:A2:15:CB:8C:81:99:18:4B:73:EF:66:46:90',
+    fingerprint512: 'C8:87:BB:BA:57:DB:D0:AB:E4:1C:37:89:D8:72:C8:B4:67:8D:D4:BB:90:9A:9D:D4:DF:02:78:D1:F4:0E:98:52:D9:B9:1B:A6:D3:F7:50:53:CD:84:31:14:B6:2C:47:86:0E:C6:BE:80:FF:B4:31:7D:C7:03:DA:5B:66:80:E9:AD',
+    ext_key_usage: [ '1.3.6.1.5.5.7.3.1' ],
+    serialNumber: '050109E53C00DD68F9AE8CF35B8E1D41D19C',
+    raw: Buffer(1295) [Uint8Array] [
+       48, 130,   5,  11,  48, 130,   3, 243, 160,   3,   2,   1,
+        2,   2,  18,   5,   1,   9, 229,  60,   0, 221, 104, 249,
+      174, 140, 243,  91, 142,  29,  65, 209, 156,  48,  13,   6,
+        9,  42, 134,  72, 134, 247,  13,   1,   1,  11,   5,   0,
+       48,  51,  49,  11,  48,   9,   6,   3,  85,   4,   6,  19,
+        2,  85,  83,  49,  22,  48,  20,   6,   3,  85,   4,  10,
+       19,  13,  76, 101, 116,  39, 115,  32,  69, 110,  99, 114,
+      121, 112, 116,  49,  12,  48,  10,   6,   3,  85,   4,   3,
+       19,   3,  89,  82,
+      ... 1195 more items
+    ],
+    issuerCertificate: {
+      subject: [Object: null prototype] {
+        C: 'US',
+        O: "Let's Encrypt",
+        CN: 'YR2'
+      },
+      issuer: [Object: null prototype] { C: 'US', O: 'ISRG', CN: 'Root YR' },
+      infoAccess: [Object: null prototype] {
+        'CA Issuers - URI': [ 'http://yr.i.lencr.org/' ]
+      },
+      ca: true,
+      modulus: 'D9D0BC70069A6A87CE25BAA31EAD5FDE78BFDF5D0EE62D042FD4B9E958A65BCAF1A9C7AC21E807E7B2502717A7B04E470703E8123A806F9B70DF9B4E80B86885F8A46EB787C0728C2A9C0410096F7CF903CFFDE3AFFF0BA0EC8CA4E0D90EC5FD88EA0D9FE794FA9C9A0E4CB15CBA4791ABCD091901186A7F9D3C5AFD38652040ADA118A80D916F3BA5AA69B0E02E50972BA18851B79B948ACE2A6998AB7A2B1EBB7DA0CC324D04088AB6CBDDE875F8BF6E5BA6444D712FC1FC6B5CF6455B5290FED8F2CFC5D7A2DD38A6E79938B5F0045F00F6AB288F4F1AD336AEA537E00CAF983673574DAA4393C23C5E57A2F99693F5AC6898BCB9D168F94EAB26513D6FB9',
+      bits: 2048,
+      exponent: '0x10001',
+      pubkey: Buffer(294) [Uint8Array] [
+         48, 130,   1,  34,  48,  13,   6,   9,  42, 134,  72, 134,
+        247,  13,   1,   1,   1,   5,   0,   3, 130,   1,  15,   0,
+         48, 130,   1,  10,   2, 130,   1,   1,   0, 217, 208, 188,
+        112,   6, 154, 106, 135, 206,  37, 186, 163,  30, 173,  95,
+        222, 120, 191, 223,  93,  14, 230,  45,   4,  47, 212, 185,
+        233,  88, 166,  91, 202, 241, 169, 199, 172,  33, 232,   7,
+        231, 178,  80,  39,  23, 167, 176,  78,  71,   7,   3, 232,
+         18,  58, 128, 111, 155, 112, 223, 155,  78, 128, 184, 104,
+        133, 248, 164, 110,
+        ... 194 more items
+      ],
+      valid_from: 'Sep  3 00:00:00 2025 GMT',
+      valid_to: 'Sep  2 23:59:59 2028 GMT',
+      fingerprint: '2D:74:D6:DF:D9:6E:EA:55:AD:7B:AA:FA:0D:3C:65:52:B2:DA:DC:37',
+      fingerprint256: '23:8B:85:A0:09:9C:65:B9:70:47:7D:57:24:F1:A1:D4:75:CE:50:58:CF:FE:4E:FA:87:33:89:9B:DB:86:3C:47',
+      fingerprint512: 'E2:7E:24:B1:05:74:FD:1E:F9:45:05:78:CE:F8:96:AE:FD:C7:95:92:B1:40:AA:64:AF:47:F6:B9:06:76:10:26:9E:12:8E:24:BC:EA:04:49:70:24:03:77:2A:0B:2E:61:22:B2:C9:60:37:5E:3C:C8:FD:E5:89:57:8E:C1:2C:2C',
+      ext_key_usage: [ '1.3.6.1.5.5.7.3.1' ],
+      serialNumber: '4EBD24947E24D394802D84A52FD5B319',
+      raw: Buffer(1246) [Uint8Array] [
+         48, 130,   4, 218,  48, 130,   2, 194, 160,   3,   2,   1,
+          2,   2,  16,  78, 189,  36, 148, 126,  36, 211, 148, 128,
+         45, 132, 165,  47, 213, 179,  25,  48,  13,   6,   9,  42,
+        134,  72, 134, 247,  13,   1,   1,  11,   5,   0,  48,  46,
+         49,  11,  48,   9,   6,   3,  85,   4,   6,  19,   2,  85,
+         83,  49,  13,  48,  11,   6,   3,  85,   4,  10,  19,   4,
+         73,  83,  82,  71,  49,  16,  48,  14,   6,   3,  85,   4,
+          3,  19,   7,  82, 111, 111, 116,  32,  89,  82,  48,  30,
+         23,  13,  50,  53,
+        ... 1146 more items
+      ],
+      issuerCertificate: {
+        subject: [Object: null prototype] { C: 'US', O: 'ISRG', CN: 'Root YR' },
+        issuer: [Object: null prototype] {
+          C: 'US',
+          O: 'Internet Security Research Group',
+          CN: 'ISRG Root X1'
+        },
+        infoAccess: [Object: null prototype] {
+          'CA Issuers - URI': [ 'http://x1.i.lencr.org/' ]
+        },
+        ca: true,
+        modulus: 'DBC626737BF024C97562F7F9E19FB0B3794EB34126CF951FD8515EA45BC31BBDB06362074043D5F70EC5B494402248335C44D770DBFB90B0D70D2CD04058B2FB883FFEA3A05D30F1CB8899B811D4E1A061B490E0EA7323E0C6F121AE4E5704F3BDCE092FA4877B2B968EAF978DCCE4E260E007A8D6C7C7A7A913243A0888504D24063E38A7D7FC552F60ABA18D3FA7A38F659AA9AEA52048E4F901422AAB106B56539BB153F7105871AEF234A3141CE766ABDB34F2CC5CC2C5C426F75937EB2415D78EABD61BEBF86E3CF18E3780B4E954EEA6AB443BCD3B202E4182E59FDD3833E7DA2B1F219CB0A9275E59A9A12070D958FBD30C59C0B9CAF2F60368F797DFB66EE820657F9D384F75CD898875AC13BD266E56F95B46B0252F1201EA9C0C0639DE5C28D843CFB70420A3B2C6D2369654DE14DC0437617C09440E562BEA911AB6731D9834F906A9CA0BDD9B7741213357DB2C78A82DC70B0AE89EBD3F1990F859AEAECC8A2EE035701C504011F3E97361A97EF734E0EC2E4300BC9539E1BF0AA7D100C9F52921C247435203A3FCB67FE619196709CB79AED5422E7572495A54E87D6A1A0DC38133AEB247FC79A85332261B2397B33C998EE5EAED6A5B24435BADA7BE3E783CBDD8F2387ED1CA4DBABD216847E1864A8775A724422DFA842F95865B63CB6912BA0AAC507A3C51B3AC9203472B6CE07AAFB87E764458F6CEFFC1',
+        bits: 4096,
+        exponent: '0x10001',
+        pubkey: Buffer(550) [Uint8Array] [
+           48, 130,   2,  34,  48,  13,   6,   9,  42, 134,  72, 134,
+          247,  13,   1,   1,   1,   5,   0,   3, 130,   2,  15,   0,
+           48, 130,   2,  10,   2, 130,   2,   1,   0, 219, 198,  38,
+          115, 123, 240,  36, 201, 117,  98, 247, 249, 225, 159, 176,
+          179, 121,  78, 179,  65,  38, 207, 149,  31, 216,  81,  94,
+          164,  91, 195,  27, 189, 176,  99,  98,   7,  64,  67, 213,
+          247,  14, 197, 180, 148,  64,  34,  72,  51,  92,  68, 215,
+          112, 219, 251, 144, 176, 215,  13,  44, 208,  64,  88, 178,
+          251, 136,  63, 254,
+          ... 450 more items
+        ],
+        valid_from: 'May 13 00:00:00 2026 GMT',
+        valid_to: 'Sep  2 23:59:59 2032 GMT',
+        fingerprint: 'AB:9D:02:63:24:4D:D0:32:6E:B6:70:15:70:5A:66:7E:79:CF:E9:98',
+        fingerprint256: '07:26:39:D0:B1:40:D5:BF:FA:E1:6A:D9:C3:F6:CC:60:86:04:06:21:F5:1E:E6:1A:6D:46:A8:91:5C:07:CF:76',
+        fingerprint512: '7F:D1:57:81:BD:88:05:44:D6:C9:C3:B3:5F:44:31:D7:9A:2F:48:22:C9:C7:3B:66:70:F1:07:3E:83:42:C1:A4:04:B5:99:92:A8:EA:2F:DB:B4:37:3B:0F:A7:75:20:4A:B8:8D:7D:37:BC:6D:8D:39:67:97:03:BB:6B:49:EB:F2',
+        ext_key_usage: [ '1.3.6.1.5.5.7.3.1' ],
+        serialNumber: 'F24B6D17F9D9AD7CB1C9FEA78782699F',
+        raw: Buffer(1528) [Uint8Array] [
+           48, 130,   5, 244,  48, 130,   3, 220, 160,   3,   2,   1,
+            2,   2,  17,   0, 242,  75, 109,  23, 249, 217, 173, 124,
+          177, 201, 254, 167, 135, 130, 105, 159,  48,  13,   6,   9,
+           42, 134,  72, 134, 247,  13,   1,   1,  11,   5,   0,  48,
+           79,  49,  11,  48,   9,   6,   3,  85,   4,   6,  19,   2,
+           85,  83,  49,  41,  48,  39,   6,   3,  85,   4,  10,  19,
+           32,  73, 110, 116, 101, 114, 110, 101, 116,  32,  83, 101,
+           99, 117, 114, 105, 116, 121,  32,  82, 101, 115, 101,  97,
+          114,  99, 104,  32,
+          ... 1428 more items
+        ],
+        issuerCertificate: <ref *1> {
+          subject: [Object: null prototype] {
+            C: 'US',
+            O: 'Internet Security Research Group',
+            CN: 'ISRG Root X1'
+          },
+          issuer: [Object: null prototype] {
+            C: 'US',
+            O: 'Internet Security Research Group',
+            CN: 'ISRG Root X1'
+          },
+          ca: true,
+          modulus: 'ADE82473F41437F39B9E2B57281C87BEDCB7DF38908C6E3CE657A078F775C2A2FEF56A6EF6004F28DBDE68866C4493B6B163FD14126BBF1FD2EA319B217ED1333CBA48F5DD79DFB3B8FF12F1219A4BC18A8671694A66666C8F7E3C70BFAD292206F3E4C0E680AEE24B8FB7997E94039FD347977C99482353E838AE4F0A6F832ED149578C8074B6DA2FD0388D7B0370211B75F2303CFA8FAEDDDA63ABEB164FC28E114B7ECF0BE8FFB5772EF4B27B4AE04C12250C708D0329A0E15324EC13D9EE19BF10B34A8C3F89A36151DEAC870794F46371EC2EE26F5B9881E1895C34796C76EF3B906279E6DBA49A2F26C5D010E10EDED9108E16FBB7F7A8F7C7E50207988F360895E7E237960D36759EFB0E72B11D9BBC03F94905D881DD05B42AD641E9AC0176950A0FD8DFD5BD121F352F28176CD298C1A80964776E4737BACEAC595E689D7F72D689C50641293E593EDD26F524C911A75AA34C401F46A199B5A73A516E863B9E7D72A712057859ED3E5178150B038F8DD02F05B23E7B4A1C4B730512FCC6EAE050137C439374B3CA74E78E1F0108D030D45B7136B407BAC130305C48B7823B98A67D608AA2A32982CCBABD83041BA2830341A1D605F11BC2B6F0A87C863B46A8482A88DC769A76BF1F6AA53D198FEB38F364DEC82B0D0A28FFF7DBE21542D422D0275DE179FE18E77088AD4EE6D98B3AC6DD27516EFFBC64F533434F',
+          bits: 4096,
+          exponent: '0x10001',
+          pubkey: Buffer(550) [Uint8Array] [
+             48, 130,   2,  34,  48,  13,   6,   9,  42, 134,  72, 134,
+            247,  13,   1,   1,   1,   5,   0,   3, 130,   2,  15,   0,
+             48, 130,   2,  10,   2, 130,   2,   1,   0, 173, 232,  36,
+            115, 244,  20,  55, 243, 155, 158,  43,  87,  40,  28, 135,
+            190, 220, 183, 223,  56, 144, 140, 110,  60, 230,  87, 160,
+            120, 247, 117, 194, 162, 254, 245, 106, 110, 246,   0,  79,
+             40, 219, 222, 104, 134, 108,  68, 147, 182, 177,  99, 253,
+             20,  18, 107, 191,  31, 210, 234,  49, 155,  33, 126, 209,
+             51,  60, 186,  72,
+            ... 450 more items
+          ],
+          valid_from: 'Jun  4 11:04:38 2015 GMT',
+          valid_to: 'Jun  4 11:04:38 2035 GMT',
+          fingerprint: 'CA:BD:2A:79:A1:07:6A:31:F2:1D:25:36:35:CB:03:9D:43:29:A5:E8',
+          fingerprint256: '96:BC:EC:06:26:49:76:F3:74:60:77:9A:CF:28:C5:A7:CF:E8:A3:C0:AA:E1:1A:8F:FC:EE:05:C0:BD:DF:08:C6',
+          fingerprint512: '3B:40:F2:7E:82:83:23:F5:B9:1F:89:09:88:3A:78:A2:1C:86:55:17:61:F2:7B:38:02:9F:AA:EC:14:AF:5B:7A:A9:6F:B9:F9:CC:93:EE:20:1B:5E:B1:D0:FE:F1:7B:29:07:47:E8:B8:39:D2:E4:9A:8F:36:C5:EB:F3:C7:C9:10',
+          serialNumber: '8210CFB0D240E3594463E0BB63828B00',
+          raw: Buffer(1391) [Uint8Array] [
+             48, 130,   5, 107,  48, 130,   3,  83, 160,   3,   2,   1,
+              2,   2,  17,   0, 130,  16, 207, 176, 210,  64, 227,  89,
+             68,  99, 224, 187,  99, 130, 139,   0,  48,  13,   6,   9,
+             42, 134,  72, 134, 247,  13,   1,   1,  11,   5,   0,  48,
+             79,  49,  11,  48,   9,   6,   3,  85,   4,   6,  19,   2,
+             85,  83,  49,  41,  48,  39,   6,   3,  85,   4,  10,  19,
+             32,  73, 110, 116, 101, 114, 110, 101, 116,  32,  83, 101,
+             99, 117, 114, 105, 116, 121,  32,  82, 101, 115, 101,  97,
+            114,  99, 104,  32,
+            ... 1291 more items
+          ],
+          issuerCertificate: [Circular *1]
+        }
+      }
+    }
+  }
+}
+
+Node.js v20.13.1

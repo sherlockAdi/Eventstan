@@ -1,6 +1,6 @@
 import type { NextConfig } from "next";
 
-const apiBaseUrl = process.env.NEXT_PUBLIC_BASE_URL ?? "http://localhost:4000";
+const apiBaseUrl = process.env.NEXT_PUBLIC_BASE_URL ?? "https://api.eventstan.com";
 
 const nextConfig: NextConfig = {
   async rewrites() {
