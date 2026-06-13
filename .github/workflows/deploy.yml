@@ -55,4 +55,4 @@ jobs:
 
             pm2 save
 
-            systemctl restart nginx
+            systemctl restart httpd
