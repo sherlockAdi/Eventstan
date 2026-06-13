@@ -14,6 +14,7 @@ export default function Navbar() {
 
   const [menuOpen, setMenuOpen] = useState(false);
   const [userDropOpen, setUserDropOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
   const dropRef = useRef<HTMLDivElement>(null);
 
   const links = [
@@ -22,9 +23,31 @@ export default function Navbar() {
     { href: "/about", label: "About Us" },
     { href: "/promotions", label: "Promotions" },
     { href: "/bookings", label: "My Bookings" },
+    // { href: "/blog", label: "Blog" },
   ];
 
-  useEffect(() => { setMenuOpen(false); }, [pathname]);
+  // Handle responsive breakpoint at 900px
+  useEffect(() => {
+    const checkScreenSize = () => {
+      setIsMobile(window.innerWidth < 900); // Changed from 768 to 900
+    };
+    
+    checkScreenSize();
+    window.addEventListener('resize', checkScreenSize);
+    
+    return () => window.removeEventListener('resize', checkScreenSize);
+  }, []);
+
+  useEffect(() => { 
+    setMenuOpen(false); 
+  }, [pathname]);
+
+  useEffect(() => {
+    // #region agent log
+    fetch('http://127.0.0.1:7390/ingest/a3e994ce-a9eb-43f3-b313-113a0ac6b299',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'55dc61'},body:JSON.stringify({sessionId:'55dc61',runId:'pre-fix',hypothesisId:'H-F',location:'src/components/ui/Navbar.tsx:Navbar',message:'Navbar mounted (client) — ingest reachability check',data:{pathname},timestamp:Date.now()})}).catch(()=>{});
+    fetch('/api/debug-log',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'55dc61',runId:'pre-fix',hypothesisId:'H-F2',location:'src/components/ui/Navbar.tsx:Navbar',message:'Navbar mounted (client) — same-origin debug log',data:{pathname},timestamp:Date.now()})}).catch(()=>{});
+    // #endregion
+  }, []);
 
   useEffect(() => {
     document.body.style.overflow = menuOpen ? "hidden" : "";
@@ -68,9 +91,8 @@ export default function Navbar() {
             />
           </Link>
 
-
-          {/* Desktop links */}
-          <div className="hidden md:flex items-center gap-4 lg:gap-6">
+          {/* Desktop links - hidden when screen width < 900px */}
+          <div className={`hidden items-center gap-4 lg:gap-6 ${!isMobile ? 'md:flex' : ''}`}>
             {links.map(link => (
               <Link key={link.href} href={link.href}
                 className={`text-sm font-medium transition-colors whitespace-nowrap ${pathname === link.href ? "text-orange-500" : "text-gray-600 hover:text-orange-500"
@@ -90,7 +112,7 @@ export default function Navbar() {
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
               </svg>
-              <span className="hidden sm:inline">Cart</span>
+              {/* <span className="hidden sm:inline">Cart</span> */}
               {count > 0 && (
                 <span className="absolute -top-2 -right-2 bg-orange-500 text-white text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center animate-bounce">
                   {count > 9 ? "9+" : count}
@@ -168,10 +190,10 @@ export default function Navbar() {
               ) : (
                 /* ── Guest buttons ── */
                 <div className="hidden sm:flex items-center gap-2">
-                  <Link href="/auth/login"
+                  {/* <Link href="/auth/login"
                     className="text-sm font-medium text-gray-600 hover:text-orange-500 transition-colors px-3 py-2">
                     Sign In
-                  </Link>
+                  </Link> */}
                   <Link href="/auth/signup"
                     className="bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold px-4 py-2 rounded-full transition-colors">
                     Sign Up
@@ -180,9 +202,11 @@ export default function Navbar() {
               )
             )}
 
-            {/* Mobile hamburger */}
-            <button className="md:hidden p-2 -mr-2 rounded-lg hover:bg-gray-100 transition-colors"
-              onClick={() => setMenuOpen(!menuOpen)} aria-label="Open menu">
+            {/* Mobile hamburger - visible when screen width < 900px */}
+            <button 
+              className={`p-2 -mr-2 rounded-lg hover:bg-gray-100 transition-colors ${isMobile ? 'block' : 'md:hidden'}`}
+              onClick={() => setMenuOpen(!menuOpen)} 
+              aria-label="Open menu">
               <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
               </svg>
@@ -191,11 +215,11 @@ export default function Navbar() {
         </div>
       </div>
 
-      {/* Mobile slide-in panel */}
-      {menuOpen && (
+      {/* Mobile slide-in panel - conditionally rendered based on isMobile state */}
+      {menuOpen && isMobile && (
         <>
-          <div className="fixed inset-0 bg-black/40 z-40 md:hidden" onClick={() => setMenuOpen(false)} aria-hidden />
-          <div className="fixed top-0 right-0 h-full w-4/5 max-w-xs bg-white z-50 md:hidden flex flex-col shadow-2xl animate-slideInRight">
+          <div className="fixed inset-0 bg-black/40 z-40" onClick={() => setMenuOpen(false)} aria-hidden />
+          <div className="fixed top-0 right-0 h-full w-4/5 max-w-xs bg-white z-50 flex flex-col shadow-2xl animate-slideInRight">
             <div className="flex justify-end p-4">
               <button onClick={() => setMenuOpen(false)}
                 className="w-9 h-9 rounded-full border-2 border-orange-400 flex items-center justify-center text-orange-500 hover:bg-orange-50 transition-colors">

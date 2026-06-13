@@ -91,10 +91,8 @@ export default function VendorLayout({ children }: { children: React.ReactNode }
   }, [pathname, router]);
 
   const initials = vendor
-    ? (`${vendor.firstName?.charAt(0) ?? ''}${vendor.lastName?.charAt(0) ?? ''}`.toUpperCase() ||
-      vendor.email?.charAt(0)?.toUpperCase() ||
-      'V')
-    : 'V';
+    ? `${vendor.firstName?.charAt(0) ?? ''}${vendor.lastName?.charAt(0) ?? ''}`.toUpperCase()
+    : vendor?.email?.charAt(0)?.toUpperCase() ?? 'V';
 
   const fullName = vendor 
     ? `${vendor.firstName || ''} ${vendor.lastName || ''}`.trim() || vendor.email?.split('@')[0] || 'Vendor'

@@ -6,6 +6,7 @@ import Link from "next/link";
 import { adminApi } from "@/api/adminApi";
 import Button from "@/components/admin/Button";
 import ConfirmModal from "@/components/admin/ConfirmModal";
+import Pagination from "@/components/admin/Pagination";
 import Table from "@/components/admin/Table";
 import { Column } from "@/lib/types";
 import toast from "react-hot-toast";
@@ -26,6 +27,9 @@ export default function EmailTemplatesPage() {
   const [statusOpen, setStatusOpen] = useState(false);
   const [selected, setSelected] = useState<EmailTemplate | null>(null);
   const [pendingStatus, setPendingStatus] = useState("");
+
+  const ITEMS_PER_PAGE = 10;
+  const [currentPage, setCurrentPage] = useState(1);
 
   const load = async () => {
     setLoading(true);
@@ -97,6 +101,12 @@ export default function EmailTemplatesPage() {
     },
   ];
 
+  const totalPages = Math.ceil(templates.length / ITEMS_PER_PAGE);
+  const paginatedData = templates.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
+
   if (loading) return <div className="flex h-64 items-center justify-center text-sm text-gray-500">Loading email templates...</div>;
 
   return (
@@ -110,7 +120,14 @@ export default function EmailTemplatesPage() {
       </div>
 
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm">
-        <Table columns={columns} data={templates} />
+        <Table columns={columns} data={paginatedData} />
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalItems={templates.length}
+          itemsPerPage={ITEMS_PER_PAGE}
+          onPageChange={(page) => setCurrentPage(page)}
+        />
       </div>
 
       <ConfirmModal isOpen={statusOpen} onClose={() => setStatusOpen(false)} onConfirm={confirmStatus} title={`${pendingStatus} Template`} message={`Are you sure you want to set "${selected?.name}" as ${pendingStatus}?`} />

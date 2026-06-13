@@ -7,6 +7,7 @@ import Modal from '@/components/admin/Modal';
 import ConfirmModal from '@/components/admin/ConfirmModal';
 import Button from '@/components/admin/Button';
 import Input from '@/components/admin/Input';
+import Pagination from '@/components/admin/Pagination';
 import { notificationsData } from '@/lib/dummyData';
 import { Column } from '@/lib/types';
 import toast from 'react-hot-toast';
@@ -23,7 +24,6 @@ interface Notification {
   priority?: string;
 }
 
-// Extended notification data
 const extendedNotificationsData: Notification[] = [
   { id: 1, title: 'Welcome to EventStan', message: 'Thank you for joining EventStan! Start exploring amazing services.', type: 'success', read: false, date: '2024-03-15', status: 'Active', recipient: 'All Users', priority: 'High' },
   { id: 2, title: 'New Vendor Registration', message: 'A new vendor has registered and needs approval.', type: 'info', read: false, date: '2024-03-14', status: 'Active', recipient: 'Admins', priority: 'Medium' },
@@ -56,6 +56,9 @@ export default function SystemNotificationsPage() {
     recipient: 'All Users',
     priority: 'Medium'
   });
+
+  const ITEMS_PER_PAGE = 10;
+  const [currentPage, setCurrentPage] = useState(1);
 
   const openStatusModal = (notification: Notification) => {
     setSelected(notification);
@@ -233,6 +236,12 @@ export default function SystemNotificationsPage() {
   const activeCount = notifications.filter(n => n.status === 'Active').length;
   const inactiveCount = notifications.filter(n => n.status === 'Inactive').length;
   const unreadCount = notifications.filter(n => !n.read).length;
+  
+  const totalPages = Math.ceil(notifications.length / ITEMS_PER_PAGE);
+  const paginatedData = notifications.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
 
   return (
     <div className="space-y-6">
@@ -250,10 +259,16 @@ export default function SystemNotificationsPage() {
       </div>
 
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm">
-        <Table columns={columns} data={notifications} />
+        <Table columns={columns} data={paginatedData} />
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalItems={notifications.length}
+          itemsPerPage={ITEMS_PER_PAGE}
+          onPageChange={(page) => setCurrentPage(page)}
+        />
       </div>
 
-      {/* Add Notification Modal */}
       <Modal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} title="Send New Notification" size="lg">
         <form onSubmit={handleAdd}>
           <Input 
@@ -329,7 +344,6 @@ export default function SystemNotificationsPage() {
         </form>
       </Modal>
 
-      {/* Edit Notification Modal */}
       <Modal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} title="Edit Notification" size="lg">
         <form onSubmit={handleEdit}>
           <Input 
@@ -405,11 +419,9 @@ export default function SystemNotificationsPage() {
         </form>
       </Modal>
 
-      {/* View Notification Modal */}
       {isViewModalOpen && selected && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
           <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            {/* Modal Header */}
             <div className="sticky top-0 bg-white flex items-center justify-between p-4 border-b border-gray-100">
               <h2 className="text-lg font-bold text-gray-900">Notification Details</h2>
               <button
@@ -420,10 +432,8 @@ export default function SystemNotificationsPage() {
               </button>
             </div>
             
-            {/* Modal Body */}
             <div className="p-6">
               <div className="space-y-6">
-                {/* Header */}
                 <div className="flex items-start gap-4 pb-4 border-b border-gray-100">
                   <div className="w-12 h-12 rounded-xl bg-orange-50 flex items-center justify-center">
                     <TypeIcon type={selected.type} />
@@ -441,7 +451,6 @@ export default function SystemNotificationsPage() {
                   </div>
                 </div>
 
-                {/* Notification Info */}
                 <div>
                   <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
                     <Tag size={14} className="text-orange-500" />
@@ -467,7 +476,6 @@ export default function SystemNotificationsPage() {
                   </div>
                 </div>
 
-                {/* Message */}
                 <div>
                   <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
                     <Mail size={14} className="text-orange-500" />
@@ -482,7 +490,6 @@ export default function SystemNotificationsPage() {
               </div>
             </div>
             
-            {/* Modal Footer */}
             <div className="sticky bottom-0 bg-white flex justify-end gap-3 p-4 border-t border-gray-100">
               <Button variant="secondary" onClick={() => setIsViewModalOpen(false)}>
                 Close
@@ -500,7 +507,6 @@ export default function SystemNotificationsPage() {
         </div>
       )}
 
-      {/* Status Change Confirmation Modal */}
       <ConfirmModal 
         isOpen={isStatusModalOpen} 
         onClose={() => {
@@ -513,7 +519,6 @@ export default function SystemNotificationsPage() {
         message={`Are you sure you want to ${pendingStatus === 'Active' ? 'activate' : 'deactivate'} notification "${selected?.title}"?`} 
       />
 
-      {/* Delete Confirmation Modal */}
       <ConfirmModal 
         isOpen={isDeleteOpen} 
         onClose={() => setIsDeleteOpen(false)} 

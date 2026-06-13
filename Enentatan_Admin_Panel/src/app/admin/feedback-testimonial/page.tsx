@@ -7,6 +7,7 @@ import Modal from '@/components/admin/Modal';
 import ConfirmModal from '@/components/admin/ConfirmModal';
 import Button from '@/components/admin/Button';
 import Input from '@/components/admin/Input';
+import Pagination from '@/components/admin/Pagination';
 import { Column } from '@/lib/types';
 import toast from 'react-hot-toast';
 
@@ -22,7 +23,6 @@ interface Feedback {
   vendorName?: string;
 }
 
-// Initial feedback data
 const initialFeedbackData: Feedback[] = [
   { 
     id: 1, 
@@ -99,6 +99,9 @@ export default function FeedbackPage() {
     vendorName: ''
   });
 
+  const ITEMS_PER_PAGE = 10;
+  const [currentPage, setCurrentPage] = useState(1);
+
   const StarRating = ({ rating }: { rating: number }) => (
     <div className="flex items-center gap-0.5">
       {[...Array(5)].map((_, i) => (
@@ -173,7 +176,6 @@ export default function FeedbackPage() {
     setIsDeleteOpen(false);
   };
 
-  // Filter by status
   const filtered = statusFilter === 'All' 
     ? feedbacks 
     : feedbacks.filter(f => f.status === statusFilter);
@@ -226,6 +228,12 @@ export default function FeedbackPage() {
 
   const approvedCount = feedbacks.filter(f => f.status === 'Approved').length;
   const pendingCount = feedbacks.filter(f => f.status === 'Pending').length;
+  
+  const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
+  const paginatedData = filtered.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
 
   return (
     <div className="space-y-6">
@@ -239,7 +247,10 @@ export default function FeedbackPage() {
         <div className="flex items-center gap-3">
           <select 
             value={statusFilter}
-            onChange={e => setStatusFilter(e.target.value)}
+            onChange={(e) => {
+              setStatusFilter(e.target.value);
+              setCurrentPage(1);
+            }}
             className="px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-orange-400"
           >
             <option>All</option>
@@ -254,10 +265,16 @@ export default function FeedbackPage() {
       </div>
 
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm">
-        <Table columns={columns} data={filtered} />
+        <Table columns={columns} data={paginatedData} />
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalItems={filtered.length}
+          itemsPerPage={ITEMS_PER_PAGE}
+          onPageChange={(page) => setCurrentPage(page)}
+        />
       </div>
 
-      {/* Add Feedback Modal */}
       <Modal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} title="Add New Feedback" size="lg">
         <form onSubmit={handleAdd}>
           <div className="grid grid-cols-2 gap-4">
@@ -328,7 +345,6 @@ export default function FeedbackPage() {
         </form>
       </Modal>
 
-      {/* Edit Feedback Modal */}
       <Modal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} title="Edit Feedback" size="lg">
         <form onSubmit={handleEdit}>
           <div className="grid grid-cols-2 gap-4">
@@ -399,11 +415,9 @@ export default function FeedbackPage() {
         </form>
       </Modal>
 
-      {/* View Feedback Modal */}
       {isViewModalOpen && selected && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
           <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            {/* Modal Header */}
             <div className="sticky top-0 bg-white flex items-center justify-between p-4 border-b border-gray-100">
               <h2 className="text-lg font-bold text-gray-900">Feedback Details</h2>
               <button
@@ -414,10 +428,8 @@ export default function FeedbackPage() {
               </button>
             </div>
             
-            {/* Modal Body */}
             <div className="p-6">
               <div className="space-y-6">
-                {/* Header with User Info */}
                 <div className="flex items-center gap-4 pb-4 border-b border-gray-100">
                   <div className="w-16 h-16 rounded-full bg-gradient-to-r from-orange-400 to-orange-600 flex items-center justify-center text-white text-2xl font-bold">
                     {selected.user.charAt(0).toUpperCase()}
@@ -436,7 +448,6 @@ export default function FeedbackPage() {
                   </div>
                 </div>
 
-                {/* Customer Information */}
                 <div>
                   <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
                     <User size={14} className="text-orange-500" />
@@ -458,7 +469,6 @@ export default function FeedbackPage() {
                   </div>
                 </div>
 
-                {/* Service Information */}
                 {(selected.serviceName || selected.vendorName) && (
                   <div>
                     <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
@@ -482,7 +492,6 @@ export default function FeedbackPage() {
                   </div>
                 )}
 
-                {/* Comment */}
                 <div>
                   <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
                     <MessageSquare size={14} className="text-orange-500" />
@@ -497,7 +506,6 @@ export default function FeedbackPage() {
               </div>
             </div>
             
-            {/* Modal Footer */}
             <div className="sticky bottom-0 bg-white flex justify-end gap-3 p-4 border-t border-gray-100">
               <Button variant="secondary" onClick={() => setIsViewModalOpen(false)}>
                 Close
@@ -525,7 +533,6 @@ export default function FeedbackPage() {
         </div>
       )}
 
-      {/* Delete Confirmation Modal */}
       <ConfirmModal 
         isOpen={isDeleteOpen} 
         onClose={() => setIsDeleteOpen(false)} 

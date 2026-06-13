@@ -7,6 +7,7 @@ import Button from '@/components/admin/Button';
 import ConfirmModal from '@/components/admin/ConfirmModal';
 import Input from '@/components/admin/Input';
 import Modal from '@/components/admin/Modal';
+import Pagination from '@/components/admin/Pagination';
 import Table from '@/components/admin/Table';
 import { Column } from '@/lib/types';
 import toast from 'react-hot-toast';
@@ -21,6 +22,9 @@ export default function EventSlotsPage() {
   const [form, setForm] = useState<Partial<EventSlot>>(emptySlot);
   const [modalOpen, setModalOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+
+  const ITEMS_PER_PAGE = 10;
+  const [currentPage, setCurrentPage] = useState(1);
 
   const load = () => adminApi.eventSlots.list().then(setSlots).catch(() => toast.error('Failed to load event slots'));
   useEffect(() => { load(); }, []);
@@ -60,13 +64,28 @@ export default function EventSlotsPage() {
     load();
   };
 
+  const totalPages = Math.ceil(slots.length / ITEMS_PER_PAGE);
+  const paginatedData = slots.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div><h1 className="text-xl font-bold text-gray-900">Event Slots Management</h1><p className="text-sm text-gray-500 mt-0.5">{slots.length} slots</p></div>
         <Button onClick={() => { setSelected(null); setForm(emptySlot); setModalOpen(true); }}><Plus size={15} />Add Slot</Button>
       </div>
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm"><Table columns={columns} data={slots} /></div>
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm">
+        <Table columns={columns} data={paginatedData} />
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalItems={slots.length}
+          itemsPerPage={ITEMS_PER_PAGE}
+          onPageChange={(page) => setCurrentPage(page)}
+        />
+      </div>
       <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} title={selected ? 'Edit Event Slot' : 'Add Event Slot'}>
         <form onSubmit={save}>
           <Input label="Slot Name" value={form.name ?? ''} onChange={e => setForm({ ...form, name: e.target.value })} required />

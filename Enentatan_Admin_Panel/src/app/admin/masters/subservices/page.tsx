@@ -7,6 +7,7 @@ import Button from '@/components/admin/Button';
 import ConfirmModal from '@/components/admin/ConfirmModal';
 import Input from '@/components/admin/Input';
 import Modal from '@/components/admin/Modal';
+import Pagination from '@/components/admin/Pagination';
 import Table from '@/components/admin/Table';
 import { Column } from '@/lib/types';
 import toast from 'react-hot-toast';
@@ -41,6 +42,9 @@ export default function SubservicesPage() {
   const [form, setForm] = useState(emptyForm);
   const [modalOpen, setModalOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+
+  const ITEMS_PER_PAGE = 10;
+  const [currentPage, setCurrentPage] = useState(1);
 
   const load = async () => {
     const [svc, subs] = await Promise.all([adminApi.services.list(), adminApi.subServices.list()]);
@@ -104,10 +108,25 @@ export default function SubservicesPage() {
     await load();
   };
 
+  const totalPages = Math.ceil(items.length / ITEMS_PER_PAGE);
+  const paginatedData = items.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between"><div><h1 className="text-xl font-bold text-gray-900">Vendor Subservices</h1><p className="text-sm text-gray-500 mt-0.5">{items.length} subservices</p></div><Button onClick={openAdd}><Plus size={15} />Add Subservice</Button></div>
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm"><Table columns={columns} data={items} /></div>
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm">
+        <Table columns={columns} data={paginatedData} />
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalItems={items.length}
+          itemsPerPage={ITEMS_PER_PAGE}
+          onPageChange={(page) => setCurrentPage(page)}
+        />
+      </div>
       <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} title={selected ? 'Edit Subservice' : 'Add Subservice'} size="lg">
         <form onSubmit={save} className="space-y-4">
           <select value={form.serviceId} onChange={e => setForm({ ...form, serviceId: e.target.value })} disabled={!!selected} className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm bg-gray-50/50">{services.map(s => <option key={s.id} value={s.id}>{s.title}</option>)}</select>

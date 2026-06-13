@@ -2,18 +2,55 @@
 
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { packageStore, serviceStore, ServiceWithSlug } from '@/lib/store';
-import type { Package } from '@/lib/types';
+import { vendorApi } from '@/api/vendorApi';
 import {
   ArrowLeft, CheckCircle2, AlertTriangle, Search,
-  CheckSquare, Square, Star, Layers, Percent, Info, X, ImageOff, ChevronDown, Link2,
+  CheckSquare, Square, Star, Layers, X, ImageOff, ChevronDown,
+  Loader2, Save,
 } from 'lucide-react';
 
-// ── Searchable Service Dropdown (same as add page) ──────────────
+interface ApiService {
+  id: string;
+  title: string;
+  categoryId?: string;
+  category?: string | { name: string };
+  price?: { amount: number; currency: string };
+  status: string;
+  description?: string;
+  imageUrl?: string;
+  image_url?: string;
+}
+
+interface ServiceForSelector {
+  id: string;
+  name: string;
+  category: string;
+  priceMin: number;
+  priceMax: number;
+  images: string[];
+  rating: number;
+}
+
+interface ApiPackage {
+  id: string;
+  vendorId: string;
+  title: string;
+  name?: string;
+  description?: string;
+  amount?: number;
+  currency?: string;
+  price?: number;
+  money?: { amount: number; currency: string };
+  status: string;
+  itemIds?: string[];
+  items?: { id?: string; serviceId: string; service?: ApiService }[];
+}
+
+// ── Searchable Service Dropdown ─────────────────────────────────
 function SearchableServiceSelector({
   services, selected, onChange,
 }: {
-  services: ServiceWithSlug[];
+  services: ServiceForSelector[];
   selected: string[];
   onChange: (ids: string[]) => void;
 }) {
@@ -86,7 +123,7 @@ function SearchableServiceSelector({
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className={`font-medium text-sm leading-tight truncate ${isSelected ? 'text-orange-800' : 'text-gray-800'}`}>{s.name}</p>
-                      <p className="text-xs text-gray-400 mt-0.5">{s.category} · AED {s.priceMin.toLocaleString()}–{s.priceMax.toLocaleString()}</p>
+                      <p className="text-xs text-gray-400 mt-0.5">{s.category} · {s.priceMin > 0 ? `AED ${s.priceMin.toLocaleString()}` : 'Price varies'}</p>
                     </div>
                     {s.rating > 0 && (
                       <div className="flex items-center gap-0.5 shrink-0">
@@ -123,74 +160,129 @@ function SearchableServiceSelector({
   );
 }
 
+function getCategoryName(svc: ApiService): string {
+  if (!svc.category) return svc.categoryId || 'Service';
+  if (typeof svc.category === 'string') return svc.category;
+  return svc.category.name || 'Service';
+}
+
+function toSelectorService(svc: ApiService): ServiceForSelector {
+  return {
+    id: svc.id,
+    name: svc.title,
+    category: getCategoryName(svc),
+    priceMin: svc.price?.amount ?? 0,
+    priceMax: svc.price?.amount ?? 0,
+    images: svc.imageUrl ? [svc.imageUrl] : svc.image_url ? [svc.image_url] : [],
+    rating: 0,
+  };
+}
+
 export default function EditPackagePage() {
   const router  = useRouter();
   const { id }  = useParams<{ id: string }>();
 
-  const [services,  setServices]  = useState<ServiceWithSlug[]>([]);
-  const [original,  setOriginal]  = useState<Package | null>(null);
+  const [services,  setServices]  = useState<ServiceForSelector[]>([]);
   const [loading,   setLoading]   = useState(true);
-  const [notFound,  setNotFound]  = useState(false);
   const [saving,    setSaving]    = useState(false);
   const [formError, setFormError] = useState('');
+  const [error,     setError]     = useState('');
 
   const [form, setForm] = useState({
-    name: '', description: '', price: '', discount: '', services: [] as string[],
+    title: '',
+    description: '',
+    price: '',
+    currency: 'AED',
+    status: 'ACTIVE',
+    services: [] as string[],
   });
 
+  // Load package + all services in parallel
   useEffect(() => {
-    const pkg = packageStore.getById(id);
-    if (!pkg) { setNotFound(true); setLoading(false); return; }
-    setOriginal(pkg);
-    setForm({
-      name:        pkg.name,
-      description: pkg.description ?? '',
-      price:       String(pkg.price),
-      discount:    pkg.discount ? String(pkg.discount) : '',
-      services:    pkg.services ?? [],
-    });
-    // All services for selector (not just active — might have inactive ones already in pkg)
-    setServices(serviceStore.getAll());
-    setLoading(false);
+    const load = async () => {
+      if (!id) return;
+      try {
+        setLoading(true);
+        const [pkg, allServices] = await Promise.all([
+          vendorApi.packages.get<ApiPackage>(id),
+          vendorApi.services.list<ApiService[]>(),
+        ]);
+
+        // Populate form from package
+        const pkgAmount = pkg.money?.amount ?? pkg.amount ?? pkg.price ?? 0;
+        const pkgCurrency = pkg.money?.currency ?? pkg.currency ?? 'AED';
+        const selectedIds = pkg.items?.map(i => i.serviceId) ?? pkg.itemIds ?? [];
+
+        setForm({
+          title: pkg.title || pkg.name || '',
+          description: pkg.description || '',
+          price: String(pkgAmount),
+          currency: pkgCurrency,
+          status: pkg.status || 'ACTIVE',
+          services: selectedIds,
+        });
+
+        // Map API services to selector format
+        const activeServices = (allServices || [])
+          .filter(s => s.status === 'ACTIVE' || selectedIds.includes(s.id))
+          .map(toSelectorService);
+        setServices(activeServices);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to load package');
+      } finally {
+        setLoading(false);
+      }
+    };
+    void load();
   }, [id]);
 
   const set = (key: string, val: string) => { setForm(f => ({ ...f, [key]: val })); setFormError(''); };
 
-  const selectedTotal = useMemo(() =>
-    form.services.reduce((sum, sid) => {
-      const s = services.find(sv => sv.id === sid);
-      return sum + (s ? (s.priceMin + s.priceMax) / 2 : 0);
-    }, 0), [form.services, services]);
-
-  const savings = selectedTotal > 0 && form.price
-    ? Math.max(0, selectedTotal - Number(form.price)) : 0;
-
-  const handleSave = () => {
-    if (!form.name.trim())                      { setFormError('Package name is required.'); return; }
-    if (!form.price || Number(form.price) <= 0) { setFormError('Valid package price is required.'); return; }
-    if (form.services.length === 0)             { setFormError('Please select at least one service.'); return; }
+  const handleSave = async () => {
+    if (!form.title.trim())                       { setFormError('Package title is required.'); return; }
+    if (!form.price || Number(form.price) <= 0)   { setFormError('Valid package price is required.'); return; }
+    if (form.services.length === 0)               { setFormError('Please select at least one service.'); return; }
 
     setSaving(true);
-    const updated: Package = {
-      ...original!,
-      name:        form.name.trim(),
-      description: form.description.trim(),
-      price:       Number(form.price),
-      discount:    form.discount ? Number(form.discount) : undefined,
-      services:    form.services,
-    };
-    packageStore.save(updated);
-    sessionStorage.setItem('pkg_success', `"${updated.name}" updated successfully!`);
-    router.push('/vendor/packages');
+    setFormError('');
+    try {
+      await vendorApi.packages.update(id, {
+        title: form.title.trim(),
+        description: form.description.trim(),
+        itemIds: form.services,
+        price: {
+          amount: Number(form.price),
+          currency: form.currency,
+        },
+        status: form.status,
+      });
+
+      sessionStorage.setItem('pkg_success', `"${form.title}" updated successfully!`);
+      router.push('/vendor/packages');
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : 'Failed to update package. Please try again.');
+      setSaving(false);
+    }
   };
 
   if (loading) return (
-    <div className="max-w-2xl mx-auto text-center py-20 text-gray-400">Loading package…</div>
+    <div className="flex items-center justify-center min-h-[400px]">
+      <div className="text-center">
+        <Loader2 size={40} className="animate-spin text-orange-500 mx-auto mb-4" />
+        <p className="text-gray-500">Loading package...</p>
+      </div>
+    </div>
   );
-  if (notFound) return (
+
+  if (error) return (
     <div className="max-w-2xl mx-auto text-center py-20">
-      <p className="text-gray-500">Package not found. ID: <code className="bg-gray-100 px-2 py-0.5 rounded text-sm">{id}</code></p>
-      <button onClick={() => router.push('/vendor/packages')} className="mt-4 text-orange-500 text-sm underline">Back to Packages</button>
+      <div className="bg-red-50 border border-red-200 rounded-2xl p-6">
+        <AlertTriangle size={32} className="text-red-500 mx-auto mb-3" />
+        <p className="text-gray-800 font-semibold">{error}</p>
+        <button onClick={() => router.push('/vendor/packages')} className="mt-4 text-orange-500 text-sm underline">
+          Back to Packages
+        </button>
+      </div>
     </div>
   );
 
@@ -204,16 +296,9 @@ export default function EditPackagePage() {
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Edit Package</h1>
           <p className="text-sm text-gray-500 mt-0.5">
-            {original?.id} &middot; Editing: <span className="font-medium">{original?.name}</span>
+            Editing: <span className="font-medium">{form.title}</span>
           </p>
         </div>
-      </div>
-
-      {/* URL breadcrumb */}
-      <div className="bg-orange-50 border border-orange-100 rounded-xl px-4 py-2.5 flex items-center gap-2 text-sm">
-        <Link2 size={13} className="text-orange-400" />
-        <span className="text-orange-600 font-medium">Edit URL:</span>
-        <code className="text-orange-700 font-mono text-xs">/vendor/packages/edit/{id}</code>
       </div>
 
       {formError && (
@@ -224,51 +309,27 @@ export default function EditPackagePage() {
 
       <div className="bg-white rounded-2xl border border-gray-100 divide-y divide-gray-50">
 
+        {/* Basic Info */}
         <div className="p-6 space-y-4">
           <h2 className="font-semibold text-gray-800 text-sm uppercase tracking-wide">Package Details</h2>
           <div>
-            <label className="text-xs font-semibold text-gray-700 mb-1.5 block">Package Name *</label>
-            <input value={form.name} onChange={e => set('name', e.target.value)}
+            <label className="text-xs font-semibold text-gray-700 mb-1.5 block">Package Title *</label>
+            <input value={form.title} onChange={e => set('title', e.target.value)}
+              placeholder="e.g. Royal Wedding Package"
               className="w-full px-4 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-orange-400" />
           </div>
           <div>
             <label className="text-xs font-semibold text-gray-700 mb-1.5 block">Description</label>
             <textarea value={form.description} onChange={e => set('description', e.target.value)}
-              rows={3}
+              rows={3} placeholder="What's included? Who is this package ideal for?"
               className="w-full px-4 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-orange-400 resize-none" />
           </div>
         </div>
 
-        <div className="p-6 space-y-4">
-          <h2 className="font-semibold text-gray-800 text-sm uppercase tracking-wide">Pricing</h2>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-xs font-semibold text-gray-700 mb-1.5 block">Package Price (AED) *</label>
-              <input type="number" min="0" value={form.price} onChange={e => set('price', e.target.value)}
-                className="w-full px-4 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-orange-400" />
-            </div>
-            <div>
-              <label className="text-xs font-semibold text-gray-700 mb-1.5 block flex items-center gap-1">
-                <Percent size={11} /> Discount (%)
-              </label>
-              <input type="number" min="0" max="100" value={form.discount} onChange={e => set('discount', e.target.value)}
-                className="w-full px-4 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-orange-400" />
-            </div>
-          </div>
-          {form.services.length > 0 && form.price && (
-            <div className="bg-orange-50 border border-orange-100 rounded-xl px-4 py-3 flex items-start gap-2 text-sm">
-              <Info size={14} className="text-orange-400 mt-0.5 shrink-0" />
-              <div>
-                <p className="text-orange-700 font-medium">Services avg total: AED {Math.round(selectedTotal).toLocaleString()}</p>
-                {savings > 0 && <p className="text-green-600 text-xs mt-0.5">Customer saves: AED {Math.round(savings).toLocaleString()}</p>}
-              </div>
-            </div>
-          )}
-        </div>
-
+        {/* Services */}
         <div className="p-6 space-y-3">
           <h2 className="font-semibold text-gray-800 text-sm uppercase tracking-wide flex items-center gap-1.5">
-            <Layers size={13} /> Select Services *
+            <Layers size={13} /> Services *
             {form.services.length > 0 && (
               <span className="ml-1 bg-orange-100 text-orange-600 text-xs px-2 py-0.5 rounded-full font-medium">
                 {form.services.length} selected
@@ -281,6 +342,36 @@ export default function EditPackagePage() {
             onChange={ids => { setForm(f => ({ ...f, services: ids })); setFormError(''); }}
           />
         </div>
+
+        {/* Pricing */}
+        <div className="p-6 space-y-4">
+          <h2 className="font-semibold text-gray-800 text-sm uppercase tracking-wide">Pricing</h2>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-semibold text-gray-700 mb-1.5 block">Package Price *</label>
+              <input type="number" min="0" value={form.price} onChange={e => set('price', e.target.value)}
+                placeholder="25000"
+                className="w-full px-4 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-orange-400" />
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-gray-700 mb-1.5 block">Currency</label>
+              <select value={form.currency} onChange={e => set('currency', e.target.value)}
+                className="w-full px-4 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-orange-400">
+                {['AED', 'USD', 'EUR', 'SAR'].map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </div>
+          </div>
+        </div>
+
+        {/* Status */}
+        <div className="p-6 space-y-4">
+          <h2 className="font-semibold text-gray-800 text-sm uppercase tracking-wide">Status</h2>
+          <select value={form.status} onChange={e => set('status', e.target.value)}
+            className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-orange-400">
+            <option value="ACTIVE">Active – Visible to customers</option>
+            <option value="INACTIVE">Inactive – Hidden from customers</option>
+          </select>
+        </div>
       </div>
 
       <div className="flex gap-3 pb-6">
@@ -290,7 +381,7 @@ export default function EditPackagePage() {
         </button>
         <button onClick={handleSave} disabled={saving}
           className="flex-1 py-3 rounded-xl bg-orange-500 hover:bg-orange-600 disabled:opacity-60 text-white font-semibold transition-colors flex items-center justify-center gap-2">
-          {saving ? 'Saving…' : <><CheckCircle2 size={16} /> Save Changes</>}
+          {saving ? <><Loader2 size={16} className="animate-spin" /> Saving…</> : <><Save size={16} /> Save Changes</>}
         </button>
       </div>
     </div>

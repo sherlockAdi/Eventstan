@@ -7,6 +7,7 @@ import Link from 'next/link';
 import Table from '@/components/admin/Table';
 import ConfirmModal from '@/components/admin/ConfirmModal';
 import Button from '@/components/admin/Button';
+import Pagination from '@/components/admin/Pagination';
 import { Column } from '@/lib/types';
 import toast from 'react-hot-toast';
 
@@ -43,6 +44,9 @@ export default function RolePermissionPage() {
   const [isStatusModalOpen, setIsStatusModalOpen] = useState(false);
   const [selected, setSelected] = useState<Role | null>(null);
   const [pendingStatus, setPendingStatus] = useState<string>('');
+
+  const ITEMS_PER_PAGE = 10;
+  const [currentPage, setCurrentPage] = useState(1);
 
   const openStatusModal = (role: Role) => {
     setSelected(role);
@@ -176,6 +180,12 @@ export default function RolePermissionPage() {
 
   const activeRoles = roles.filter(r => r.status === 'Active').length;
   const totalUsers = roles.reduce((sum, r) => sum + r.usersCount, 0);
+  
+  const totalPages = Math.ceil(roles.length / ITEMS_PER_PAGE);
+  const paginatedData = roles.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
 
   return (
     <div className="space-y-6">
@@ -194,7 +204,6 @@ export default function RolePermissionPage() {
         </Link>
       </div>
 
-      {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
           <div className="flex items-center justify-between">
@@ -242,12 +251,17 @@ export default function RolePermissionPage() {
         </div>
       </div>
 
-      {/* Roles Table */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-x-auto">
-        <Table columns={columns} data={roles} />
+        <Table columns={columns} data={paginatedData} />
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalItems={roles.length}
+          itemsPerPage={ITEMS_PER_PAGE}
+          onPageChange={(page) => setCurrentPage(page)}
+        />
       </div>
 
-      {/* Status Change Confirmation Modal */}
       <ConfirmModal 
         isOpen={isStatusModalOpen} 
         onClose={() => {
@@ -260,7 +274,6 @@ export default function RolePermissionPage() {
         message={`Are you sure you want to ${pendingStatus === 'Active' ? 'activate' : 'deactivate'} role "${selected?.name}"?`} 
       />
 
-      {/* Delete Confirmation Modal */}
       <ConfirmModal 
         isOpen={isDeleteOpen} 
         onClose={() => setIsDeleteOpen(false)} 

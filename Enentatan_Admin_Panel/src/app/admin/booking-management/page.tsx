@@ -6,11 +6,11 @@ import Table from '@/components/admin/Table';
 import Modal from '@/components/admin/Modal';
 import ConfirmModal from '@/components/admin/ConfirmModal';
 import Button from '@/components/admin/Button';
+import Pagination from '@/components/admin/Pagination';
 import { bookingsData } from '@/lib/dummyData';
 import { Booking, Column } from '@/lib/types';
 import toast from 'react-hot-toast';
 
-// Extended Booking interface with more details
 interface ExtendedBooking extends Booking {
   customerEmail?: string;
   customerPhone?: string;
@@ -24,7 +24,6 @@ interface ExtendedBooking extends Booking {
   specialRequests?: string;
 }
 
-// Updated dummy data with more details
 const extendedBookingsData: ExtendedBooking[] = [
   { 
     id: 'BK-1001', 
@@ -139,6 +138,9 @@ export default function BookingManagementPage() {
   const [pendingStatus, setPendingStatus] = useState<string>('');
   const [filterPayment, setFilterPayment] = useState('All Bookings');
 
+  const ITEMS_PER_PAGE = 10;
+  const [currentPage, setCurrentPage] = useState(1);
+
   const openStatusModal = (booking: ExtendedBooking, newStatus: string) => {
     setSelected(booking);
     setPendingStatus(newStatus);
@@ -179,7 +181,6 @@ export default function BookingManagementPage() {
     toast.success(`Status updated to ${status}`);
   };
 
-  // Filter by payment
   const filtered = filterPayment === 'All Bookings' 
     ? bookings 
     : bookings.filter(b => b.payment === filterPayment);
@@ -245,6 +246,12 @@ export default function BookingManagementPage() {
     }
   ];
 
+  const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
+  const paginatedData = filtered.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -256,7 +263,10 @@ export default function BookingManagementPage() {
         </div>
         <select 
           value={filterPayment}
-          onChange={e => setFilterPayment(e.target.value)}
+          onChange={(e) => {
+            setFilterPayment(e.target.value);
+            setCurrentPage(1);
+          }}
           className="px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-orange-400"
         >
           <option>All Bookings</option>
@@ -266,14 +276,19 @@ export default function BookingManagementPage() {
       </div>
 
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm">
-        <Table columns={columns} data={filtered} />
+        <Table columns={columns} data={paginatedData} />
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalItems={filtered.length}
+          itemsPerPage={ITEMS_PER_PAGE}
+          onPageChange={(page) => setCurrentPage(page)}
+        />
       </div>
 
-      {/* View Booking Details Modal */}
       {isViewModalOpen && selected && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
           <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
-            {/* Modal Header */}
             <div className="sticky top-0 bg-white flex items-center justify-between p-4 border-b border-gray-100">
               <h2 className="text-lg font-bold text-gray-900">Booking Details</h2>
               <button
@@ -284,10 +299,8 @@ export default function BookingManagementPage() {
               </button>
             </div>
             
-            {/* Modal Body */}
             <div className="p-6">
               <div className="space-y-6">
-                {/* Booking Header */}
                 <div className="flex items-center justify-between pb-4 border-b border-gray-100">
                   <div>
                     <p className="text-sm text-gray-500">Booking ID</p>
@@ -300,7 +313,6 @@ export default function BookingManagementPage() {
                   </div>
                 </div>
 
-                {/* Customer Information */}
                 <div>
                   <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
                     <User size={14} className="text-orange-500" />
@@ -322,7 +334,6 @@ export default function BookingManagementPage() {
                   </div>
                 </div>
 
-                {/* Vendor Information */}
                 <div>
                   <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
                     <Building size={14} className="text-orange-500" />
@@ -352,7 +363,6 @@ export default function BookingManagementPage() {
                   </div>
                 </div>
 
-                {/* Event Details */}
                 <div>
                   <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
                     <Calendar size={14} className="text-orange-500" />
@@ -374,7 +384,6 @@ export default function BookingManagementPage() {
                   </div>
                 </div>
 
-                {/* Payment & Status */}
                 <div>
                   <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
                     <DollarSign size={14} className="text-orange-500" />
@@ -404,7 +413,6 @@ export default function BookingManagementPage() {
                   </div>
                 </div>
 
-                {/* Special Requests */}
                 {selected.specialRequests && (
                   <div>
                     <h4 className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
@@ -419,7 +427,6 @@ export default function BookingManagementPage() {
               </div>
             </div>
             
-            {/* Modal Footer */}
             <div className="sticky bottom-0 bg-white flex justify-end gap-3 p-4 border-t border-gray-100">
               <Button variant="secondary" onClick={() => setIsViewModalOpen(false)}>
                 Close
@@ -435,7 +442,6 @@ export default function BookingManagementPage() {
         </div>
       )}
 
-      {/* Edit Booking Modal */}
       <Modal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} title="Edit Booking Details" size="lg">
         {selected && (
           <div>
@@ -491,7 +497,6 @@ export default function BookingManagementPage() {
         )}
       </Modal>
 
-      {/* Status Change Confirmation Modal */}
       <ConfirmModal 
         isOpen={isStatusModalOpen} 
         onClose={() => {

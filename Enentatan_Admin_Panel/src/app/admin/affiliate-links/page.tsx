@@ -8,6 +8,7 @@ import ConfirmModal from '@/components/admin/ConfirmModal';
 import Button from '@/components/admin/Button';
 import Input from '@/components/admin/Input';
 import StatsCard from '@/components/admin/StatsCard';
+import Pagination from '@/components/admin/Pagination';
 import { affiliateLinksData } from '@/lib/dummyData';
 import { Column } from '@/lib/types';
 import toast from 'react-hot-toast';
@@ -20,6 +21,9 @@ export default function AffiliateLinksPage() {
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [selected, setSelected] = useState<AffiliateLink | null>(null);
   const [form, setForm] = useState<Partial<AffiliateLink>>({ name: '', link: '', status: 'Active' });
+
+  const ITEMS_PER_PAGE = 10;
+  const [currentPage, setCurrentPage] = useState(1);
 
   const totalClicks = links.reduce((s, l) => s + l.clicks, 0);
   const totalConversions = links.reduce((s, l) => s + l.conversions, 0);
@@ -62,6 +66,12 @@ export default function AffiliateLinksPage() {
     setIsModalOpen(false);
   };
 
+  const totalPages = Math.ceil(links.length / ITEMS_PER_PAGE);
+  const paginatedData = links.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -80,7 +90,14 @@ export default function AffiliateLinksPage() {
       </div>
 
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm">
-        <Table columns={columns} data={links} onEdit={openEdit} onDelete={openDelete} />
+        <Table columns={columns} data={paginatedData} onEdit={openEdit} onDelete={openDelete} />
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalItems={links.length}
+          itemsPerPage={ITEMS_PER_PAGE}
+          onPageChange={(page) => setCurrentPage(page)}
+        />
       </div>
 
       <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={selected ? 'Edit Affiliate Link' : 'Create Affiliate Link'}>

@@ -1,12 +1,11 @@
 "use client";
 import { useState } from "react";
-import { useMarketplaceData } from "@/lib/useMarketplaceData";
+import { SERVICES, PACKAGES } from "@/lib/data";
 
 const TABS = ["Overview", "Services", "Packages", "Bookings"];
 
 export default function VendorDashboardPage() {
   const [activeTab, setActiveTab] = useState("Overview");
-  const { services, packages, loading, error } = useMarketplaceData();
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
@@ -19,12 +18,6 @@ export default function VendorDashboardPage() {
           + Add Service
         </button>
       </div>
-
-      {error && (
-        <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-600 mb-6">
-          {error}
-        </div>
-      )}
 
       {/* Tabs */}
       <div className="flex gap-1 bg-gray-100 rounded-xl p-1 mb-6 w-fit">
@@ -45,8 +38,8 @@ export default function VendorDashboardPage() {
         <div className="space-y-6">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {[
-              { label: "Active Services", value: loading ? "..." : services.length, icon: "🏪" },
-              { label: "Packages", value: loading ? "..." : packages.length, icon: "📦" },
+              { label: "Active Services", value: SERVICES.length, icon: "🏪" },
+              { label: "Packages", value: PACKAGES.length, icon: "📦" },
               { label: "Total Bookings", value: "24", icon: "📋" },
               { label: "Revenue", value: "$48,200", icon: "💰" },
             ].map((stat) => (
@@ -66,9 +59,7 @@ export default function VendorDashboardPage() {
 
       {activeTab === "Services" && (
         <div className="space-y-4">
-          {loading ? (
-            <p className="text-gray-400 text-sm">Loading services...</p>
-          ) : services.map((service) => (
+          {SERVICES.map((service) => (
             <div key={service.id} className="bg-white rounded-2xl border border-gray-100 p-5 flex gap-4">
               <img src={service.image_url} alt={service.title} className="w-16 h-16 rounded-xl object-cover flex-shrink-0" />
               <div className="flex-1">
@@ -99,10 +90,8 @@ export default function VendorDashboardPage() {
               + Add Package
             </button>
           </div>
-          {loading ? (
-            <p className="text-gray-400 text-sm">Loading packages...</p>
-          ) : packages.map((pkg) => {
-            const service = services.find((s) => s.id === pkg.service_id);
+          {PACKAGES.map((pkg) => {
+            const service = SERVICES.find((s) => s.id === pkg.service_id);
             return (
               <div key={pkg.id} className="bg-white rounded-2xl border border-gray-100 p-5">
                 <div className="flex justify-between items-start">

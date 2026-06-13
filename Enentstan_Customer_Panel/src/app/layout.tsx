@@ -12,17 +12,21 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
+  // #region agent log
+  fetch('http://127.0.0.1:7390/ingest/a3e994ce-a9eb-43f3-b313-113a0ac6b299',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'55dc61'},body:JSON.stringify({sessionId:'55dc61',runId:'pre-fix',hypothesisId:'H-C',location:'src/app/layout.tsx:RootLayout',message:'RootLayout rendered (server)',data:{},timestamp:Date.now()})}).catch(()=>{});
+  // #endregion
   return (
     <html lang="en" suppressHydrationWarning={true}>
       <body className="bg-white font-sans antialiased" suppressHydrationWarning={true}>
         <AuthProvider>
           <CartProvider>
-            <Navbar />
-            <main>{children}</main>
-            <Footer />
-            <CartDrawer />
-          </CartProvider>
+          <Navbar />
+          <main>{children}</main>
+          <Footer />
+          <CartDrawer />
+        </CartProvider>
         </AuthProvider>
+        
       </body>
     </html>
   );

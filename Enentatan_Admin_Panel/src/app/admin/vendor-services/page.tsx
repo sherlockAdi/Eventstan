@@ -7,6 +7,7 @@ import Modal from '@/components/admin/Modal';
 import ConfirmModal from '@/components/admin/ConfirmModal';
 import Button from '@/components/admin/Button';
 import Input from '@/components/admin/Input';
+import Pagination from '@/components/admin/Pagination';
 import { Column } from '@/lib/types';
 import toast from 'react-hot-toast';
 
@@ -53,6 +54,9 @@ export default function VendorServicesPage() {
   const [selectedVendor, setSelectedVendor] = useState<string>('All');
   const fileInputRef = useRef<HTMLInputElement>(null);
   
+  const ITEMS_PER_PAGE = 10;
+  const [currentPage, setCurrentPage] = useState(1);
+  
   const [form, setForm] = useState<Partial<VendorService>>({ 
     vendor: '', 
     service: '', 
@@ -67,10 +71,8 @@ export default function VendorServicesPage() {
     location: ''
   });
 
-  // Get unique vendors for dropdown
   const uniqueVendors = ['All', ...Array.from(new Set(services.map(s => s.vendor)))];
 
-  // Filter by selected vendor
   const filtered = selectedVendor === 'All' 
     ? services 
     : services.filter(s => s.vendor === selectedVendor);
@@ -263,8 +265,12 @@ export default function VendorServicesPage() {
     setIsDeleteOpen(false);
   };
 
-  // Get stats
-  const totalVendors = uniqueVendors.length - 1; // subtract 'All'
+  const totalVendors = uniqueVendors.length - 1;
+  const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
+  const paginatedData = filtered.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
 
   return (
     <div className="space-y-6">
@@ -281,12 +287,14 @@ export default function VendorServicesPage() {
         </Button>
       </div>
 
-      {/* Vendor Filter Dropdown */}
       <div className="relative">
         <Search size={18} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
         <select
           value={selectedVendor}
-          onChange={(e) => setSelectedVendor(e.target.value)}
+          onChange={(e) => {
+            setSelectedVendor(e.target.value);
+            setCurrentPage(1);
+          }}
           className="w-full md:w-96 pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white appearance-none cursor-pointer"
         >
           {uniqueVendors.map(vendor => (
@@ -298,13 +306,18 @@ export default function VendorServicesPage() {
       </div>
 
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-x-auto">
-        <Table columns={columns} data={filtered} />
+        <Table columns={columns} data={paginatedData} />
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalItems={filtered.length}
+          itemsPerPage={ITEMS_PER_PAGE}
+          onPageChange={(page) => setCurrentPage(page)}
+        />
       </div>
 
-      {/* Add/Edit Modal */}
       <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={selected ? 'Edit Vendor Service' : 'Add Vendor Service'} size="lg">
         <form onSubmit={handleSubmit}>
-          {/* Image Upload Section */}
           <div className="mb-4">
             <label className="block text-sm font-medium text-gray-700 mb-1.5">Service Image</label>
             <div className="flex items-center gap-4">
@@ -383,11 +396,9 @@ export default function VendorServicesPage() {
         </form>
       </Modal>
 
-      {/* View Details Modal */}
       {isViewModalOpen && selected && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
           <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            {/* Modal Header */}
             <div className="sticky top-0 bg-white flex items-center justify-between p-4 border-b border-gray-100">
               <h2 className="text-lg font-bold text-gray-900">Service Details</h2>
               <button
@@ -398,10 +409,8 @@ export default function VendorServicesPage() {
               </button>
             </div>
             
-            {/* Modal Body */}
             <div className="p-6">
               <div className="space-y-6">
-                {/* Header with Image */}
                 <div className="flex items-center gap-4 pb-4 border-b border-gray-100">
                   {selected.image ? (
                     <img src={selected.image} alt={selected.service} className="w-20 h-20 rounded-xl object-cover" />
@@ -422,7 +431,6 @@ export default function VendorServicesPage() {
                   </div>
                 </div>
 
-                {/* Vendor Information */}
                 <div>
                   <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
                     <Briefcase size={14} className="text-orange-500" />
@@ -452,7 +460,6 @@ export default function VendorServicesPage() {
                   </div>
                 </div>
 
-                {/* Performance Metrics */}
                 <div>
                   <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
                     <Star size={14} className="text-orange-500" />
@@ -474,7 +481,6 @@ export default function VendorServicesPage() {
                   </div>
                 </div>
 
-                {/* Description */}
                 {selected.description && (
                   <div>
                     <h4 className="text-sm font-semibold text-gray-700 mb-2">About the Service</h4>
@@ -484,7 +490,6 @@ export default function VendorServicesPage() {
               </div>
             </div>
             
-            {/* Modal Footer */}
             <div className="sticky bottom-0 bg-white flex justify-end gap-3 p-4 border-t border-gray-100">
               <Button variant="secondary" onClick={() => setIsViewModalOpen(false)}>
                 Close
@@ -500,7 +505,6 @@ export default function VendorServicesPage() {
         </div>
       )}
 
-      {/* Status Change Confirmation Modal */}
       <ConfirmModal 
         isOpen={isStatusModalOpen} 
         onClose={() => {
@@ -513,7 +517,6 @@ export default function VendorServicesPage() {
         message={`Are you sure you want to ${pendingStatus === 'Active' ? 'activate' : 'deactivate'} service "${selected?.subservice}"?`} 
       />
 
-      {/* Delete Confirmation Modal */}
       <ConfirmModal 
         isOpen={isDeleteOpen} 
         onClose={() => setIsDeleteOpen(false)} 

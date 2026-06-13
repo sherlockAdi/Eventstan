@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { ServiceWithSlug } from '@/lib/store';
+import { serviceStore, ServiceWithSlug } from '@/lib/store';
 import { vendorApi } from '@/api/vendorApi';
 import {
   ArrowLeft, CheckCircle2, AlertTriangle, Search,
@@ -39,18 +39,6 @@ interface ApiService {
   };
   status: string;
   description: string;
-}
-
-type ServiceCategory = ServiceWithSlug['category'];
-
-function toServiceCategory(categoryId: string): ServiceCategory {
-  const normalized = categoryId.toLowerCase();
-  if (normalized.includes('venue')) return 'Venue';
-  if (normalized.includes('cater')) return 'Catering';
-  if (normalized.includes('decor')) return 'Decoration';
-  if (normalized.includes('entertain')) return 'Entertainment';
-  if (normalized.includes('photo')) return 'Photography';
-  return 'Other';
 }
 
 // ── Searchable Service Dropdown ─────────────────────────────────
@@ -363,14 +351,14 @@ export default function AddPackagePage() {
       const data = await vendorApi.services.list<ApiService[]>();
       
       // Transform API services to ServiceWithSlug format
-      const transformedServices: ServiceWithSlug[] = data.map((svc): ServiceWithSlug => ({
+      const transformedServices: ServiceWithSlug[] = data.map((svc) => ({
         id: svc.id,
         name: svc.title,
         slug: svc.id,
-        category: toServiceCategory(svc.categoryId),
+        category: svc.categoryId,
         priceMin: svc.price.amount,
         priceMax: svc.price.amount,
-        priceUnit: 'per event',
+        priceUnit: svc.price.currency,
         isActive: svc.status === 'ACTIVE',
         rating: 0,
         totalBookings: 0,

@@ -1,41 +1,33 @@
-
-
 "use client";
 import { use, useState } from "react";
-import Link from "next/link";
 import { notFound } from "next/navigation";
+import { SERVICES, PACKAGES } from "@/lib/data";
 import BookingModal from "@/components/ui/BookingModal";
 import PackageCard from "@/components/ui/PackageCard";
 import { Package } from "@/types";
 import { useCart } from "@/lib/CartContext";
-import { useMarketplaceData } from "@/lib/useMarketplaceData";
 
 export default function ServiceDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
-  const { services, packages: allPackages, loading, error } = useMarketplaceData();
-  const service = services.find((s) => s.id === id);
+  const service = SERVICES.find((s) => s.id === id);
   const [showBooking, setShowBooking] = useState(false);
   const [selectedPkg, setSelectedPkg] = useState<Package | undefined>();
   const { addService, items } = useCart();
-
-  if (loading) {
-    return <div className="max-w-6xl mx-auto px-4 py-16 text-gray-400">Loading service...</div>;
-  }
-
-  if (error) {
-    return (
-      <div className="max-w-6xl mx-auto px-4 py-16">
-        <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-600">
-          {error}
-        </div>
-      </div>
-    );
-  }
+  const [galleryIndex, setGalleryIndex] = useState(0);
 
   if (!service) return notFound();
 
-  const packages = allPackages.filter((p) => p.service_id === service.id);
+  const packages = PACKAGES.filter((p) => p.service_id === service.id);
   const inCart = items.some((i) => i.id === `svc-${service.id}`);
+  const gallery = service.gallery || [service.image_url];
+
+  const nextSlide = () => {
+    setGalleryIndex((prev) => (prev + 1) % gallery.length);
+  };
+
+  const prevSlide = () => {
+    setGalleryIndex((prev) => (prev - 1 + gallery.length) % gallery.length);
+  };
 
   const handleBookPkg = (pkg: Package) => {
     setSelectedPkg(pkg);
@@ -45,33 +37,78 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ id: st
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
       {/* Back link */}
-      <Link href="/services" className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 mb-6 transition-colors">
+      <a href="/services" className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 mb-6 transition-colors">
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
         </svg>
         Back to Services
-      </Link>
+      </a>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* ── Main Content (left 2/3) ── */}
         <div className="lg:col-span-2 space-y-8">
-
-          {/* Hero Image — lives inside the main column, matching the screenshot */}
-          <div className="rounded-2xl overflow-hidden aspect-[16/9] relative shadow-sm">
+          {/* Hero Image Slider */}
+          <div className="relative rounded-2xl overflow-hidden aspect-[16/9] shadow-sm group">
             <img
-              src={service.image_url}
-              alt={service.title}
-              className="w-full h-full object-cover"
+              src={gallery[galleryIndex]}
+              alt={`${service.title} - ${galleryIndex + 1}`}
+              className="w-full h-full object-cover transition-all duration-500"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
-            <span className="absolute top-4 left-4 bg-orange-500 text-white text-xs font-semibold px-3 py-1 rounded-full">
-            {service.category}
+            <span className="absolute top-4 left-4 bg-orange-500 text-white text-xs font-semibold px-3 py-1 rounded-full z-10">
+              {service.category}
             </span>
+
+            {/* Slider Navigation Buttons */}
+            {gallery.length > 1 && (
+              <>
+                <button
+                  onClick={prevSlide}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white p-2 rounded-full opacity-0 group-hover:opacity-100 transition-all duration-300"
+                  aria-label="Previous image"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                  </svg>
+                </button>
+                <button
+                  onClick={nextSlide}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white p-2 rounded-full opacity-0 group-hover:opacity-100 transition-all duration-300"
+                  aria-label="Next image"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
+
+                {/* Dots Indicator */}
+                <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 z-10">
+                  {gallery.map((_, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => setGalleryIndex(idx)}
+                      className={`transition-all duration-300 rounded-full ${
+                        idx === galleryIndex
+                          ? "w-6 h-2 bg-orange-500"
+                          : "w-2 h-2 bg-white/60 hover:bg-white/90"
+                      }`}
+                      aria-label={`Go to image ${idx + 1}`}
+                    />
+                  ))}
+                </div>
+              </>
+            )}
+
+            {/* Image Counter */}
+            {gallery.length > 1 && (
+              <div className="absolute bottom-4 right-4 bg-black/60 text-white text-xs px-2 py-1 rounded-md backdrop-blur-sm">
+                {galleryIndex + 1} / {gallery.length}
+              </div>
+            )}
           </div>
 
           {/* Title & Meta */}
           <div>
-            
             <span>
                {service.rating > 0 && (
                 <span className="flex items-center gap-1 bg-orange-50 px-3 w-28 py-1.5 rounded-full">
@@ -93,12 +130,11 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ id: st
                   {service.location}
                 </p>
               </div>
-             
             </div>
             <p className="text-gray-600 leading-relaxed">{service.description}</p>
           </div>
 
- {/* Available Packages */}
+          {/* Available Packages */}
           {packages.length > 0 && (
             <div>
               <h2 className="text-2xl font-bold text-gray-900 mb-1">Available Packages</h2>
@@ -113,47 +149,29 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ id: st
             </div>
           )}
 
-
-         
-          {/* Event Types / Tags */}
-          {/* {service.tags?.length > 0 && (
+          {/* What's Included */}
+          {service.features?.length > 0 && (
             <div>
-              <h2 className="text-lg font-bold text-gray-900 mb-3">Event Types</h2>
-              <div className="flex flex-wrap gap-2">
-                {service.tags.map((tag: string) => (
-                  <span key={tag} className="bg-gray-100 text-gray-600 px-3 py-1.5 rounded-full text-sm">
-                    {tag}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )} */}
-
-          {/* Gallery */}
-          {/* {service.gallery?.length > 0 && (
-            <div>
-              <h2 className="text-lg font-bold text-gray-900 mb-3">Gallery</h2>
-              <div className="grid grid-cols-3 gap-3">
-                {service.gallery.map((img: string, i: number) => (
-                  <div key={i} className="rounded-xl overflow-hidden aspect-video">
-                    <img
-                      src={img}
-                      alt={`Gallery ${i + 1}`}
-                      className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
-                    />
+              <h2 className="text-lg font-bold text-gray-900 mb-3">What&apos;s Included</h2>
+              <div className="grid grid-cols-2 gap-2">
+                {service.features.map((f: string, i: number) => (
+                  <div key={i} className="flex items-center gap-2 text-sm text-gray-600">
+                    <div className="w-5 h-5 bg-orange-100 rounded-full flex items-center justify-center flex-shrink-0">
+                      <svg className="w-3 h-3 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                    </div>
+                    {f}
                   </div>
                 ))}
               </div>
             </div>
-          )} */}
-
-         
+          )}
         </div>
 
         {/* ── Sidebar (right 1/3) ── */}
         <div className="lg:col-span-1">
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 sticky top-24">
-
             {/* Pricing */}
             <div className="mb-5">
               <p className="text-xs text-gray-400 uppercase tracking-wider font-medium mb-1">Starting from</p>
@@ -169,22 +187,6 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ id: st
                 <span className="text-sm text-gray-400">{service.price_unit}</span>
               )}
             </div>
-
-            {/* Add to Cart */}
-            {/* <button
-              onClick={() => addService(service)}
-              disabled={inCart}
-              className={`w-full py-3 rounded-xl font-semibold text-sm mb-2 flex items-center justify-center gap-2 transition-all ${
-                inCart
-                  ? "bg-green-50 text-green-600 border border-green-200 cursor-default"
-                  : "bg-gray-900 text-white hover:bg-orange-500"
-              }`}
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
-              </svg>
-              {inCart ? "Added to Cart ✓" : "Add to Cart"}
-            </button> */}
 
             {/* Request Booking */}
             <button
@@ -240,34 +242,6 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ id: st
           onClose={() => setShowBooking(false)}
         />
       )}
-      
-
-      <br />
-      <br />
-{/* What's Included */}
-          {service.features?.length > 0 && (
-            <div>
-              <h2 className="text-lg font-bold text-gray-900 mb-3">What&apos;s Included</h2>
-              <div className="grid grid-cols-2 gap-2">
-                {service.features.map((f: string, i: number) => (
-                  <div key={i} className="flex items-center gap-2 text-sm text-gray-600">
-                    <div className="w-5 h-5 bg-orange-100 rounded-full flex items-center justify-center flex-shrink-0">
-                      <svg className="w-3 h-3 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                      </svg>
-                    </div>
-                    {f}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-
-       
-
     </div>
-    
-    
   );
 }

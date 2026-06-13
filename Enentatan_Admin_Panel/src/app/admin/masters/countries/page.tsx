@@ -7,6 +7,7 @@ import Button from "@/components/admin/Button";
 import ConfirmModal from "@/components/admin/ConfirmModal";
 import Input from "@/components/admin/Input";
 import Modal from "@/components/admin/Modal";
+import Pagination from "@/components/admin/Pagination";
 import Table from "@/components/admin/Table";
 import { Column } from "@/lib/types";
 import toast from "react-hot-toast";
@@ -64,6 +65,9 @@ export default function CountriesPage() {
   const [selected, setSelected] = useState<Country | null>(null);
   const [pendingStatus, setPendingStatus] = useState("");
   const [form, setForm] = useState<Partial<Country>>(emptyCountry);
+
+  const ITEMS_PER_PAGE = 10;
+  const [currentPage, setCurrentPage] = useState(1);
 
   const load = async () => {
     setLoading(true);
@@ -187,6 +191,12 @@ export default function CountriesPage() {
     },
   ];
 
+  const totalPages = Math.ceil(countries.length / ITEMS_PER_PAGE);
+  const paginatedData = countries.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
+
   if (loading) return <div className="flex h-64 items-center justify-center text-sm text-gray-500">Loading countries...</div>;
 
   return (
@@ -200,7 +210,14 @@ export default function CountriesPage() {
       </div>
 
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-x-auto">
-        <Table columns={columns} data={countries} />
+        <Table columns={columns} data={paginatedData} />
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalItems={countries.length}
+          itemsPerPage={ITEMS_PER_PAGE}
+          onPageChange={(page) => setCurrentPage(page)}
+        />
       </div>
 
       <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} title={selected ? "Edit Country" : "Add Country"} size="lg">

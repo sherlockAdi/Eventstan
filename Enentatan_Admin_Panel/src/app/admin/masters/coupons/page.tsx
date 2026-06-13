@@ -5,6 +5,7 @@ import { Plus, Tag, ToggleLeft, ToggleRight, Edit, Trash2, RefreshCw, CheckCircl
 import Table from '@/components/admin/Table';
 import Modal from '@/components/admin/Modal';
 import ConfirmModal from '@/components/admin/ConfirmModal';
+import Pagination from '@/components/admin/Pagination';
 import Button from '@/components/admin/Button';
 import Input from '@/components/admin/Input';
 import StatsCard from '@/components/admin/StatsCard';
@@ -60,6 +61,9 @@ export default function CouponsPage() {
     expiresAt: '',
     active: true
   });
+
+  const ITEMS_PER_PAGE = 10;
+  const [currentPage, setCurrentPage] = useState(1);
 
   const fetchCoupons = async () => {
     setLoading(true);
@@ -341,6 +345,12 @@ export default function CouponsPage() {
     }
   };
 
+  const totalPages = Math.ceil(coupons.length / ITEMS_PER_PAGE);
+  const paginatedData = coupons.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -385,7 +395,14 @@ export default function CouponsPage() {
       </div>
 
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-x-auto">
-        <Table columns={columns} data={coupons} />
+        <Table columns={columns} data={paginatedData} />
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalItems={coupons.length}
+          itemsPerPage={ITEMS_PER_PAGE}
+          onPageChange={(page) => setCurrentPage(page)}
+        />
       </div>
 
       <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={selected ? 'Edit Coupon' : 'Create Coupon'} size="lg">

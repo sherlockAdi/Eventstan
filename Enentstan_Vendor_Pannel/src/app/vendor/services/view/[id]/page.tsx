@@ -14,34 +14,55 @@ import {
   Loader2,
   AlertTriangle,
   DollarSign,
+  Image as ImageIcon,
+  ChevronLeft,
+  ChevronRight,
+  X,
 } from 'lucide-react';
 import { vendorApi } from '@/api/vendorApi';
+import Image from 'next/image';
 
 interface SubService {
   id: string;
   serviceId: string;
   title: string;
   description: string;
-  price: {
-    amount: number;
-    currency: string;
-  };
+  amount: number;
+  currency: string;
   status: string;
+  imageUrl?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 interface Service {
   id: string;
   vendorId: string;
   categoryId: string;
+  category?: string;
   title: string;
   description: string;
   city: string;
+  location?: string;
   price: {
     amount: number;
     currency: string;
   };
+  price_min?: number;
+  price_max?: number;
+  price_unit?: string;
   status: string;
   subServices: SubService[];
+  vendor_name?: string;
+  vendor_email?: string;
+  vendor_phone?: string;
+  tags?: string[];
+  gallery?: string[];
+  features?: string[];
+  image_url?: string;
+  rating?: number;
+  review_count?: number;
+  created_at?: string;
 }
 
 const CATEGORY_COLORS: Record<string, string> = {
@@ -53,8 +74,11 @@ const CATEGORY_COLORS: Record<string, string> = {
 };
 
 const formatCategory = (categoryId: string) => {
-  const label = categoryId.replace('cat_', '');
-  return label.charAt(0).toUpperCase() + label.slice(1);
+  if (categoryId.startsWith('cat_')) {
+    const label = categoryId.replace('cat_', '');
+    return label.charAt(0).toUpperCase() + label.slice(1);
+  }
+  return categoryId.charAt(0).toUpperCase() + categoryId.slice(1);
 };
 
 export default function ServiceDetailPage() {
@@ -65,6 +89,8 @@ export default function ServiceDetailPage() {
   const [service, setService] = useState<Service | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(null);
+  const [mainImageError, setMainImageError] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -74,9 +100,27 @@ export default function ServiceDetailPage() {
         setLoading(true);
         setError(null);
 
-        const data = await vendorApi.services.get<Service>(id);
-        setService(data);
+        const data = await vendorApi.services.get(id);
+        
+        const transformedService: Service = {
+          ...data,
+          subServices: data.subServices?.map((sub: any) => ({
+            id: sub.id,
+            serviceId: sub.serviceId,
+            title: sub.title,
+            description: sub.description,
+            amount: sub.amount || sub.price?.amount || 0,
+            currency: sub.currency || sub.price?.currency || 'AED',
+            status: sub.status,
+            imageUrl: sub.imageUrl,
+            createdAt: sub.createdAt,
+            updatedAt: sub.updatedAt,
+          })) || []
+        };
+        
+        setService(transformedService);
       } catch (err: unknown) {
+        console.error('Error fetching service:', err);
         setError(err instanceof Error ? err.message : 'Failed to load service');
       } finally {
         setLoading(false);
@@ -85,6 +129,54 @@ export default function ServiceDetailPage() {
 
     fetchService();
   }, [id]);
+
+  // Get all images for gallery
+  const getAllImages = (): string[] => {
+    const images: string[] = [];
+    if (service?.image_url && !mainImageError) {
+      images.push(service.image_url);
+    }
+    if (service?.gallery && service.gallery.length > 0) {
+      images.push(...service.gallery);
+    }
+    return images;
+  };
+
+  const images = getAllImages();
+  const hasImages = images.length > 0;
+
+  const openLightbox = (index: number) => {
+    setSelectedImageIndex(index);
+  };
+
+  const closeLightbox = () => {
+    setSelectedImageIndex(null);
+  };
+
+  const nextImage = () => {
+    if (selectedImageIndex !== null && selectedImageIndex < images.length - 1) {
+      setSelectedImageIndex(selectedImageIndex + 1);
+    }
+  };
+
+  const prevImage = () => {
+    if (selectedImageIndex !== null && selectedImageIndex > 0) {
+      setSelectedImageIndex(selectedImageIndex - 1);
+    }
+  };
+
+  // Handle keyboard navigation for lightbox
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (selectedImageIndex !== null) {
+        if (e.key === 'Escape') closeLightbox();
+        if (e.key === 'ArrowRight') nextImage();
+        if (e.key === 'ArrowLeft') prevImage();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedImageIndex]);
 
   if (loading) {
     return (
@@ -137,6 +229,9 @@ export default function ServiceDetailPage() {
     );
   }
 
+  const displayCategory = service.category || formatCategory(service.categoryId);
+  const displayCity = service.location || service.city;
+
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       {/* Header */}
@@ -151,7 +246,7 @@ export default function ServiceDetailPage() {
           <div>
             <h1 className="text-2xl font-bold text-gray-900">{service.title}</h1>
             <p className="text-xs text-gray-400 mt-0.5">
-              ID: {service.id} • Vendor: {service.vendorId}
+              ID: {service.id} • {service.vendor_name ? `Vendor: ${service.vendor_name}` : `Vendor ID: ${service.vendorId}`}
             </p>
           </div>
         </div>
@@ -163,6 +258,121 @@ export default function ServiceDetailPage() {
           Edit Service
         </Link>
       </div>
+
+      {/* Image Gallery Section */}
+      {hasImages ? (
+        <div className="bg-white rounded-2xl border border-gray-100 p-5">
+          <div className="flex items-center gap-2 mb-4">
+            <ImageIcon size={18} className="text-orange-500" />
+            <p className="text-sm font-semibold text-gray-900 uppercase tracking-wide">Gallery</p>
+            <span className="text-xs text-gray-400">({images.length} images)</span>
+          </div>
+          
+          {/* Main Image */}
+          <div 
+            className="relative aspect-video bg-gray-100 rounded-xl overflow-hidden cursor-pointer mb-4"
+            onClick={() => openLightbox(0)}
+          >
+            <img
+              src={images[0]}
+              alt={service.title}
+              className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+              onError={(e) => {
+                if (images[0] === service.image_url) {
+                  setMainImageError(true);
+                }
+                (e.target as HTMLImageElement).style.display = 'none';
+              }}
+            />
+          </div>
+
+          {/* Thumbnail Grid */}
+          {images.length > 1 && (
+            <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-2">
+              {images.slice(1, 9).map((image, index) => (
+                <div
+                  key={index}
+                  className="aspect-square bg-gray-100 rounded-lg overflow-hidden cursor-pointer hover:opacity-80 transition-opacity"
+                  onClick={() => openLightbox(index + 1)}
+                >
+                  <img
+                    src={image}
+                    alt={`${service.title} - ${index + 2}`}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+              ))}
+              {images.length > 9 && (
+                <div
+                  className="aspect-square bg-gray-200 rounded-lg flex items-center justify-center cursor-pointer hover:bg-gray-300 transition-colors"
+                  onClick={() => openLightbox(9)}
+                >
+                  <span className="text-sm font-medium text-gray-600">+{images.length - 9}</span>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="bg-white rounded-2xl border border-gray-100 p-5 text-center">
+          <ImageIcon size={32} className="text-gray-300 mx-auto mb-2" />
+          <p className="text-sm text-gray-500">No images available</p>
+        </div>
+      )}
+
+      {/* Lightbox Modal */}
+      {selectedImageIndex !== null && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-90 z-50 flex items-center justify-center"
+          onClick={closeLightbox}
+        >
+          <button
+            onClick={closeLightbox}
+            className="absolute top-4 right-4 text-white hover:text-gray-300 transition-colors z-10"
+          >
+            <X size={32} />
+          </button>
+          
+          {images.length > 1 && (
+            <>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  prevImage();
+                }}
+                className="absolute left-4 text-white hover:text-gray-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={selectedImageIndex === 0}
+              >
+                <ChevronLeft size={40} />
+              </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  nextImage();
+                }}
+                className="absolute right-4 text-white hover:text-gray-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={selectedImageIndex === images.length - 1}
+              >
+                <ChevronRight size={40} />
+              </button>
+            </>
+          )}
+          
+          <div
+            className="max-w-[90vw] max-h-[90vh]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <img
+              src={images[selectedImageIndex]}
+              alt={`${service.title} - ${selectedImageIndex + 1}`}
+              className="max-w-full max-h-[90vh] object-contain"
+            />
+            <div className="absolute bottom-4 left-0 right-0 text-center text-white text-sm">
+              {selectedImageIndex + 1} / {images.length}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Details Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -189,7 +399,7 @@ export default function ServiceDetailPage() {
             }`}
           >
             <Tag size={13} />
-            {formatCategory(service.categoryId)}
+            {displayCategory}
           </span>
         </div>
 
@@ -201,14 +411,21 @@ export default function ServiceDetailPage() {
               {service.price?.amount?.toLocaleString() || 0} {service.price?.currency || 'AED'}
             </span>
           </div>
-          <p className="text-xs text-gray-400 mt-0.5">Base price for service</p>
+          {service.price_unit && (
+            <p className="text-xs text-gray-400 mt-0.5">{service.price_unit}</p>
+          )}
+          {service.price_min && service.price_max && service.price_min !== service.price_max && (
+            <p className="text-xs text-gray-400 mt-1">
+              Range: {service.price_min.toLocaleString()} - {service.price_max.toLocaleString()} {service.price?.currency || 'AED'}
+            </p>
+          )}
         </div>
 
         <div className="bg-white rounded-2xl border border-gray-100 p-5">
           <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Location</p>
           <div className="flex items-center gap-2">
             <MapPin size={16} className="text-gray-400" />
-            <span className="text-sm font-medium text-gray-700">{service.city}</span>
+            <span className="text-sm font-medium text-gray-700">{displayCity}</span>
           </div>
         </div>
       </div>
@@ -218,6 +435,50 @@ export default function ServiceDetailPage() {
         <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Description</p>
         <p className="text-sm text-gray-700 leading-relaxed">{service.description}</p>
       </div>
+
+      {/* Rating */}
+      {service.rating !== undefined && service.rating > 0 && (
+        <div className="bg-white rounded-2xl border border-gray-100 p-5">
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Rating</p>
+          <div className="flex items-center gap-2">
+            <div className="flex items-center">
+              <span className="text-yellow-500 text-lg">★</span>
+              <span className="font-bold text-gray-900 ml-1">{service.rating}</span>
+            </div>
+            {service.review_count !== undefined && (
+              <span className="text-sm text-gray-500">({service.review_count} reviews)</span>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Tags */}
+      {service.tags && service.tags.length > 0 && (
+        <div className="bg-white rounded-2xl border border-gray-100 p-5">
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Tags</p>
+          <div className="flex flex-wrap gap-2">
+            {service.tags.map((tag, index) => (
+              <span key={index} className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full">
+                {tag}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Features */}
+      {service.features && service.features.length > 0 && (
+        <div className="bg-white rounded-2xl border border-gray-100 p-5">
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Features</p>
+          <div className="flex flex-wrap gap-2">
+            {service.features.map((feature, index) => (
+              <span key={index} className="px-2 py-1 bg-blue-50 text-blue-600 text-xs rounded-full">
+                {feature}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Sub Services */}
       {service.subServices && service.subServices.length > 0 ? (
@@ -238,7 +499,7 @@ export default function ServiceDetailPage() {
                   </div>
                   <div className="text-right">
                     <p className="font-bold text-orange-600 text-sm">
-                      {sub.price?.amount?.toLocaleString() || 0} {sub.price?.currency || 'AED'}
+                      {sub.amount?.toLocaleString() || 0} {sub.currency || 'AED'}
                     </p>
                     <span
                       className={`text-xs px-2 py-0.5 rounded-full mt-1 inline-block ${
@@ -249,6 +510,16 @@ export default function ServiceDetailPage() {
                     </span>
                   </div>
                 </div>
+                {/* Sub-service image if available */}
+                {sub.imageUrl && (
+                  <div className="mt-3">
+                    <img
+                      src={sub.imageUrl}
+                      alt={sub.title}
+                      className="w-32 h-32 object-cover rounded-lg"
+                    />
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -257,6 +528,18 @@ export default function ServiceDetailPage() {
         <div className="bg-white rounded-2xl border border-gray-100 p-5 text-center">
           <Package size={24} className="text-gray-300 mx-auto mb-2" />
           <p className="text-sm text-gray-500">No sub-services available</p>
+        </div>
+      )}
+
+      {/* Vendor Info */}
+      {(service.vendor_name || service.vendor_email || service.vendor_phone) && (
+        <div className="bg-white rounded-2xl border border-gray-100 p-5">
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Vendor Information</p>
+          <div className="space-y-2 text-sm">
+            {service.vendor_name && <p><span className="font-medium text-gray-600">Name:</span> {service.vendor_name}</p>}
+            {service.vendor_email && <p><span className="font-medium text-gray-600">Email:</span> {service.vendor_email}</p>}
+            {service.vendor_phone && <p><span className="font-medium text-gray-600">Phone:</span> {service.vendor_phone}</p>}
+          </div>
         </div>
       )}
 

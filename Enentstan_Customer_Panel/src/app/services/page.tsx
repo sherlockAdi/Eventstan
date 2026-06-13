@@ -1,18 +1,11 @@
 "use client";
 import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
+import { SERVICES, CATEGORY_FILTERS } from "@/lib/data";
 import ServiceCard from "@/components/ui/ServiceCard";
 import { Service } from "@/types";
-import { useMarketplaceData } from "@/lib/useMarketplaceData";
 
 const CATEGORIES = ["All", "Venue", "Decor", "Catering", "Entertainment", "Rentals"];
-const CATEGORY_FILTERS: Record<string, string[]> = {
-  Venue: ["Wedding", "Corporate", "Birthday", "Anniversary", "Graduation", "Party"],
-  Decor: ["Birthday", "Proposal", "Baby Shower", "Wedding", "Corporate", "Festival"],
-  Catering: ["Wedding Banquet", "Corporate Lunch", "Birthday Party", "Cocktail Party", "Buffet", "Live Station"],
-  Entertainment: ["DJ Night", "Live Band", "Comedy Show", "Magic Show", "Photo Booth", "Kids Entertainment"],
-  Rentals: ["Furniture", "Tent", "Sound", "Lighting", "Tableware", "Stage"],
-};
 
 const SORT_OPTIONS = [
   { label: "Newest First", value: "newest" },
@@ -48,7 +41,6 @@ function ServicesContent() {
   const [priceRange, setPriceRange] = useState("any");
   const [searchQuery, setSearchQuery] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const { services, loading, error } = useMarketplaceData();
 
   useEffect(() => {
     const cat = searchParams.get("category");
@@ -65,7 +57,7 @@ function ServicesContent() {
 
   const priceFilterFn = getPriceFilter(priceRange);
 
-  const filtered = services.filter((s: Service) => {
+  const filtered = SERVICES.filter((s: Service) => {
     if (selectedCategory !== "All" && s.category !== selectedCategory) return false;
     if (!priceFilterFn(s)) return false;
     if (selectedFilters.length > 0 && !selectedFilters.some((f) => s.tags.includes(f))) return false;
@@ -107,11 +99,6 @@ function ServicesContent() {
       {/* Page Header */}
       <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-1">Browse Services</h1>
       <p className="text-gray-500 text-sm mb-5 sm:mb-6">Find the perfect vendors for your event</p>
-      {error && (
-        <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-600 mb-5">
-          {error}
-        </div>
-      )}
 
       {/* Categories — horizontally scrollable on mobile, wrapping on desktop */}
       <div className="flex gap-2 mb-5 overflow-x-auto pb-1 -mx-4 px-4 sm:mx-0 sm:px-0 sm:flex-wrap snap-x snap-mandatory scrollbar-hide">
@@ -377,12 +364,8 @@ function ServicesContent() {
 
         {/* Results */}
         <div className="flex-1 min-w-0">
-          <p className="text-sm text-gray-500 mb-4">{loading ? "Loading services..." : `${filtered.length} services found`}</p>
-          {loading ? (
-            <div className="text-center py-16 text-gray-400">
-              <p>Loading services...</p>
-            </div>
-          ) : filtered.length === 0 ? (
+          <p className="text-sm text-gray-500 mb-4">{filtered.length} services found</p>
+          {filtered.length === 0 ? (
             <div className="text-center py-16 text-gray-400">
               <div className="text-4xl mb-3">🔍</div>
               <p>No services match your filters.</p>

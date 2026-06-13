@@ -7,16 +7,15 @@ import Modal from '@/components/admin/Modal';
 import ConfirmModal from '@/components/admin/ConfirmModal';
 import Button from '@/components/admin/Button';
 import Input from '@/components/admin/Input';
+import Pagination from '@/components/admin/Pagination';
 import { usersData } from '@/lib/dummyData';
 import { User, Column } from '@/lib/types';
 import toast from 'react-hot-toast';
 
-// Updated User interface with loginMethod
 interface ExtendedUser extends User {
   loginMethod: string;
 }
 
-// Updated dummy data with login methods
 const updatedUsersData: ExtendedUser[] = [
   { id: 1, name: 'John Doe', email: 'john@example.com', role: 'Admin', status: 'Active', joined: '2024-01-15', loginMethod: 'Google' },
   { id: 2, name: 'Jane Smith', email: 'jane@example.com', role: 'User', status: 'Active', joined: '2024-02-20', loginMethod: 'Email' },
@@ -41,6 +40,9 @@ export default function UsersPage() {
     loginMethod: 'Email'
   });
 
+  const ITEMS_PER_PAGE = 10;
+  const [currentPage, setCurrentPage] = useState(1);
+
   const openStatusModal = (user: ExtendedUser) => {
     setSelected(user);
     const newStatus = user.status === 'Active' ? 'Inactive' : 'Active';
@@ -63,15 +65,6 @@ export default function UsersPage() {
   const openView = (user: ExtendedUser) => {
     setSelected(user);
     setIsViewModalOpen(true);
-  };
-
-  const getLoginMethodIcon = (method: string) => {
-    switch(method) {
-      case 'Google': return 'G';
-      case 'Facebook': return 'F';
-      case 'Apple': return 'A';
-      default: return '📧';
-    }
   };
 
   const getLoginMethodColor = (method: string) => {
@@ -191,6 +184,12 @@ export default function UsersPage() {
     setIsDeleteOpen(false);
   };
 
+  const totalPages = Math.ceil(users.length / ITEMS_PER_PAGE);
+  const paginatedData = users.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -207,16 +206,21 @@ export default function UsersPage() {
       </div>
 
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm">
-        <Table columns={columns} data={users} />
+        <Table columns={columns} data={paginatedData} />
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalItems={users.length}
+          itemsPerPage={ITEMS_PER_PAGE}
+          onPageChange={(page) => setCurrentPage(page)}
+        />
       </div>
 
-      {/* Add/Edit Modal */}
       <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={selected ? 'Edit User' : 'Add User'}>
         <form onSubmit={handleSubmit} className="space-y-0">
           <Input label="Name" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} required />
           <Input label="Email" type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} required />
           
-          {/* Login Method Dropdown */}
           <div className="mb-4">
             <label className="block text-sm font-medium text-gray-700 mb-1.5">Login Method</label>
             <select 
@@ -250,11 +254,9 @@ export default function UsersPage() {
         </form>
       </Modal>
 
-      {/* View User Details Modal */}
       {isViewModalOpen && selected && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
           <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-md">
-            {/* Modal Header */}
             <div className="flex items-center justify-between p-4 border-b border-gray-100">
               <h2 className="text-lg font-bold text-gray-900">User Details</h2>
               <button
@@ -265,7 +267,6 @@ export default function UsersPage() {
               </button>
             </div>
             
-            {/* Modal Body */}
             <div className="p-6">
               <div className="space-y-4">
                 <div className="flex items-center gap-3 pb-4 border-b border-gray-100">
@@ -318,7 +319,6 @@ export default function UsersPage() {
               </div>
             </div>
             
-            {/* Modal Footer */}
             <div className="flex justify-end gap-3 p-4 border-t border-gray-100">
               <Button variant="secondary" onClick={() => setIsViewModalOpen(false)}>
                 Close
@@ -334,7 +334,6 @@ export default function UsersPage() {
         </div>
       )}
 
-      {/* Status Change Confirmation Modal */}
       <ConfirmModal 
         isOpen={isStatusModalOpen} 
         onClose={() => {
@@ -347,7 +346,6 @@ export default function UsersPage() {
         message={`Are you sure you want to ${pendingStatus === 'Active' ? 'activate' : 'deactivate'} user "${selected?.name}"?`} 
       />
 
-      {/* Delete Confirmation Modal */}
       <ConfirmModal 
         isOpen={isDeleteOpen} 
         onClose={() => setIsDeleteOpen(false)} 
