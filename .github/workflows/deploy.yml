@@ -22,6 +22,8 @@ jobs:
             set -e
 
             cd /var/www/Eventstan
+            git fetch origin main
+            git reset --hard origin/main
 
             git pull origin main
 
