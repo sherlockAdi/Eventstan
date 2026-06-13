@@ -227,7 +227,11 @@ export default function AddServicePage() {
     setSubServices(prev => prev.filter((_, i) => i !== index));
   };
 
-  const setSubField = (index: number, key: keyof Omit<SubServiceForm, 'id'>, value: string) => {
+  const setSubField = <K extends keyof Omit<SubServiceForm, 'id'>>(
+    index: number,
+    key: K,
+    value: SubServiceForm[K],
+  ) => {
     setSubServices(prev => prev.map((sub, i) => i === index ? { ...sub, [key]: value } : sub));
   };
 
@@ -345,7 +349,7 @@ export default function AddServicePage() {
 
       console.log("Creating service with payload:", servicePayload);
 
-      const createdService = await vendorApi.services.create(servicePayload);
+      const createdService = await vendorApi.services.create<{ id: string }>(servicePayload);
       const serviceId = createdService.id;
 
       // Create sub-services (no status field)

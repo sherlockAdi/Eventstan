@@ -33,12 +33,39 @@ interface ApiService {
   id: string;
   title: string;
   categoryId: string;
+  priceUnit?: string;
   price: {
     amount: number;
     currency: string;
   };
   status: string;
   description: string;
+}
+
+const serviceCategories: ServiceWithSlug['category'][] = [
+  'Venue',
+  'Catering',
+  'Decoration',
+  'Entertainment',
+  'Photography',
+  'Other',
+];
+
+function normalizeServiceCategory(categoryId: string): ServiceWithSlug['category'] {
+  const normalized = categoryId.replace(/^cat[_-]?/i, '').toLowerCase();
+  return serviceCategories.find((category) => category.toLowerCase() === normalized) ?? 'Other';
+}
+
+const priceUnits: ServiceWithSlug['priceUnit'][] = [
+  'per event',
+  'per person',
+  'per hour',
+  'per day',
+];
+
+function normalizePriceUnit(priceUnit?: string): ServiceWithSlug['priceUnit'] {
+  const normalized = priceUnit?.toLowerCase();
+  return priceUnits.find((unit) => unit === normalized) ?? 'per event';
 }
 
 // ── Searchable Service Dropdown ─────────────────────────────────
@@ -355,10 +382,10 @@ export default function AddPackagePage() {
         id: svc.id,
         name: svc.title,
         slug: svc.id,
-        category: svc.categoryId,
+        category: normalizeServiceCategory(svc.categoryId),
         priceMin: svc.price.amount,
         priceMax: svc.price.amount,
-        priceUnit: svc.price.currency,
+        priceUnit: normalizePriceUnit(svc.priceUnit),
         isActive: svc.status === 'ACTIVE',
         rating: 0,
         totalBookings: 0,

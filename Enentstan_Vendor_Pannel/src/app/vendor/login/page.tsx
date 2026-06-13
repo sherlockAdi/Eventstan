@@ -33,7 +33,7 @@ interface LoginApiResponse {
 // ─── Auth helpers ─────────────────────────────────────────────────────────────
 
 async function loginVendor(email: string, password: string): Promise<LoginApiResponse> {
-  const json = await vendorApi.auth.login(email, password);
+  const json = await vendorApi.auth.login<LoginApiResponse>(email, password);
   console.log("API Response:", json);
   return json;
 }

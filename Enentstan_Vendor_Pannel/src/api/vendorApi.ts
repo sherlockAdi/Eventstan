@@ -53,8 +53,8 @@ export const vendorApi = {
   },
 
   auth: {
-    login: (email: string, password: string) =>
-      request<unknown>('auth/login', jsonOptions('POST', { email, password })),
+    login: <T = unknown>(email: string, password: string) =>
+      request<T>('auth/login', jsonOptions('POST', { email, password })),
     logout: () => request<void>('auth/logout', jsonOptions('POST')),
   },
 

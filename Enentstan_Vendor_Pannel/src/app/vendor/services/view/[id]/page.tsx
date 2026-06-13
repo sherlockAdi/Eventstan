@@ -65,6 +65,27 @@ interface Service {
   created_at?: string;
 }
 
+interface ApiSubService {
+  id: string;
+  serviceId: string;
+  title: string;
+  description: string;
+  amount?: number;
+  currency?: string;
+  price?: {
+    amount?: number;
+    currency?: string;
+  };
+  status: string;
+  imageUrl?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+type ApiService = Omit<Service, 'subServices'> & {
+  subServices?: ApiSubService[];
+};
+
 const CATEGORY_COLORS: Record<string, string> = {
   cat_wedding: 'bg-pink-50 text-pink-700 border-pink-200',
   cat_corporate: 'bg-blue-50 text-blue-700 border-blue-200',
@@ -100,11 +121,11 @@ export default function ServiceDetailPage() {
         setLoading(true);
         setError(null);
 
-        const data = await vendorApi.services.get(id);
+        const data = await vendorApi.services.get<ApiService>(id);
         
         const transformedService: Service = {
           ...data,
-          subServices: data.subServices?.map((sub: any) => ({
+          subServices: data.subServices?.map((sub) => ({
             id: sub.id,
             serviceId: sub.serviceId,
             title: sub.title,
