@@ -81,10 +81,7 @@ const BADGE_COLORS: Record<string, string> = {
 function CountdownTimer({ expiresAt }: { expiresAt: string }) {
   const [now, setNow] = useState<number | null>(null);
   useEffect(() => {
-    setNow(Date.now());
-    // #region agent log
-    fetch('http://127.0.0.1:7390/ingest/a3e994ce-a9eb-43f3-b313-113a0ac6b299',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'55dc61'},body:JSON.stringify({sessionId:'55dc61',runId:'pre-fix',hypothesisId:'H-B',location:'src/app/promotions/page.tsx:CountdownTimer',message:'CountdownTimer mounted',data:{expiresAt},timestamp:Date.now()})}).catch(()=>{});
-    // #endregion
+    queueMicrotask(() => setNow(Date.now()));
   }, [expiresAt]);
 
   if (now == null) {
@@ -271,14 +268,6 @@ function PromotionCard({ promo, onBook }: { promo: Promotion; onBook: (p: Promot
   const inCart = items.some(i => i.id === `pkg-promo-${promo.id}`);
   const promoImage = typeof promo.image_url === "string" ? promo.image_url.trim() : "";
   const hasImage = promoImage.length > 0;
-
-  useEffect(() => {
-    if (!hasImage) {
-      // #region agent log
-      fetch('http://127.0.0.1:7390/ingest/a3e994ce-a9eb-43f3-b313-113a0ac6b299',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'55dc61'},body:JSON.stringify({sessionId:'55dc61',runId:'pre-fix',hypothesisId:'H-A',location:'src/app/promotions/page.tsx:PromotionCard',message:'Promotion missing image_url (would cause empty src)',data:{promoId:promo.id,imageUrl:promo.image_url ?? null,title:promo.title},timestamp:Date.now()})}).catch(()=>{});
-      // #endregion
-    }
-  }, [hasImage, promo.id, promo.image_url, promo.title]);
 
   // Adapt promo to the shape ConfigureCartModal expects via pkg/service props
   const promoAsPkg = {

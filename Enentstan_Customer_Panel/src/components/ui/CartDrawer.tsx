@@ -2,6 +2,9 @@
 import { useEffect, useState } from "react";
 import { useCart } from "@/lib/CartContext";
 import { CartItem } from "@/types";
+import { customerApi } from "@/api/customerApi";
+import { useAuth } from "@/lib/AuthContext";
+import { useRouter } from "next/navigation";
 
 type CheckoutStep = "cart" | "details" | "confirm";
 
@@ -13,6 +16,7 @@ interface CustomerDetails {
   event_type: string;
   guest_count: string;
   message: string;
+  event_address: string;
 }
 
 const STEP_INDEX: Record<CheckoutStep, number> = { cart: 1, details: 2, confirm: 3 };
@@ -20,27 +24,21 @@ const STEP_LABELS: CheckoutStep[] = ["cart", "details", "confirm"];
 const STEP_DISPLAY = ["Your Cart", "Your Details", "Confirm"];
 
 export default function CartDrawer() {
+  const { user } = useAuth();
+  const router = useRouter();
   const { items, isOpen, closeCart, removeItem, clearCart, total, count } = useCart();
   const [step, setStep] = useState<CheckoutStep>("cart");
   const [mounted, setMounted] = useState(false);
   const [details, setDetails] = useState<CustomerDetails>({
-    name: "", email: "", phone: "", event_date: "", event_type: "", guest_count: "", message: "",
+    name: "", email: "", phone: "", event_date: "", event_type: "", guest_count: "", message: "", event_address: "",
   });
-  const [confirmId] = useState(() => "ES-" + Math.random().toString(36).substr(2, 8).toUpperCase());
-
-  useEffect(() => setMounted(true), []);
+  const [confirmId, setConfirmId] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    const missing = items
-      .filter((i) => !(typeof i.image_url === "string" && i.image_url.trim()))
-      .map((i) => ({ itemId: i.id, title: i.title, type: i.type }));
-
-    if (missing.length === 0) return;
-
-    // #region agent log
-    fetch('http://127.0.0.1:7390/ingest/a3e994ce-a9eb-43f3-b313-113a0ac6b299',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'55dc61'},body:JSON.stringify({sessionId:'55dc61',runId:'pre-fix',hypothesisId:'H-I',location:'src/components/ui/CartDrawer.tsx:useEffect',message:'Cart has items with missing image_url',data:{count:missing.length,missing},timestamp:Date.now()})}).catch(()=>{});
-    // #endregion
-  }, [items]);
+    queueMicrotask(() => setMounted(true));
+  }, []);
 
   // Reset to cart step when drawer closes
   useEffect(() => {
@@ -62,15 +60,42 @@ export default function CartDrawer() {
     setDetails((d) => ({ ...d, [e.target.name]: e.target.value }));
   };
 
-  const handleConfirm = () => {
-    setStep("confirm");
+  const handleConfirm = async () => {
+    if (!user) {
+      closeCart();
+      router.push("/auth/login?redirect=/");
+      return;
+    }
+    setSubmitting(true);
+    setError("");
+    try {
+      await customerApi.cart.clear().catch(() => undefined);
+      for (const item of items) {
+        await customerApi.cart.add({
+          type: item.type === "service" ? "SERVICE" : "PACKAGE",
+          itemId: item.type === "service" ? item.service!.id : item.pkg!.id,
+          eventDate: details.event_date,
+          quantity: Math.max(1, Number(details.guest_count) || 1),
+        });
+      }
+      const booking = await customerApi.bookings.checkout<{ id: string }>({
+        eventAddress: details.event_address,
+        notes: [details.event_type, details.message].filter(Boolean).join(" - "),
+      });
+      setConfirmId(booking.id);
+      setStep("confirm");
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Unable to create booking");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const handleDone = () => {
     clearCart();
     closeCart();
     setStep("cart");
-    setDetails({ name: "", email: "", phone: "", event_date: "", event_type: "", guest_count: "", message: "" });
+    setDetails({ name: "", email: "", phone: "", event_date: "", event_type: "", guest_count: "", message: "", event_address: "" });
   };
 
   const currentStepNum = STEP_INDEX[step];
@@ -195,8 +220,17 @@ export default function CartDrawer() {
           {step === "details" && (
             <div className="p-5 space-y-4">
               <p className="text-sm text-gray-500 mb-2">Fill in your details to proceed with the booking.</p>
+              {error && <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
 
               <div className="grid grid-cols-2 gap-3">
+                <div className="col-span-2">
+                  <label className="text-xs font-semibold text-gray-600 mb-1 block">Event Address *</label>
+                  <input
+                    name="event_address" value={details.event_address} onChange={handleChange}
+                    placeholder="Venue or event address"
+                    className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100 transition-all"
+                  />
+                </div>
                 <div className="col-span-2">
                   <label className="text-xs font-semibold text-gray-600 mb-1 block">Full Name *</label>
                   <input
@@ -283,10 +317,10 @@ export default function CartDrawer() {
                 </button>
                 <button
                   onClick={handleConfirm}
-                  disabled={!details.name || !details.email || !details.phone || !details.event_date}
+                  disabled={submitting || !details.name || !details.email || !details.phone || !details.event_date || !details.event_address}
                   className="flex-1 bg-orange-500 text-white py-3 rounded-xl text-sm font-semibold hover:bg-orange-600 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                 >
-                  Confirm Booking
+                  {submitting ? "Creating Booking..." : "Confirm Booking"}
                 </button>
               </div>
             </div>

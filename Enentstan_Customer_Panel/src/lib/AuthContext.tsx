@@ -1,10 +1,8 @@
 "use client";
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { customerApi, type ApiUser, type AuthResponse } from "@/api/customerApi";
 
-export interface AuthUser {
-  id: string;
-  name: string;
-  email: string;
+export interface AuthUser extends ApiUser {
   avatar: string;
   type: "individual" | "corporate";
   joinedAt: string;
@@ -14,96 +12,83 @@ interface AuthContextType {
   user: AuthUser | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<{ ok: boolean; error?: string }>;
-  signup: (name: string, email: string, password: string, type: "individual" | "corporate") => Promise<{ ok: boolean; error?: string }>;
+  signup: (name: string, email: string, password: string, type: "individual" | "corporate") => Promise<{ ok: boolean; error?: string; welcomeEmailSent?: boolean }>;
   logout: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
-const DEMO_USERS: (AuthUser & { password: string })[] = [
-  { id: "u1", name: "Priya Sharma",    email: "priya@email.com", password: "demo123", avatar: "PS", type: "individual", joinedAt: "2024-01-10" },
-  { id: "u2", name: "James Whitfield", email: "james@corp.com",  password: "demo123", avatar: "JW", type: "corporate",  joinedAt: "2024-02-05" },
-];
+function normalizeUser(user: ApiUser, type: "individual" | "corporate" = "individual"): AuthUser {
+  return {
+    ...user,
+    avatar: user.name.split(" ").map(part => part[0]).join("").slice(0, 2).toUpperCase(),
+    type,
+    joinedAt: new Date().toISOString().slice(0, 10),
+  };
+}
+
+function saveSession(response: AuthResponse, type: "individual" | "corporate" = "individual") {
+  const user = normalizeUser(response.user, type);
+  localStorage.setItem("es_token", response.accessToken);
+  localStorage.setItem("es_user", JSON.stringify(user));
+  return user;
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user,    setUser]    = useState<AuthUser | null>(null);
+  const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    try {
-      const stored = localStorage.getItem("es_user");
-      if (stored) setUser(JSON.parse(stored));
-    } catch {}
-    setLoading(false);
+    const stored = localStorage.getItem("es_user");
+    const authToken = localStorage.getItem("es_token");
+    if (!stored || !authToken) {
+      queueMicrotask(() => setLoading(false));
+      return;
+    }
+    customerApi.auth.me()
+      .then((account) => {
+        if (account.role !== "CUSTOMER") throw new Error("Customer account required");
+        const current = JSON.parse(stored) as AuthUser;
+        const normalized = normalizeUser(account, current.type);
+        setUser(normalized);
+        localStorage.setItem("es_user", JSON.stringify(normalized));
+      })
+      .catch(() => {
+        localStorage.removeItem("es_token");
+        localStorage.removeItem("es_user");
+      })
+      .finally(() => setLoading(false));
   }, []);
 
   const login = async (email: string, password: string) => {
-    await new Promise(r => setTimeout(r, 900));
-
-    const demo = DEMO_USERS.find(u => u.email === email.toLowerCase() && u.password === password);
-    if (demo) {
-      const { password: _, ...authUser } = demo;
-      setUser(authUser);
-      localStorage.setItem("es_user", JSON.stringify(authUser));
-      return { ok: true };
-    }
-
     try {
-      const registered = JSON.parse(localStorage.getItem("es_registered") || "[]") as (AuthUser & { password: string })[];
-      const found = registered.find(u => u.email === email.toLowerCase() && u.password === password);
-      if (found) {
-        const { password: _, ...authUser } = found;
-        setUser(authUser);
-        localStorage.setItem("es_user", JSON.stringify(authUser));
-        return { ok: true };
-      }
-    } catch {}
-
-    return { ok: false, error: "Invalid email or password." };
+      const response = await customerApi.auth.login(email, password);
+      if (response.user.role !== "CUSTOMER") return { ok: false, error: "Please use the correct portal for this account." };
+      setUser(saveSession(response));
+      return { ok: true };
+    } catch (error) {
+      return { ok: false, error: error instanceof Error ? error.message : "Login failed." };
+    }
   };
 
   const signup = async (name: string, email: string, password: string, type: "individual" | "corporate") => {
-    await new Promise(r => setTimeout(r, 1000));
-
-    const allEmails = [
-      ...DEMO_USERS.map(u => u.email),
-      ...JSON.parse(localStorage.getItem("es_registered") || "[]").map((u: AuthUser) => u.email),
-    ];
-    if (allEmails.includes(email.toLowerCase())) {
-      return { ok: false, error: "An account with this email already exists." };
+    try {
+      const response = await customerApi.auth.register(name, email, password);
+      setUser(saveSession(response, type));
+      return { ok: true, welcomeEmailSent: response.welcomeEmailSent };
+    } catch (error) {
+      return { ok: false, error: error instanceof Error ? error.message : "Sign up failed." };
     }
-
-    const initials = name.trim().split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2);
-    const newUser: AuthUser & { password: string } = {
-      id: `u_${Date.now()}`,
-      name: name.trim(),
-      email: email.toLowerCase(),
-      avatar: initials,
-      type,
-      joinedAt: new Date().toISOString().split("T")[0],
-      password,
-    };
-
-    const registered = JSON.parse(localStorage.getItem("es_registered") || "[]");
-    registered.push(newUser);
-    localStorage.setItem("es_registered", JSON.stringify(registered));
-
-    const { password: _, ...authUser } = newUser;
-    setUser(authUser);
-    localStorage.setItem("es_user", JSON.stringify(authUser));
-    return { ok: true };
   };
 
   const logout = () => {
+    void customerApi.auth.logout().catch(() => undefined);
     setUser(null);
+    localStorage.removeItem("es_token");
     localStorage.removeItem("es_user");
   };
 
-  return (
-    <AuthContext.Provider value={{ user, loading, login, signup, logout }}>
-      {children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={{ user, loading, login, signup, logout }}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {

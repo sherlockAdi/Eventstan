@@ -3,6 +3,7 @@ import { PrismaModule } from '../../shared/prisma/prisma.module';
 import { AuthModule } from '../auth/auth.module';
 import { VendorsController } from './vendors.controller';
 import { VendorsService } from './vendors.service';
+import { MailModule } from '../mail/mail.module';
 
-@Module({ imports: [AuthModule, PrismaModule], controllers: [VendorsController], providers: [VendorsService] })
+@Module({ imports: [AuthModule, PrismaModule, MailModule], controllers: [VendorsController], providers: [VendorsService] })
 export class VendorsModule {}

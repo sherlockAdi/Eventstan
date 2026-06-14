@@ -6,8 +6,10 @@ import { OptionalAuthGuard } from './optional-auth.guard';
 import { PasswordService } from './password.service';
 import { RolesGuard } from './roles.guard';
 import { TokenService } from './token.service';
+import { MailModule } from '../mail/mail.module';
 
 @Module({
+  imports: [MailModule],
   controllers: [AuthController],
   providers: [AuthService, PasswordService, TokenService, AuthGuard, OptionalAuthGuard, RolesGuard],
   exports: [AuthService, PasswordService, TokenService, AuthGuard, OptionalAuthGuard, RolesGuard],

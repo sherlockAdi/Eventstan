@@ -39,15 +39,8 @@ export default function Navbar() {
   }, []);
 
   useEffect(() => { 
-    setMenuOpen(false); 
+    queueMicrotask(() => setMenuOpen(false));
   }, [pathname]);
-
-  useEffect(() => {
-    // #region agent log
-    fetch('http://127.0.0.1:7390/ingest/a3e994ce-a9eb-43f3-b313-113a0ac6b299',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'55dc61'},body:JSON.stringify({sessionId:'55dc61',runId:'pre-fix',hypothesisId:'H-F',location:'src/components/ui/Navbar.tsx:Navbar',message:'Navbar mounted (client) — ingest reachability check',data:{pathname},timestamp:Date.now()})}).catch(()=>{});
-    fetch('/api/debug-log',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'55dc61',runId:'pre-fix',hypothesisId:'H-F2',location:'src/components/ui/Navbar.tsx:Navbar',message:'Navbar mounted (client) — same-origin debug log',data:{pathname},timestamp:Date.now()})}).catch(()=>{});
-    // #endregion
-  }, []);
 
   useEffect(() => {
     document.body.style.overflow = menuOpen ? "hidden" : "";

@@ -6,6 +6,7 @@ import { ArrowLeft, Eye, EyeOff } from 'lucide-react';
 import Button from '@/components/admin/Button';
 import Input from '@/components/admin/Input';
 import toast from 'react-hot-toast';
+import { adminApi } from '@/api/adminApi';
 
 export default function AddVendorPage() {
   const router = useRouter();
@@ -55,12 +56,40 @@ export default function AddVendorPage() {
     e.preventDefault();
     setLoading(true);
     try {
-      console.log('Form Data:', form);
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      toast.success('Vendor created successfully!');
+      const contactPerson = `${form.firstName} ${form.lastName}`.trim();
+      const response = await adminApi.vendors.create({
+        companyName: form.userName || `${contactPerson} Events`,
+        contactPerson,
+        email: form.primaryEmail,
+        primaryEmail: form.primaryEmail,
+        phone: form.primaryMobile || form.telephone,
+        primaryMobile: form.primaryMobile,
+        telephone: form.telephone,
+        password: form.password,
+        firstName: form.firstName,
+        lastName: form.lastName,
+        userName: form.userName,
+        specialization: form.specialization,
+        businessLocation: form.whereIsYourBusiness,
+        address: form.address,
+        visaType: form.visaType,
+        tradeLicenseNumber: `PENDING-${Date.now()}`,
+        cities: [form.whereIsYourBusiness],
+        capacityPerDay: 1,
+        commissionPercent: 10,
+        planDetails: form.planDetail,
+        planExpiry: form.planExpiry || undefined,
+        bankName: form.bankName,
+        accountFullName: form.accountFullName,
+        ibanNo: form.ibanNo,
+        accountNumber: form.accountNumber,
+        swift: form.swift,
+        branchAddress: form.branchAddress,
+      });
+      toast.success(response.welcomeEmailSent ? 'Vendor created and welcome email sent!' : 'Vendor created, but welcome email could not be sent.');
       router.push('/admin/vendors');
     } catch (error) {
-      toast.error('Failed to create vendor');
+      toast.error(error instanceof Error ? error.message : 'Failed to create vendor');
     } finally {
       setLoading(false);
     }

@@ -5,11 +5,6 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/AuthContext";
 import { Suspense } from "react";
 
-const DEMO = [
-  { label: "Individual",  email: "priya@email.com",  password: "demo123", color: "bg-orange-500",  initials: "PS" },
-  { label: "Corporate",   email: "james@corp.com",   password: "demo123", color: "bg-blue-500",    initials: "JW" },
-];
-
 function LoginForm() {
   const { login, user } = useAuth();
   const router          = useRouter();
@@ -39,8 +34,6 @@ function LoginForm() {
       setTimeout(() => setShake(false), 500);
     }
   };
-
-  const fill = (d: typeof DEMO[0]) => { setEmail(d.email); setPassword(d.password); setError(""); };
 
   return (
     <div className="min-h-screen flex bg-white">
@@ -192,28 +185,7 @@ function LoginForm() {
             </button>
           </form>
 
-          {/* Divider */}
-          <div className="flex items-center gap-3 my-5">
-            <div className="flex-1 h-px bg-gray-200" />
-            <span className="text-gray-400 text-xs">Quick demo login</span>
-            <div className="flex-1 h-px bg-gray-200" />
-          </div>
-
-          {/* Demo tiles */}
-          <div className="grid grid-cols-2 gap-2 mb-6">
-            {DEMO.map(d => (
-              <button key={d.email} onClick={() => fill(d)}
-                className="flex items-center gap-2.5 bg-white border border-gray-200 hover:border-orange-300 hover:bg-orange-50 rounded-xl px-3 py-2.5 text-left transition-all group">
-                <div className={`w-8 h-8 ${d.color} rounded-lg flex items-center justify-center text-white text-xs font-bold flex-shrink-0`}>{d.initials}</div>
-                <div>
-                  <p className="text-gray-900 text-xs font-semibold group-hover:text-orange-600 transition-colors">{d.label}</p>
-                  <p className="text-gray-400 text-xs">{d.email.split("@")[0]}</p>
-                </div>
-              </button>
-            ))}
-          </div>
-
-          <p className="text-center text-sm text-gray-500">
+          <p className="text-center text-sm text-gray-500 mt-6">
             Don&apos;t have an account?{" "}
             <Link href="/auth/signup" className="text-orange-500 font-semibold hover:text-orange-600">Create one</Link>
           </p>

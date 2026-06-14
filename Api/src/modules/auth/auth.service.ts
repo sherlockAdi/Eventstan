@@ -7,6 +7,7 @@ import { ChangePasswordDto } from './dto/change-password.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { PasswordService } from './password.service';
 import { TokenService } from './token.service';
+import { MailService } from '../mail/mail.service';
 
 @Injectable()
 export class AuthService {
@@ -14,6 +15,7 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly passwords: PasswordService,
     private readonly tokens: TokenService,
+    private readonly mail: MailService,
   ) {}
 
   async register(dto: RegisterDto) {
@@ -31,7 +33,38 @@ export class AuthService {
       },
     });
 
-    return this.session(user);
+    const session = this.session(user);
+    const welcomeEmailSent = await this.sendCustomerWelcome(user.name, user.email, dto.password);
+    return { ...session, welcomeEmailSent };
+  }
+
+  private async sendCustomerWelcome(name: string, email: string, password: string) {
+    try {
+      await this.mail.sendTemplate(
+        'CUSTOMER_WELCOME',
+        email,
+        {
+          name,
+          email,
+          password,
+          login_url: 'https://eventstan.com/auth/login',
+        },
+        {
+          subject: 'Welcome to EventStan, {{name}}',
+          body: `
+            <h2>Welcome to EventStan, {{name}}!</h2>
+            <p>Your customer account is ready.</p>
+            <p><strong>Login URL:</strong> <a href="{{login_url}}">{{login_url}}</a><br>
+            <strong>Email:</strong> {{email}}<br>
+            <strong>Password:</strong> {{password}}</p>
+            <p>For security, please keep these credentials private.</p>
+          `,
+        },
+      );
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   async login(dto: LoginDto) {

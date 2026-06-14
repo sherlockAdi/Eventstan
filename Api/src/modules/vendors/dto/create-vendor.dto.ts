@@ -1,7 +1,13 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { ArrayNotEmpty, IsArray, IsDateString, IsEmail, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
+import { ArrayNotEmpty, IsArray, IsDateString, IsEmail, IsInt, IsOptional, IsString, Max, Min, MinLength } from 'class-validator';
 
 export class CreateVendorDto {
+  @ApiProperty({ example: 'TemporaryPassword123!', required: false })
+  @IsOptional()
+  @IsString()
+  @MinLength(8)
+  password?: string;
+
   @ApiProperty({ example: 'Luxe Events Dubai' })
   @IsString()
   companyName!: string;
