@@ -36,6 +36,12 @@ export class NotificationsController {
     return this.notifications.create(dto);
   }
 
+  @Get('email/health')
+  @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
+  emailHealth() {
+    return this.notifications.verifyEmail();
+  }
+
   @Patch(':id/sent')
   @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
   markSent(@Param('id') id: string) {
