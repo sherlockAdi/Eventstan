@@ -1,19 +1,33 @@
 import { BASE_API_URL } from '@/lib/constants';
+import { clearSession, getToken } from '@/lib/auth';
 
 type JsonBody = Record<string, unknown> | unknown[];
 
 function authHeaders(token?: string | null): HeadersInit {
+  const accessToken = token ?? getToken();
   return {
     'Content-Type': 'application/json',
     Accept: 'application/json',
-    ...(token ? { Authorization: token } : {}),
+    ...(accessToken ? { Authorization: `Bearer ${accessToken.replace(/^Bearer\s+/i, '')}` } : {}),
   };
 }
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const response = await fetch(`${BASE_API_URL}${path}`, options);
+  const response = await fetch(`${BASE_API_URL}${path}`, {
+    ...options,
+    headers: {
+      ...authHeaders(),
+      ...(options.headers ?? {}),
+    },
+  });
 
   if (!response.ok) {
+    if (response.status === 401 && typeof window !== 'undefined') {
+      clearSession();
+      if (!window.location.pathname.endsWith('/admin/login')) {
+        window.location.replace('/admin/login');
+      }
+    }
     const errorBody = await response.json().catch(() => null);
     const message = errorBody?.message || errorBody?.error || `Request failed: ${response.status}`;
     throw new Error(message);
@@ -39,6 +53,7 @@ export const adminApi = {
       const response = await fetch(`${BASE_API_URL}uploads/images?folder=${encodeURIComponent(folder)}`, {
         method: 'POST',
         body,
+        headers: getToken() ? { Authorization: `Bearer ${getToken()}` } : undefined,
       });
 
       if (!response.ok) throw new Error(`Image upload failed: ${response.status}`);
@@ -50,7 +65,10 @@ export const adminApi = {
     request<any>('auth/login', jsonOptions('POST', payload)),
 
   dashboard: (token?: string | null) =>
-    request<any>('dashboard', jsonOptions('POST', undefined, token)),
+    request<any>('dashboard', jsonOptions('GET', undefined, token)),
+
+  profile: () => request<any>('auth/me', { headers: authHeaders() }),
+  logout: () => request<any>('auth/logout', jsonOptions('POST')),
 
   vendors: {
     list: () => request<any[]>('vendors'),
@@ -90,6 +108,9 @@ export const adminApi = {
 
   packages: {
     list: () => request<any[]>('packages'),
+    get: (id: string) => request<any>(`packages/${id}`),
+    update: (id: string, payload: JsonBody) => request<any>(`packages/${id}`, jsonOptions('PATCH', payload)),
+    delete: (id: string) => request<void>(`packages/${id}`, jsonOptions('DELETE')),
   },
 
   services: {
@@ -123,5 +144,34 @@ export const adminApi = {
     update: (id: number, payload: JsonBody) =>
       request<any>(`master-data/email-templates/${id}`, jsonOptions('PUT', payload)),
     delete: (id: number) => request<void>(`master-data/email-templates/${id}`, { method: 'DELETE' }),
+  },
+
+  users: {
+    list: (query = '') => request<any[]>(`users${query ? `?${query}` : ''}`),
+    get: (id: string) => request<any>(`users/${id}`),
+    create: (payload: JsonBody) => request<any>('users', jsonOptions('POST', payload)),
+    update: (id: string, payload: JsonBody) => request<any>(`users/${id}`, jsonOptions('PATCH', payload)),
+    delete: (id: string) => request<any>(`users/${id}`, jsonOptions('DELETE')),
+  },
+
+  bookings: {
+    list: (status?: string) => request<any[]>(`bookings${status ? `?status=${encodeURIComponent(status)}` : ''}`),
+    get: (id: string) => request<any>(`bookings/${id}`),
+    cancel: (id: string, reason: string) =>
+      request<any>(`bookings/${id}/cancel`, jsonOptions('PATCH', { reason })),
+    complete: (id: string) => request<any>(`bookings/${id}/complete`, jsonOptions('PATCH')),
+  },
+
+  reviews: {
+    list: () => request<any[]>('reviews/admin/all'),
+    approve: (id: string) => request<any>(`reviews/${id}/approve`, jsonOptions('PATCH')),
+    reject: (id: string) => request<any>(`reviews/${id}/reject`, jsonOptions('PATCH')),
+  },
+
+  notifications: {
+    list: (status?: string) => request<any[]>(`notifications${status ? `?status=${encodeURIComponent(status)}` : ''}`),
+    create: (payload: JsonBody) => request<any>('notifications', jsonOptions('POST', payload)),
+    markSent: (id: string) => request<any>(`notifications/${id}/sent`, jsonOptions('PATCH')),
+    delete: (id: string) => request<void>(`notifications/${id}`, jsonOptions('DELETE')),
   },
 };

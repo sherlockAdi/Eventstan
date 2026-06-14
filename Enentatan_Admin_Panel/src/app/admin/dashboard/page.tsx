@@ -1,126 +1,53 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { Users, Truck, BookOpen, DollarSign, Star, CalendarCheck, TrendingUp, RefreshCw } from 'lucide-react';
-import StatsCard from '@/components/admin/StatsCard';
-import { getToken } from '@/lib/auth';
-import { adminApi } from '@/api/adminApi';
+import { useEffect, useState } from 'react';
+import { BookOpen, CalendarCheck, DollarSign, RefreshCw, Star, TrendingUp, Truck, Users } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { adminApi } from '@/api/adminApi';
+import StatsCard from '@/components/admin/StatsCard';
 
-const recentBookings = [
-  { id: 'BK001', customer: 'John Doe', vendor: 'Wedding Pros', amount: 50000, status: 'Confirmed', date: '2024-02-15' },
-  { id: 'BK002', customer: 'Jane Smith', vendor: 'Event Planners', amount: 30000, status: 'Completed', date: '2024-02-10' },
-  { id: 'BK003', customer: 'Mike Brown', vendor: 'Birthday Specialists', amount: 25000, status: 'Pending', date: '2024-02-14' },
-];
-
-const statusColors: Record<string, string> = {
-  Confirmed: 'bg-green-100 text-green-700',
-  Completed: 'bg-blue-100 text-blue-700',
-  Pending: 'bg-yellow-100 text-yellow-700',
-  Cancelled: 'bg-red-100 text-red-700',
-};
+interface DashboardData {
+  totalUsers: number; totalVendors: number; totalBookings: number; totalRevenue: number;
+  pendingApprovals: number; completedEvents: number; avgRating: number; growth: number;
+}
+interface RecentBooking {
+  id: string; customer: string; vendorId: string | null; service: string | null;
+  amount: number; currency: string; status: string; date: string;
+}
+const emptyStats: DashboardData = { totalUsers: 0, totalVendors: 0, totalBookings: 0, totalRevenue: 0, pendingApprovals: 0, completedEvents: 0, avgRating: 0, growth: 0 };
 
 export default function DashboardPage() {
-  const router = useRouter();
+  const [stats, setStats] = useState(emptyStats);
+  const [recent, setRecent] = useState<RecentBooking[]>([]);
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [stats, setStats] = useState({
-    totalUsers: 12543, totalVendors: 234, totalBookings: 4567,
-    totalRevenue: 1256789, pendingApprovals: 18, completedEvents: 342,
-    avgRating: 4.8, growth: 23.5,
-  });
-
-  useEffect(() => { fetchData(); }, []);
-
-  async function fetchData(isRefresh?: boolean) {
-    if (isRefresh) { setRefreshing(true); toast.loading('Refreshing…', { id: 'dash' }); }
-    else setLoading(true);
+  const load = async (notify = false) => {
+    setLoading(true);
     try {
-      const data = await adminApi.dashboard(getToken());
-      if (data.data) setStats(data.data);
-      if (isRefresh) toast.success('Dashboard updated!', { id: 'dash' });
-    } catch {
-      if (isRefresh) toast.success('Dashboard refreshed!', { id: 'dash' });
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }
+      const response = await adminApi.dashboard();
+      setStats(response.data ?? emptyStats);
+      setRecent(response.recentBookings ?? []);
+      if (notify) toast.success('Dashboard updated');
+    } catch (error) { toast.error(error instanceof Error ? error.message : 'Dashboard failed to load'); }
+    finally { setLoading(false); }
+  };
+  useEffect(() => { void load(); }, []);
+  if (loading && !stats.totalUsers) return <div className="flex h-64 items-center justify-center"><div className="h-8 w-8 animate-spin rounded-full border-2 border-orange-500 border-t-transparent" /></div>;
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="w-8 h-8 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-bold text-gray-900">Dashboard</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Welcome back! Here's what's happening.</p>
-        </div>
-        <button
-          onClick={() => fetchData(true)}
-          disabled={refreshing}
-          className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-600 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition disabled:opacity-60"
-        >
-          <RefreshCw size={15} className={refreshing ? 'animate-spin' : ''} />
-          Refresh
-        </button>
-      </div>
-
-      {/* Stats Grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatsCard title="Total Users" value={stats.totalUsers} icon={<Users size={18} />} color="blue" trend="+12%" />
-        <StatsCard title="Total Vendors" value={stats.totalVendors} icon={<Truck size={18} />} color="orange" trend="+8%" />
-        <StatsCard title="Total Bookings" value={stats.totalBookings} icon={<BookOpen size={18} />} color="green" trend="+23%" />
-        <StatsCard title="Total Revenue" value={`₹${(stats.totalRevenue / 100000).toFixed(1)}L`} icon={<DollarSign size={18} />} color="purple" trend="+18%" />
-      </div>
-
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatsCard title="Pending Approvals" value={stats.pendingApprovals} icon={<TrendingUp size={18} />} color="orange" />
-        <StatsCard title="Completed Events" value={stats.completedEvents} icon={<CalendarCheck size={18} />} color="green" />
-        <StatsCard title="Avg Rating" value={stats.avgRating} icon={<Star size={18} />} color="purple" />
-        <StatsCard title="Growth Rate" value={`${stats.growth}%`} icon={<TrendingUp size={18} />} color="blue" />
-      </div>
-
-      {/* Recent Bookings */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm">
-        <div className="px-6 py-4 border-b border-gray-100">
-          <h2 className="text-base font-semibold text-gray-900">Recent Bookings</h2>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-gray-50">
-                {['Booking ID', 'Customer', 'Vendor', 'Amount', 'Status', 'Date'].map(h => (
-                  <th key={h} className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-6 py-3">{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-50">
-              {recentBookings.map(b => (
-                <tr key={b.id} className="hover:bg-gray-50/50">
-                  <td className="px-6 py-3 font-medium text-orange-600">{b.id}</td>
-                  <td className="px-6 py-3 text-gray-700">{b.customer}</td>
-                  <td className="px-6 py-3 text-gray-700">{b.vendor}</td>
-                  <td className="px-6 py-3 text-gray-700">₹{b.amount.toLocaleString()}</td>
-                  <td className="px-6 py-3">
-                    <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${statusColors[b.status] ?? 'bg-gray-100 text-gray-600'}`}>
-                      {b.status}
-                    </span>
-                  </td>
-                  <td className="px-6 py-3 text-gray-500">{b.date}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+  return <div className="space-y-6">
+    <div className="flex items-center justify-between"><div><h1 className="text-xl font-bold">Dashboard</h1><p className="text-sm text-gray-500">Live EventStan platform overview</p></div><button onClick={() => void load(true)} className="flex items-center gap-2 rounded-xl border bg-white px-4 py-2 text-sm"><RefreshCw size={15} />Refresh</button></div>
+    <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <StatsCard title="Total Users" value={stats.totalUsers} icon={<Users size={18} />} color="blue" />
+      <StatsCard title="Total Vendors" value={stats.totalVendors} icon={<Truck size={18} />} color="orange" />
+      <StatsCard title="Total Bookings" value={stats.totalBookings} icon={<BookOpen size={18} />} color="green" />
+      <StatsCard title="Total Revenue" value={`AED ${stats.totalRevenue.toLocaleString()}`} icon={<DollarSign size={18} />} color="purple" />
+      <StatsCard title="Pending Approvals" value={stats.pendingApprovals} icon={<TrendingUp size={18} />} color="orange" />
+      <StatsCard title="Completed Events" value={stats.completedEvents} icon={<CalendarCheck size={18} />} color="green" />
+      <StatsCard title="Avg Rating" value={stats.avgRating} icon={<Star size={18} />} color="purple" />
+      <StatsCard title="Growth Rate" value={`${stats.growth}%`} icon={<TrendingUp size={18} />} color="blue" />
     </div>
-  );
+    <div className="rounded-2xl border bg-white shadow-sm"><div className="border-b px-6 py-4"><h2 className="font-semibold">Recent Bookings</h2></div><div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="border-b">{['Booking','Customer','Service','Amount','Status','Date'].map((item) => <th key={item} className="px-6 py-3 text-left text-xs uppercase text-gray-500">{item}</th>)}</tr></thead><tbody className="divide-y">
+      {recent.map((item) => <tr key={item.id}><td className="px-6 py-3 font-medium text-orange-600">{item.id.slice(-10)}</td><td className="px-6 py-3">{item.customer}</td><td className="px-6 py-3">{item.service ?? item.vendorId ?? '-'}</td><td className="px-6 py-3">{item.currency} {item.amount.toLocaleString()}</td><td className="px-6 py-3"><span className="rounded-full bg-gray-100 px-2.5 py-1 text-xs">{item.status.replaceAll('_', ' ')}</span></td><td className="px-6 py-3">{new Date(item.date).toLocaleDateString()}</td></tr>)}
+      {!recent.length && <tr><td colSpan={6} className="px-6 py-10 text-center text-gray-400">No bookings yet</td></tr>}
+    </tbody></table></div></div>
+  </div>;
 }

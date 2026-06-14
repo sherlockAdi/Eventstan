@@ -1,358 +1,186 @@
 'use client';
 
-import { useState } from 'react';
-import { Plus, Eye, ToggleLeft, ToggleRight, X, Mail, Shield, Calendar, Hash } from 'lucide-react';
-import Table from '@/components/admin/Table';
-import Modal from '@/components/admin/Modal';
-import ConfirmModal from '@/components/admin/ConfirmModal';
+import { useEffect, useMemo, useState } from 'react';
+import { Eye, Loader2, Plus, RefreshCw, ToggleLeft, ToggleRight } from 'lucide-react';
+import toast from 'react-hot-toast';
+import { adminApi } from '@/api/adminApi';
 import Button from '@/components/admin/Button';
 import Input from '@/components/admin/Input';
+import Modal from '@/components/admin/Modal';
 import Pagination from '@/components/admin/Pagination';
-import { usersData } from '@/lib/dummyData';
-import { User, Column } from '@/lib/types';
-import toast from 'react-hot-toast';
+import Table from '@/components/admin/Table';
+import { Column } from '@/lib/types';
 
-interface ExtendedUser extends User {
-  loginMethod: string;
+type UserRole = 'CUSTOMER' | 'VENDOR' | 'ADMIN' | 'SUPER_ADMIN';
+interface AdminUserRecord {
+  id: string;
+  name: string;
+  email: string;
+  phone: string | null;
+  role: UserRole;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
-const updatedUsersData: ExtendedUser[] = [
-  { id: 1, name: 'John Doe', email: 'john@example.com', role: 'Admin', status: 'Active', joined: '2024-01-15', loginMethod: 'Google' },
-  { id: 2, name: 'Jane Smith', email: 'jane@example.com', role: 'User', status: 'Active', joined: '2024-02-20', loginMethod: 'Email' },
-  { id: 3, name: 'Mike Johnson', email: 'mike@example.com', role: 'Vendor', status: 'Inactive', joined: '2024-03-10', loginMethod: 'Facebook' },
-  { id: 4, name: 'Sarah Williams', email: 'sarah@example.com', role: 'User', status: 'Active', joined: '2024-04-05', loginMethod: 'Apple' },
-  { id: 5, name: 'David Brown', email: 'david@example.com', role: 'Admin', status: 'Active', joined: '2024-05-12', loginMethod: 'Google' },
-];
+const emptyForm = { name: '', email: '', phone: '', role: 'CUSTOMER' as UserRole, password: '' };
 
 export default function UsersPage() {
-  const [users, setUsers] = useState<ExtendedUser[]>(updatedUsersData);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
-  const [isStatusModalOpen, setIsStatusModalOpen] = useState(false);
-  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
-  const [selected, setSelected] = useState<ExtendedUser | null>(null);
-  const [pendingStatus, setPendingStatus] = useState<string>('');
-  const [form, setForm] = useState<Partial<ExtendedUser>>({ 
-    name: '', 
-    email: '', 
-    role: 'User', 
-    status: 'Active',
-    loginMethod: 'Email'
-  });
+  const [users, setUsers] = useState<AdminUserRecord[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
+  const [role, setRole] = useState('');
+  const [page, setPage] = useState(1);
+  const [selected, setSelected] = useState<AdminUserRecord | null>(null);
+  const [formOpen, setFormOpen] = useState(false);
+  const [viewOpen, setViewOpen] = useState(false);
+  const [form, setForm] = useState(emptyForm);
+  const perPage = 10;
 
-  const ITEMS_PER_PAGE = 10;
-  const [currentPage, setCurrentPage] = useState(1);
-
-  const openStatusModal = (user: ExtendedUser) => {
-    setSelected(user);
-    const newStatus = user.status === 'Active' ? 'Inactive' : 'Active';
-    setPendingStatus(newStatus);
-    setIsStatusModalOpen(true);
-  };
-
-  const confirmStatusChange = () => {
-    if (selected && pendingStatus) {
-      setUsers(users.map(u => 
-        u.id === selected.id ? { ...u, status: pendingStatus } : u
-      ));
-      toast.success(`User ${pendingStatus === 'Active' ? 'activated' : 'deactivated'} successfully!`);
-      setIsStatusModalOpen(false);
-      setSelected(null);
-      setPendingStatus('');
+  const load = async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams();
+      if (search.trim()) params.set('search', search.trim());
+      if (role) params.set('role', role);
+      setUsers(await adminApi.users.list(params.toString()));
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to load users');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const openView = (user: ExtendedUser) => {
-    setSelected(user);
-    setIsViewModalOpen(true);
+  useEffect(() => {
+    const timer = setTimeout(() => void load(), 250);
+    return () => clearTimeout(timer);
+  }, [search, role]);
+
+  const paged = useMemo(
+    () => users.slice((page - 1) * perPage, page * perPage),
+    [users, page],
+  );
+
+  const save = async (event: React.FormEvent) => {
+    event.preventDefault();
+    try {
+      if (selected) {
+        await adminApi.users.update(selected.id, {
+          name: form.name,
+          email: form.email,
+          phone: form.phone || undefined,
+          role: form.role,
+        });
+        toast.success('User updated');
+      } else {
+        await adminApi.users.create({
+          name: form.name,
+          email: form.email,
+          phone: form.phone || undefined,
+          role: form.role,
+          password: form.password,
+        });
+        toast.success('User created');
+      }
+      setFormOpen(false);
+      await load();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Unable to save user');
+    }
   };
 
-  const getLoginMethodColor = (method: string) => {
-    switch(method) {
-      case 'Google': return 'bg-red-100 text-red-700';
-      case 'Facebook': return 'bg-blue-100 text-blue-700';
-      case 'Apple': return 'bg-gray-100 text-gray-700';
-      default: return 'bg-purple-100 text-purple-700';
+  const toggle = async (user: AdminUserRecord) => {
+    try {
+      await adminApi.users.update(user.id, { isActive: !user.isActive });
+      toast.success(user.isActive ? 'User deactivated' : 'User activated');
+      await load();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Unable to update user');
     }
   };
 
   const columns: Column[] = [
-    { key: 'id', label: 'ID' },
     { key: 'name', label: 'Name' },
     { key: 'email', label: 'Email' },
-    { 
-      key: 'loginMethod', 
-      label: 'Login Method',
-      render: (v: string) => (
-        <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium ${getLoginMethodColor(v)}`}>
-          <span className="w-4 h-4 flex items-center justify-center">
-            {v === 'Google' && 'G'}
-            {v === 'Facebook' && 'F'}
-            {v === 'Apple' && 'A'}
-            {v === 'Email' && '📧'}
+    { key: 'phone', label: 'Phone', render: (value: string | null) => value || '-' },
+    { key: 'role', label: 'Role', render: (value: string) => value.replace('_', ' ') },
+    {
+      key: 'isActive',
+      label: 'Status',
+      render: (value: boolean, user: AdminUserRecord) => (
+        <button onClick={() => void toggle(user)} className="flex items-center gap-2">
+          <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${value ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+            {value ? 'Active' : 'Inactive'}
           </span>
-          {v}
-        </span>
-      )
+          {value ? <ToggleRight size={20} /> : <ToggleLeft size={20} />}
+        </button>
+      ),
     },
-    { 
-      key: 'status', 
-      label: 'Status', 
-      render: (v: string, row: ExtendedUser) => (
-        <div className="flex items-center gap-2">
-          <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${
-            v === 'Active' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
-          }`}>
-            {v}
-          </span>
-          <button
-            onClick={() => openStatusModal(row)}
-            className="text-gray-500 hover:text-orange-600 transition-colors"
-            title={v === 'Active' ? 'Deactivate' : 'Activate'}
-          >
-            {v === 'Active' ? <ToggleRight size={20} /> : <ToggleLeft size={20} />}
-          </button>
-        </div>
-      )
-    },
-    { key: 'joined', label: 'Joined' },
+    { key: 'createdAt', label: 'Joined', render: (value: string) => new Date(value).toLocaleDateString() },
     {
       key: 'actions',
       label: 'Actions',
-      render: (_: any, row: ExtendedUser) => (
-        <div className="flex items-center gap-1">
-          <button 
-            onClick={() => openView(row)} 
-            className="p-1.5 rounded-lg text-gray-400 hover:text-blue-500 hover:bg-blue-50 transition-all" 
-            title="View Details"
-          >
-            <Eye size={14} />
-          </button>
+      render: (_: unknown, user: AdminUserRecord) => (
+        <div className="flex gap-2">
+          <button onClick={() => { setSelected(user); setViewOpen(true); }} className="text-blue-500"><Eye size={15} /></button>
+          <button onClick={() => {
+            setSelected(user);
+            setForm({ name: user.name, email: user.email, phone: user.phone || '', role: user.role, password: '' });
+            setFormOpen(true);
+          }} className="text-orange-500">Edit</button>
         </div>
-      )
-    }
+      ),
+    },
   ];
-
-  const openAdd = () => { 
-    setSelected(null); 
-    setForm({ 
-      name: '', 
-      email: '', 
-      role: 'User', 
-      status: 'Active',
-      loginMethod: 'Email'
-    }); 
-    setIsModalOpen(true); 
-  };
-  
-  const openEdit = (u: ExtendedUser) => { 
-    setSelected(u); 
-    setForm(u); 
-    setIsModalOpen(true); 
-  };
-  
-  const openDelete = (u: ExtendedUser) => { 
-    setSelected(u); 
-    setIsDeleteOpen(true); 
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (selected) {
-      setUsers(users.map(u => u.id === selected.id ? { ...u, ...form } as ExtendedUser : u));
-      toast.success('User updated successfully!');
-    } else {
-      setUsers([...users, { 
-        id: users.length + 1, 
-        name: form.name ?? '', 
-        email: form.email ?? '', 
-        role: form.role ?? 'User', 
-        status: form.status ?? 'Active', 
-        joined: new Date().toISOString().split('T')[0],
-        loginMethod: form.loginMethod ?? 'Email'
-      }]);
-      toast.success('User added successfully!');
-    }
-    setIsModalOpen(false);
-  };
-
-  const confirmDelete = () => {
-    if (selected) { 
-      setUsers(users.filter(u => u.id !== selected.id)); 
-      toast.success('User deleted successfully!'); 
-    }
-    setIsDeleteOpen(false);
-  };
-
-  const totalPages = Math.ceil(users.length / ITEMS_PER_PAGE);
-  const paginatedData = users.slice(
-    (currentPage - 1) * ITEMS_PER_PAGE,
-    currentPage * ITEMS_PER_PAGE
-  );
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-xl font-bold text-gray-900">Users Management</h1>
-          <p className="text-sm text-gray-500 mt-0.5">
-            {users.length} total users · {users.filter(u => u.status === 'Active').length} active
-          </p>
+          <p className="text-sm text-gray-500">{users.length} accounts from the live database</p>
         </div>
-        <Button onClick={openAdd}>
-          <Plus size={15} />
-          Add User
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="secondary" onClick={() => void load()}><RefreshCw size={15} />Refresh</Button>
+          <Button onClick={() => { setSelected(null); setForm(emptyForm); setFormOpen(true); }}><Plus size={15} />Add User</Button>
+        </div>
       </div>
 
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm">
-        <Table columns={columns} data={paginatedData} />
-        <Pagination
-          currentPage={currentPage}
-          totalPages={totalPages}
-          totalItems={users.length}
-          itemsPerPage={ITEMS_PER_PAGE}
-          onPageChange={(page) => setCurrentPage(page)}
-        />
+      <div className="grid gap-3 md:grid-cols-[1fr_220px]">
+        <input value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} placeholder="Search name, email, or phone" className="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm" />
+        <select value={role} onChange={(e) => { setRole(e.target.value); setPage(1); }} className="rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm">
+          <option value="">All roles</option>
+          {['CUSTOMER', 'VENDOR', 'ADMIN', 'SUPER_ADMIN'].map((item) => <option key={item}>{item}</option>)}
+        </select>
       </div>
 
-      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={selected ? 'Edit User' : 'Add User'}>
-        <form onSubmit={handleSubmit} className="space-y-0">
-          <Input label="Name" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} required />
-          <Input label="Email" type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} required />
-          
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">Login Method</label>
-            <select 
-              value={form.loginMethod} 
-              onChange={e => setForm({ ...form, loginMethod: e.target.value })} 
-              className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm bg-gray-50/50 focus:outline-none focus:ring-2 focus:ring-orange-400"
-            >
-              <option value="Email">Email</option>
-              <option value="Google">Google</option>
-              <option value="Facebook">Facebook</option>
-              <option value="Apple">Apple</option>
-            </select>
-          </div>
-          
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">Status</label>
-            <select 
-              value={form.status} 
-              onChange={e => setForm({ ...form, status: e.target.value })} 
-              className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm bg-gray-50/50 focus:outline-none focus:ring-2 focus:ring-orange-400"
-            >
-              <option>Active</option>
-              <option>Inactive</option>
-            </select>
-          </div>
-          
-          <div className="flex justify-end gap-3 pt-2">
-            <Button type="button" variant="secondary" onClick={() => setIsModalOpen(false)}>Cancel</Button>
-            <Button type="submit">Save</Button>
-          </div>
+      <div className="rounded-2xl border border-gray-100 bg-white shadow-sm">
+        {loading ? <div className="flex justify-center p-12"><Loader2 className="animate-spin text-orange-500" /></div> : <Table columns={columns} data={paged} />}
+        <Pagination currentPage={page} totalPages={Math.max(1, Math.ceil(users.length / perPage))} totalItems={users.length} itemsPerPage={perPage} onPageChange={setPage} />
+      </div>
+
+      <Modal isOpen={formOpen} onClose={() => setFormOpen(false)} title={selected ? 'Edit User' : 'Add User'}>
+        <form onSubmit={save}>
+          <Input label="Name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
+          <Input label="Email" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} required />
+          <Input label="Phone" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+          {!selected && <Input label="Temporary Password" type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} required />}
+          <label className="mb-1.5 block text-sm font-medium text-gray-700">Role</label>
+          <select value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value as UserRole })} className="mb-5 w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm">
+            {['CUSTOMER', 'VENDOR', 'ADMIN', 'SUPER_ADMIN'].map((item) => <option key={item}>{item}</option>)}
+          </select>
+          <div className="flex justify-end gap-3"><Button type="button" variant="secondary" onClick={() => setFormOpen(false)}>Cancel</Button><Button type="submit">Save</Button></div>
         </form>
       </Modal>
 
-      {isViewModalOpen && selected && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-          <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-md">
-            <div className="flex items-center justify-between p-4 border-b border-gray-100">
-              <h2 className="text-lg font-bold text-gray-900">User Details</h2>
-              <button
-                onClick={() => setIsViewModalOpen(false)}
-                className="p-1 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-all"
-              >
-                <X size={18} />
-              </button>
-            </div>
-            
-            <div className="p-6">
-              <div className="space-y-4">
-                <div className="flex items-center gap-3 pb-4 border-b border-gray-100">
-                  <div className="w-16 h-16 rounded-full bg-gradient-to-r from-orange-400 to-orange-600 flex items-center justify-center text-white text-2xl font-bold">
-                    {selected.name.charAt(0).toUpperCase()}
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-gray-900">{selected.name}</h3>
-                    <span className={`inline-block mt-1 px-2 py-0.5 rounded-full text-xs font-medium ${
-                      selected.status === 'Active' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
-                    }`}>
-                      {selected.status}
-                    </span>
-                  </div>
-                </div>
-                
-                <div className="space-y-3">
-                  <div>
-                    <label className="text-xs font-medium text-gray-500 uppercase tracking-wider flex items-center gap-1">
-                      <Mail size={12} /> Email Address
-                    </label>
-                    <p className="text-sm text-gray-900 mt-1">{selected.email}</p>
-                  </div>
-                  
-                  <div>
-                    <label className="text-xs font-medium text-gray-500 uppercase tracking-wider flex items-center gap-1">
-                      <Shield size={12} /> Login Method
-                    </label>
-                    <p className="text-sm text-gray-900 mt-1">
-                      <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium ${getLoginMethodColor(selected.loginMethod)}`}>
-                        {selected.loginMethod}
-                      </span>
-                    </p>
-                  </div>
-                  
-                  <div>
-                    <label className="text-xs font-medium text-gray-500 uppercase tracking-wider flex items-center gap-1">
-                      <Calendar size={12} /> Joined Date
-                    </label>
-                    <p className="text-sm text-gray-900 mt-1">{selected.joined}</p>
-                  </div>
-                  
-                  <div>
-                    <label className="text-xs font-medium text-gray-500 uppercase tracking-wider flex items-center gap-1">
-                      <Hash size={12} /> User ID
-                    </label>
-                    <p className="text-sm font-mono text-gray-900 mt-1">#{selected.id}</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-            
-            <div className="flex justify-end gap-3 p-4 border-t border-gray-100">
-              <Button variant="secondary" onClick={() => setIsViewModalOpen(false)}>
-                Close
-              </Button>
-              <Button onClick={() => {
-                setIsViewModalOpen(false);
-                openEdit(selected);
-              }}>
-                Edit User
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      <ConfirmModal 
-        isOpen={isStatusModalOpen} 
-        onClose={() => {
-          setIsStatusModalOpen(false);
-          setSelected(null);
-          setPendingStatus('');
-        }} 
-        onConfirm={confirmStatusChange} 
-        title={pendingStatus === 'Active' ? 'Activate User' : 'Deactivate User'} 
-        message={`Are you sure you want to ${pendingStatus === 'Active' ? 'activate' : 'deactivate'} user "${selected?.name}"?`} 
-      />
-
-      <ConfirmModal 
-        isOpen={isDeleteOpen} 
-        onClose={() => setIsDeleteOpen(false)} 
-        onConfirm={confirmDelete} 
-        title="Delete User" 
-        message={`Are you sure you want to delete user "${selected?.name}"? This action cannot be undone.`} 
-      />
+      <Modal isOpen={viewOpen} onClose={() => setViewOpen(false)} title="User Details">
+        {selected && <div className="space-y-3 text-sm">
+          <p><strong>Name:</strong> {selected.name}</p><p><strong>Email:</strong> {selected.email}</p>
+          <p><strong>Phone:</strong> {selected.phone || '-'}</p><p><strong>Role:</strong> {selected.role}</p>
+          <p><strong>Status:</strong> {selected.isActive ? 'Active' : 'Inactive'}</p>
+          <p><strong>Created:</strong> {new Date(selected.createdAt).toLocaleString()}</p>
+        </div>}
+      </Modal>
     </div>
   );
 }

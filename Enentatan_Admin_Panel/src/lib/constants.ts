@@ -1,5 +1,5 @@
 export const BASE_URL =
-  process.env.NEXT_PUBLIC_BASE_URL?.replace(/\/$/, '') ?? 'http://localhost:4000';
+  process.env.NEXT_PUBLIC_BASE_URL?.replace(/\/$/, '') ?? 'https://api.eventstan.com';
 
 export const BASE_API_URL = `${BASE_URL}/api/v1/`;
 const API_URL = BASE_API_URL.replace(/\/$/, '');

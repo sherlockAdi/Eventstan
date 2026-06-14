@@ -4,10 +4,11 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
   LayoutDashboard, Users, Truck, Package, BookOpen, Star,
-  Bell, Link2, Shield, Tag,Newspaper,  Grid3X3, LogOut, Menu, Loader2, X, ChevronDown, User,
+  Bell, Tag, Grid3X3, LogOut, Menu, Loader2, X, ChevronDown,
 } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
-import { getUser, clearSession } from '@/lib/auth';
+import { getSession, getUser, clearSession } from '@/lib/auth';
+import { adminApi } from '@/api/adminApi';
 import { AdminUser } from '@/lib/types';
 
 interface NavItem {
@@ -30,19 +31,16 @@ const navItems: NavItem[] = [
       { href: '/admin/masters/event-slots', label: 'Event Slots' },
       { href: '/admin/masters/coupons', label: 'Coupons' },
       { href: '/admin/masters/countries', label: 'Countries' },
-      { href: '/admin/masters/states', label: 'States' },
       { href: '/admin/masters/categories', label: 'Categories' },
       { href: '/admin/masters/email-templates', label: 'Email Templates' },
     ],
   },
-  { href: '/admin/role-permission', label: 'Role & Permission', icon: Shield },
   {
     href: '#userManagement',
     label: 'User Management',
     icon: Users,
     children: [
       { href: '/admin/users', label: 'User List' },
-      { href: '/admin/users-lead', label: 'User Leads' },
     ],
   },
   {
@@ -51,7 +49,6 @@ const navItems: NavItem[] = [
     icon: Truck,
     children: [
       { href: '/admin/vendors', label: 'Vendor List' },
-      { href: '/admin/lead-vendor', label: 'Lead Vendor' },
     ],
   },
   { href: '/admin/vendor-services', label: 'Vendor Services', icon: Package },
@@ -67,8 +64,6 @@ const navItems: NavItem[] = [
   { href: '/admin/booking-management', label: 'Booking Management', icon: BookOpen },
   { href: '/admin/feedback-testimonial', label: 'Feedback & Testimonial', icon: Star },
   { href: '/admin/system-notifications', label: 'System Notifications', icon: Bell },
-  { href: '/admin/affiliate-links', label: 'Affiliate Links', icon: Link2 },
-  // { href: '/admin/blog', label: 'Blogs', icon: Newspaper },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -87,6 +82,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    if (pathname !== '/admin/login' && !getSession()) {
+      router.replace('/admin/login');
+      return;
+    }
     setAdmin(getUser());
     if (pathname.startsWith('/admin/masters')) setMastersOpen(true);
     if (pathname.startsWith('/admin/users') || pathname.startsWith('/admin/users-lead')) setUserManagementOpen(true);
@@ -110,6 +109,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   async function confirmLogout() {
     setLoggingOut(true);
+    await adminApi.logout().catch(() => undefined);
     clearSession();
     router.replace('/admin/login');
   }

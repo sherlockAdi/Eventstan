@@ -30,42 +30,19 @@ export default function LoginPage() {
       });
 
       {
-        let token = null;
-        let userData = null;
-
-        if (data.token) {
-          token = data.token;
-          userData = data.user || data.data;
-        } 
-        else if (data.data?.token) {
-          token = data.data.token;
-          userData = data.data.user || data.data;
+        const token = data.accessToken;
+        const userData = data.user;
+        if (!['ADMIN', 'SUPER_ADMIN'].includes(userData?.role)) {
+          throw new Error('This account does not have admin access.');
         }
-        else if (data.access_token) {
-          token = data.access_token;
-          userData = data.user;
-        }
-        else if (data.result?.token) {
-          token = data.result.token;
-          userData = data.result.user;
-        }
-        else if (data.token || data.accessToken) {
-          token = data.token || data.accessToken;
-          userData = data;
-        }
-        else if (typeof data === 'string') {
-          token = data;
-          userData = { email: email.trim() };
-        }
-
         if (token) {
           saveSession({
             token: token,
             user: {
-              id: userData?.id || userData?.userId || Date.now(),
-              name: userData?.name || userData?.fullName || userData?.username || 'Admin User',
-              email: email.trim(),
-              role: userData?.role || userData?.userType || 'admin',
+              id: userData.id,
+              name: userData.name,
+              email: userData.email,
+              role: userData.role,
             },
           });
           
@@ -211,12 +188,8 @@ export default function LoginPage() {
             </form>
 
             <div className="mt-8 pt-6 border-t border-gray-100">
-              <div className="bg-gray-50 rounded-xl p-4">
-                <p className="text-xs font-medium text-gray-600 mb-2 text-center">Demo Credentials</p>
-                <div className="flex flex-col gap-1 text-xs text-gray-500">
-                  <div className="flex justify-between"><span>Email:</span><span className="font-mono text-gray-700">admin@eventstan.ae</span></div>
-                  <div className="flex justify-between"><span>Password:</span><span className="font-mono text-gray-700">password123</span></div>
-                </div>
+              <div className="bg-gray-50 rounded-xl p-4 text-center text-xs text-gray-500">
+                Authorized EventStan administrators only.
               </div>
             </div>
 
