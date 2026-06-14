@@ -14,16 +14,20 @@ import { ServicesModule } from './modules/services/services.module';
 import { SettlementsModule } from './modules/settlements/settlements.module';
 import { UploadsModule } from './modules/uploads/uploads.module';
 import { VendorsModule } from './modules/vendors/vendors.module';
-import { DataStoreModule } from './shared/data-store/data-store.module';
 import { PrismaModule } from './shared/prisma/prisma.module';
+import { DashboardModule } from './modules/dashboard/dashboard.module';
+import { UsersModule } from './modules/users/users.module';
+import { NotificationsModule } from './modules/notifications/notifications.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     PrismaModule,
-    DataStoreModule,
     HealthModule,
     AuthModule,
+    DashboardModule,
+    UsersModule,
+    NotificationsModule,
     MasterDataModule,
     VendorsModule,
     ServicesModule,

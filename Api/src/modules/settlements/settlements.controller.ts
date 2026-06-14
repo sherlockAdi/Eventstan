@@ -1,10 +1,17 @@
-import { Body, Controller, Get, Param, Patch, Post } from '@nestjs/common';
-import { ApiCreatedResponse, ApiTags } from '@nestjs/swagger';
+import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import { SettlementStatus, UserRole } from '@prisma/client';
+import { ApiBearerAuth, ApiCreatedResponse, ApiTags } from '@nestjs/swagger';
+import { AuthGuard } from '../auth/auth.guard';
+import { Roles } from '../auth/roles.decorator';
+import { RolesGuard } from '../auth/roles.guard';
 import { CreateSettlementDto } from './dto/create-settlement.dto';
 import { SettlementsService } from './settlements.service';
 
 @ApiTags('settlements')
 @Controller('settlements')
+@UseGuards(AuthGuard, RolesGuard)
+@Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
+@ApiBearerAuth()
 export class SettlementsController {
   constructor(private readonly settlements: SettlementsService) {}
 
@@ -15,8 +22,8 @@ export class SettlementsController {
   }
 
   @Get()
-  list() {
-    return this.settlements.list();
+  list(@Query('vendorId') vendorId?: string, @Query('status') status?: SettlementStatus) {
+    return this.settlements.list(vendorId, status);
   }
 
   @Patch(':id/mark-paid')

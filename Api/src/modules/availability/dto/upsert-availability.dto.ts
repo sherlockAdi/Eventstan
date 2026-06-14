@@ -2,9 +2,10 @@ import { ApiProperty } from '@nestjs/swagger';
 import { IsDateString, IsIn, IsInt, IsOptional, IsString, Min } from 'class-validator';
 
 export class UpsertAvailabilityDto {
-  @ApiProperty({ example: 'ven_luxe_events' })
+  @ApiProperty({ example: 'ven_luxe_events', required: false, description: 'Required for administrators; ignored for vendors.' })
+  @IsOptional()
   @IsString()
-  vendorId!: string;
+  vendorId?: string;
 
   @ApiProperty({ example: '2026-06-15' })
   @IsDateString()

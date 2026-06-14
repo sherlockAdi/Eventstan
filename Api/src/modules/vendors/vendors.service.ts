@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { VendorStatus } from '@prisma/client';
+import { Prisma, VendorStatus } from '@prisma/client';
 import { PrismaService } from '../../shared/prisma/prisma.service';
+import { AuthenticatedUser } from '../auth/auth.types';
 import { CreateVendorDto } from './dto/create-vendor.dto';
 
 @Injectable()
@@ -10,7 +11,36 @@ export class VendorsService {
   create(dto: CreateVendorDto) {
     return this.prisma.vendor.create({
       data: {
-        ...(this.vendorData(dto) as any),
+        companyName: dto.companyName,
+        contactPerson: dto.contactPerson,
+        email: dto.email,
+        phone: dto.phone,
+        tradeLicenseNumber: dto.tradeLicenseNumber,
+        cities: dto.cities,
+        capacityPerDay: dto.capacityPerDay,
+        commissionPercent: dto.commissionPercent,
+        about: dto.about,
+        firstName: dto.firstName,
+        lastName: dto.lastName,
+        userName: dto.userName,
+        primaryEmail: dto.primaryEmail,
+        telephone: dto.telephone,
+        primaryMobile: dto.primaryMobile,
+        specialization: dto.specialization,
+        businessLocation: dto.businessLocation,
+        visaType: dto.visaType,
+        address: dto.address,
+        vatNumber: dto.vatNumber,
+        planDetails: dto.planDetails,
+        planExpiry: dto.planExpiry ? new Date(dto.planExpiry) : undefined,
+        agreementFileUrl: dto.agreementFileUrl,
+        agreementFileKey: dto.agreementFileKey,
+        bankName: dto.bankName,
+        accountFullName: dto.accountFullName,
+        ibanNo: dto.ibanNo,
+        accountNumber: dto.accountNumber,
+        swift: dto.swift,
+        branchAddress: dto.branchAddress,
         status: VendorStatus.PENDING_VERIFICATION,
       },
     });
@@ -32,7 +62,7 @@ export class VendorsService {
   update(id: string, dto: Partial<CreateVendorDto>) {
     return this.prisma.vendor.update({
       where: { id },
-      data: this.vendorData(dto) as any,
+      data: this.vendorData(dto),
     });
   }
 
@@ -44,8 +74,14 @@ export class VendorsService {
     return this.prisma.vendor.delete({ where: { id } });
   }
 
-  private vendorData(dto: Partial<CreateVendorDto>) {
-    const data: Record<string, unknown> = {};
+  async assertCanManage(user: AuthenticatedUser, vendorId: string) {
+    if (user.role === 'ADMIN' || user.role === 'SUPER_ADMIN') return;
+    const vendor = await this.prisma.vendor.findUnique({ where: { id: vendorId } });
+    if (!vendor || vendor.userId !== user.id) throw new NotFoundException('Vendor not found');
+  }
+
+  private vendorData(dto: Partial<CreateVendorDto>): Prisma.VendorUncheckedUpdateInput {
+    const data: Record<string, string | string[] | number | Date | null> = {};
 
     const stringFields: Array<keyof CreateVendorDto> = [
       'companyName',
@@ -85,6 +121,6 @@ export class VendorsService {
     if (dto.commissionPercent !== undefined) data.commissionPercent = dto.commissionPercent;
     if (dto.planExpiry !== undefined) data.planExpiry = dto.planExpiry ? new Date(dto.planExpiry) : null;
 
-    return data;
+    return data as Prisma.VendorUncheckedUpdateInput;
   }
 }

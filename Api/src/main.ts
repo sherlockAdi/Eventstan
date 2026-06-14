@@ -8,7 +8,15 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const config = app.get(ConfigService);
 
-  app.enableCors();
+  const configuredOrigins = config
+    .get<string>('CORS_ORIGINS', '')
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+  app.enableCors({
+    origin: configuredOrigins.length ? configuredOrigins : ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:3002', 'http://localhost:3003'],
+    credentials: true,
+  });
   app.setGlobalPrefix(config.get<string>('API_PREFIX', 'api/v1'));
   app.useGlobalPipes(
     new ValidationPipe({

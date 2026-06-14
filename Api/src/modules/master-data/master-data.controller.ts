@@ -1,6 +1,10 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Put } from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
+import { Body, Controller, Delete, Get, Param, Post, Put, UseGuards } from '@nestjs/common';
+import { UserRole } from '@prisma/client';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { PrismaService } from '../../shared/prisma/prisma.service';
+import { AuthGuard } from '../auth/auth.guard';
+import { Roles } from '../auth/roles.decorator';
+import { RolesGuard } from '../auth/roles.guard';
 
 type CategoryPayload = { name: string; slug?: string };
 type CountryPayload = {
@@ -26,6 +30,9 @@ export class MasterDataController {
   }
 
   @Post('categories')
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
+  @ApiBearerAuth()
   createCategory(@Body() body: CategoryPayload) {
     return this.prisma.category.create({
       data: {
@@ -36,6 +43,9 @@ export class MasterDataController {
   }
 
   @Put('categories/:id')
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
+  @ApiBearerAuth()
   updateCategory(@Param('id') id: string, @Body() body: CategoryPayload) {
     return this.prisma.category.update({
       where: { id },
@@ -47,6 +57,9 @@ export class MasterDataController {
   }
 
   @Delete('categories/:id')
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
+  @ApiBearerAuth()
   deleteCategory(@Param('id') id: string) {
     return this.prisma.category.delete({ where: { id } });
   }
@@ -57,16 +70,25 @@ export class MasterDataController {
   }
 
   @Post('countries')
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
+  @ApiBearerAuth()
   createCountry(@Body() body: CountryPayload) {
     return this.prisma.country.create({ data: body });
   }
 
   @Put('countries/:id')
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
+  @ApiBearerAuth()
   updateCountry(@Param('id') id: string, @Body() body: Partial<CountryPayload>) {
     return this.prisma.country.update({ where: { id: Number(id) }, data: body });
   }
 
   @Delete('countries/:id')
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
+  @ApiBearerAuth()
   deleteCountry(@Param('id') id: string) {
     return this.prisma.country.delete({ where: { id: Number(id) } });
   }
@@ -82,16 +104,25 @@ export class MasterDataController {
   }
 
   @Post('event-slots')
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
+  @ApiBearerAuth()
   createEventSlot(@Body() body: EventSlotPayload) {
     return this.prisma.eventSlot.create({ data: body });
   }
 
   @Put('event-slots/:id')
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
+  @ApiBearerAuth()
   updateEventSlot(@Param('id') id: string, @Body() body: Partial<EventSlotPayload>) {
     return this.prisma.eventSlot.update({ where: { id: Number(id) }, data: body });
   }
 
   @Delete('event-slots/:id')
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
+  @ApiBearerAuth()
   deleteEventSlot(@Param('id') id: string) {
     return this.prisma.eventSlot.delete({ where: { id: Number(id) } });
   }
@@ -102,6 +133,9 @@ export class MasterDataController {
   }
 
   @Post('email-templates')
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
+  @ApiBearerAuth()
   createEmailTemplate(@Body() body: EmailTemplatePayload) {
     return this.prisma.emailTemplate.create({ data: body });
   }
@@ -112,11 +146,17 @@ export class MasterDataController {
   }
 
   @Put('email-templates/:id')
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
+  @ApiBearerAuth()
   updateEmailTemplate(@Param('id') id: string, @Body() body: Partial<EmailTemplatePayload>) {
     return this.prisma.emailTemplate.update({ where: { id: Number(id) }, data: body });
   }
 
   @Delete('email-templates/:id')
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
+  @ApiBearerAuth()
   deleteEmailTemplate(@Param('id') id: string) {
     return this.prisma.emailTemplate.delete({ where: { id: Number(id) } });
   }

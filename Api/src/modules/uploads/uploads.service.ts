@@ -1,4 +1,11 @@
-import { BadRequestException, Injectable, NotFoundException, OnModuleInit } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  NotFoundException,
+  OnModuleInit,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Client } from 'minio';
 import { randomUUID } from 'node:crypto';
@@ -14,9 +21,11 @@ interface UploadedFile {
 
 @Injectable()
 export class UploadsService implements OnModuleInit {
+  private readonly logger = new Logger(UploadsService.name);
   private readonly client: Client;
   private readonly bucket: string;
   private readonly publicBaseUrl: string;
+  private bucketReady = false;
 
   constructor(config: ConfigService) {
     const endPoint = config.get<string>('MINIO_ENDPOINT');
@@ -45,25 +54,27 @@ export class UploadsService implements OnModuleInit {
   }
 
   async onModuleInit() {
-    const exists = await this.client.bucketExists(this.bucket);
-    if (!exists) {
-      await this.client.makeBucket(this.bucket);
+    try {
+      await this.ensureBucket();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown storage error';
+      this.logger.warn(`Object storage is unavailable during startup: ${message}`);
     }
   }
 
-  async uploadImage(file: UploadedFile, folder: string, baseUrl: string) {
+  async uploadImage(file: UploadedFile, folder: string) {
     if (!file.mimetype.startsWith('image/')) {
       throw new BadRequestException('Only image files are allowed');
     }
 
-    return this.upload(file, folder || 'images', 10, baseUrl);
+    return this.upload(file, folder || 'images', 10);
   }
 
-  async uploadFile(file: UploadedFile, folder: string, baseUrl: string) {
-    return this.upload(file, folder || 'files', 20, baseUrl);
+  async uploadFile(file: UploadedFile, folder: string) {
+    return this.upload(file, folder || 'files', 20);
   }
 
-  private async upload(file: UploadedFile, folder: string, maxSizeMb: number, baseUrl: string) {
+  private async upload(file: UploadedFile, folder: string, maxSizeMb: number) {
     const maxSize = maxSizeMb * 1024 * 1024;
     if (file.size > maxSize) {
       throw new BadRequestException(`File must be ${maxSizeMb}MB or smaller`);
@@ -73,9 +84,14 @@ export class UploadsService implements OnModuleInit {
     const extension = this.safeExtension(file.originalname, file.mimetype);
     const key = `${safeFolder}/${new Date().toISOString().slice(0, 10)}/${randomUUID()}${extension}`;
 
-    await this.client.putObject(this.bucket, key, file.buffer, file.size, {
-      'Content-Type': file.mimetype,
-    });
+    try {
+      await this.ensureBucket();
+      await this.client.putObject(this.bucket, key, file.buffer, file.size, {
+        'Content-Type': file.mimetype,
+      });
+    } catch {
+      throw new ServiceUnavailableException('File storage is temporarily unavailable');
+    }
 
     return {
       bucket: this.bucket,
@@ -124,5 +140,12 @@ export class UploadsService implements OnModuleInit {
 
   private encodeKey(key: string) {
     return key.split('/').map((segment) => encodeURIComponent(segment)).join('/');
+  }
+
+  private async ensureBucket() {
+    if (this.bucketReady) return;
+    const exists = await this.client.bucketExists(this.bucket);
+    if (!exists) await this.client.makeBucket(this.bucket);
+    this.bucketReady = true;
   }
 }

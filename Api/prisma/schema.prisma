@@ -331,7 +331,7 @@ model VendorAvailability {
 
 model Cart {
   id         String     @id @default(cuid())
-  customerId String
+  customerId String     @unique
   createdAt  DateTime   @default(now())
   updatedAt  DateTime   @updatedAt
 

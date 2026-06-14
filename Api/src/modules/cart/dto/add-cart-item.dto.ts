@@ -1,10 +1,11 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsDateString, IsIn, IsInt, IsString, Min } from 'class-validator';
+import { IsDateString, IsIn, IsInt, IsOptional, IsString, Min } from 'class-validator';
 
 export class AddCartItemDto {
-  @ApiProperty({ example: 'usr_customer' })
+  @ApiProperty({ example: 'usr_customer', required: false, description: 'Set from the authenticated customer.' })
+  @IsOptional()
   @IsString()
-  customerId!: string;
+  customerId?: string;
 
   @ApiProperty({ enum: ['SERVICE', 'PACKAGE'], example: 'SERVICE' })
   @IsIn(['SERVICE', 'PACKAGE'])

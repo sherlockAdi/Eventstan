@@ -2,9 +2,10 @@ import { ApiProperty } from '@nestjs/swagger';
 import { IsOptional, IsString } from 'class-validator';
 
 export class CreateBookingDto {
-  @ApiProperty({ example: 'usr_customer' })
+  @ApiProperty({ example: 'usr_customer', required: false, description: 'Set from the authenticated customer.' })
+  @IsOptional()
   @IsString()
-  customerId!: string;
+  customerId?: string;
 
   @ApiProperty({ example: 'EVENT10', required: false })
   @IsOptional()

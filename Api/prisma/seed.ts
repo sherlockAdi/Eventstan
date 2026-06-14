@@ -1,6 +1,15 @@
 import { PrismaClient } from '@prisma/client';
+import { randomBytes, scrypt as nodeScrypt } from 'node:crypto';
+import { promisify } from 'node:util';
 
 const prisma = new PrismaClient();
+const scrypt = promisify(nodeScrypt);
+
+async function hashPassword(password: string) {
+  const salt = randomBytes(16).toString('hex');
+  const derivedKey = (await scrypt(password, salt, 64)) as Buffer;
+  return `scrypt:${salt}:${derivedKey.toString('hex')}`;
+}
 
 const categories = [
   { name: 'Venue', slug: 'venue' },
@@ -151,16 +160,41 @@ const packages = [
 ];
 
 async function main() {
+  const adminPasswordHash = await hashPassword(process.env.SEED_ADMIN_PASSWORD ?? 'ChangeAdminPassword123!');
+  const customerPasswordHash = await hashPassword(process.env.SEED_CUSTOMER_PASSWORD ?? 'ChangeCustomerPassword123!');
+  const vendorPasswordHash = await hashPassword(process.env.SEED_VENDOR_PASSWORD ?? 'ChangeVendorPassword123!');
+
   await prisma.user.upsert({
     where: { email: 'admin@eventstan.ae' },
-    update: {},
-    create: { name: 'EventStan Admin', email: 'admin@eventstan.ae', role: 'SUPER_ADMIN' },
+    update: { name: 'EventStan Admin', role: 'SUPER_ADMIN', passwordHash: adminPasswordHash, isActive: true },
+    create: {
+      name: 'EventStan Admin',
+      email: 'admin@eventstan.ae',
+      role: 'SUPER_ADMIN',
+      passwordHash: adminPasswordHash,
+    },
   });
 
   const customer = await prisma.user.upsert({
     where: { email: 'customer@example.com' },
-    update: { name: 'Demo Customer', role: 'CUSTOMER' },
-    create: { name: 'Demo Customer', email: 'customer@example.com', role: 'CUSTOMER' },
+    update: { name: 'Demo Customer', role: 'CUSTOMER', passwordHash: customerPasswordHash, isActive: true },
+    create: {
+      name: 'Demo Customer',
+      email: 'customer@example.com',
+      role: 'CUSTOMER',
+      passwordHash: customerPasswordHash,
+    },
+  });
+
+  const vendorUser = await prisma.user.upsert({
+    where: { email: 'vendor@eventstan.com' },
+    update: { name: 'Aisha Khan', role: 'VENDOR', passwordHash: vendorPasswordHash, isActive: true },
+    create: {
+      name: 'Aisha Khan',
+      email: 'vendor@eventstan.com',
+      role: 'VENDOR',
+      passwordHash: vendorPasswordHash,
+    },
   });
 
   const categoryBySlug = new Map<string, { id: string }>();
@@ -176,6 +210,7 @@ async function main() {
   const vendor = await prisma.vendor.upsert({
     where: { email: 'vendor@example.com' },
     update: {
+      userId: vendorUser.id,
       companyName: 'Luxe Events Dubai',
       contactPerson: 'Aisha Khan',
       phone: '+971500000001',
@@ -185,6 +220,7 @@ async function main() {
       commissionPercent: 10,
     },
     create: {
+      userId: vendorUser.id,
       companyName: 'Luxe Events Dubai',
       contactPerson: 'Aisha Khan',
       email: 'vendor@example.com',

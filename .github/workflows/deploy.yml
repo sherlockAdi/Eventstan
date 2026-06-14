@@ -30,6 +30,7 @@ jobs:
             cd Api
             npm ci
             npm run prisma:generate
+            npx prisma migrate deploy
             npm run build
             pm2 restart eventstan-api --update-env || pm2 start npm --name eventstan-api -- run start:prod
 

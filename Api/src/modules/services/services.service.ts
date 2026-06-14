@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { ListingStatus } from '@prisma/client';
 import { PrismaService } from '../../shared/prisma/prisma.service';
+import { AuthenticatedUser } from '../auth/auth.types';
 import { CreateSubServiceDto } from './dto/create-sub-service.dto';
 import { CreateServiceDto } from './dto/create-service.dto';
 
@@ -28,6 +29,7 @@ export class ServicesService {
         tags: dto.tags ?? [],
         gallery: dto.gallery ?? [],
         features: dto.features ?? [],
+        status: ListingStatus.DRAFT,
       },
       include: this.serviceInclude,
     });
@@ -118,10 +120,11 @@ export class ServicesService {
     return this.prisma.vendorSubService.delete({ where: { id } });
   }
 
-  async search(categoryId?: string, city?: string, includeAll = false) {
+  async search(categoryId?: string, city?: string, includeAll = false, vendorId?: string) {
     const services = await this.prisma.vendorService.findMany({
       where: {
         ...(includeAll ? {} : { status: ListingStatus.ACTIVE }),
+        ...(vendorId ? { vendorId } : {}),
         ...(city ? { city: { equals: city, mode: 'insensitive' } } : {}),
         ...(categoryId
           ? {
@@ -155,6 +158,31 @@ export class ServicesService {
       orderBy: { createdAt: 'desc' },
     });
     return subServices.map((subService) => this.normalizeSubService(subService));
+  }
+
+  async vendorIdForUser(userId: string) {
+    const vendor = await this.prisma.vendor.findUnique({ where: { userId } });
+    if (!vendor) throw new NotFoundException('Vendor profile not found');
+    return vendor.id;
+  }
+
+  async assertCanManage(user: AuthenticatedUser, serviceId: string) {
+    if (user.role === 'ADMIN' || user.role === 'SUPER_ADMIN') return;
+    const service = await this.prisma.vendorService.findUnique({ where: { id: serviceId } });
+    if (!service || service.vendorId !== (await this.vendorIdForUser(user.id))) {
+      throw new NotFoundException('Service not found');
+    }
+  }
+
+  async assertCanManageSubService(user: AuthenticatedUser, subServiceId: string) {
+    if (user.role === 'ADMIN' || user.role === 'SUPER_ADMIN') return;
+    const subService = await this.prisma.vendorSubService.findUnique({
+      where: { id: subServiceId },
+      include: { service: true },
+    });
+    if (!subService || subService.service.vendorId !== (await this.vendorIdForUser(user.id))) {
+      throw new NotFoundException('Sub-service not found');
+    }
   }
 
   private readonly serviceInclude = {

@@ -3,8 +3,9 @@ import { IsIn, IsOptional, IsString } from 'class-validator';
 
 export class CancelBookingDto {
   @ApiProperty({ enum: ['CUSTOMER', 'VENDOR', 'ADMIN'], example: 'CUSTOMER' })
+  @IsOptional()
   @IsIn(['CUSTOMER', 'VENDOR', 'ADMIN'])
-  cancelledBy!: string;
+  cancelledBy?: string;
 
   @ApiProperty({ example: 'Customer changed event date.', required: false })
   @IsOptional()

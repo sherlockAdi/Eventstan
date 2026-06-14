@@ -1,55 +1,76 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
-import { ReviewStatus } from '@prisma/client';
-import { BookingsService } from '../bookings/bookings.service';
-import { DataStoreService } from '../../shared/data-store/data-store.service';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BookingStatus, ReviewStatus } from '@prisma/client';
 import { PrismaService } from '../../shared/prisma/prisma.service';
 import { CreateReviewDto } from './dto/create-review.dto';
 
 @Injectable()
 export class ReviewsService {
-  constructor(
-    private readonly store: DataStoreService,
-    private readonly bookings: BookingsService,
-    private readonly prisma: PrismaService,
-  ) {}
+  constructor(private readonly prisma: PrismaService) {}
 
-  create(dto: CreateReviewDto) {
-    const booking = this.bookings.findOne(dto.bookingId);
-    if (booking.status !== 'COMPLETED') throw new BadRequestException('Review is allowed only after event completion');
-    if (this.store.reviews.some((item) => item.bookingId === dto.bookingId)) {
+  async create(dto: CreateReviewDto, customerId?: string) {
+    const booking = await this.prisma.booking.findUnique({
+      where: { id: dto.bookingId },
+      include: { items: true, reviews: true },
+    });
+    if (!booking) throw new NotFoundException('Booking not found');
+    if (booking.status !== BookingStatus.COMPLETED) {
+      throw new BadRequestException('Review is allowed only after event completion');
+    }
+    const reviewerId = customerId ?? booking.customerId;
+    if (reviewerId !== booking.customerId) throw new BadRequestException('Booking does not belong to this customer');
+    if (!booking.items.some((item) => item.vendorId === dto.vendorId)) {
+      throw new BadRequestException('Vendor is not part of this booking');
+    }
+    if (booking.reviews.some((review) => review.customerId === reviewerId)) {
       throw new BadRequestException('Only one review is allowed per booking');
     }
-    const review = { id: this.store.nextId('rev'), ...dto, status: 'PENDING_APPROVAL', createdAt: new Date().toISOString() };
-    this.store.reviews.push(review);
-    return review;
+
+    return this.prisma.review.create({
+      data: {
+        bookingId: booking.id,
+        vendorId: dto.vendorId,
+        customerId: reviewerId,
+        rating: dto.rating,
+        comment: dto.comment,
+      },
+    });
   }
 
-  approve(id: string) {
-    const review = this.store.reviews.find((item) => item.id === id);
-    if (!review) throw new BadRequestException('Review not found');
-    review.status = 'PUBLISHED';
-    review.approvedAt = new Date().toISOString();
-    return review;
+  async approve(id: string) {
+    const review = await this.prisma.review.findUnique({ where: { id } });
+    if (!review) throw new NotFoundException('Review not found');
+    return this.prisma.review.update({
+      where: { id },
+      data: { status: ReviewStatus.PUBLISHED, approvedAt: new Date() },
+    });
   }
 
-  async list() {
+  async reject(id: string) {
+    const review = await this.prisma.review.findUnique({ where: { id } });
+    if (!review) throw new NotFoundException('Review not found');
+    return this.prisma.review.update({
+      where: { id },
+      data: { status: ReviewStatus.REJECTED, approvedAt: null },
+    });
+  }
+
+  async list(includePending = false) {
     const reviews = await this.prisma.review.findMany({
-      where: { status: ReviewStatus.PUBLISHED },
+      where: includePending ? {} : { status: ReviewStatus.PUBLISHED },
       include: {
         customer: true,
-        booking: {
-          include: {
-            items: true,
-          },
-        },
+        booking: { include: { items: true } },
       },
       orderBy: { createdAt: 'desc' },
     });
 
     return reviews.map((review) => {
-      const bookingItem = review.booking.items[0];
+      const bookingItem = review.booking.items.find((item) => item.vendorId === review.vendorId);
       return {
         id: review.id,
+        bookingId: review.bookingId,
+        vendorId: review.vendorId,
+        customerId: review.customerId,
         service_id: bookingItem?.itemId ?? '',
         reviewer_name: review.customer.name,
         reviewer_avatar: '',

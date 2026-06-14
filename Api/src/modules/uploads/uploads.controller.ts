@@ -8,8 +8,11 @@ import {
   Req,
   Res,
   UploadedFile,
+  UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
+import { ApiBearerAuth } from '@nestjs/swagger';
+import { AuthGuard } from '../auth/auth.guard';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBody, ApiConsumes, ApiCreatedResponse, ApiQuery, ApiTags } from '@nestjs/swagger';
 import type { Request, Response } from 'express';
@@ -28,6 +31,8 @@ export class UploadsController {
   constructor(private readonly uploads: UploadsService) {}
 
   @Post('images')
+  @UseGuards(AuthGuard)
+  @ApiBearerAuth()
   @UseInterceptors(FileInterceptor('file'))
   @ApiConsumes('multipart/form-data')
   @ApiQuery({ name: 'folder', required: false, example: 'services' })
@@ -44,12 +49,14 @@ export class UploadsController {
     },
   })
   @ApiCreatedResponse({ description: 'Uploads an image to MinIO and returns its URL.' })
-  uploadImage(@UploadedFile() file: UploadedImage | undefined, @Query('folder') folder = 'images', @Req() req: Request) {
+  uploadImage(@UploadedFile() file: UploadedImage | undefined, @Query('folder') folder = 'images') {
     if (!file) throw new BadRequestException('Image file is required');
-    return this.uploads.uploadImage(file, folder, this.imageBaseUrl(req));
+    return this.uploads.uploadImage(file, folder);
   }
 
   @Post('files')
+  @UseGuards(AuthGuard)
+  @ApiBearerAuth()
   @UseInterceptors(FileInterceptor('file'))
   @ApiConsumes('multipart/form-data')
   @ApiQuery({ name: 'folder', required: false, example: 'agreements' })
@@ -66,9 +73,9 @@ export class UploadsController {
     },
   })
   @ApiCreatedResponse({ description: 'Uploads a file to MinIO and returns its URL.' })
-  uploadFile(@UploadedFile() file: UploadedImage | undefined, @Query('folder') folder = 'files', @Req() req: Request) {
+  uploadFile(@UploadedFile() file: UploadedImage | undefined, @Query('folder') folder = 'files') {
     if (!file) throw new BadRequestException('File is required');
-    return this.uploads.uploadFile(file, folder, this.fileBaseUrl(req));
+    return this.uploads.uploadFile(file, folder);
   }
 
   @Get('images/:folder/:date/:file')
@@ -91,6 +98,15 @@ export class UploadsController {
     return this.streamImage(key, res);
   }
 
+  @Get('files/*')
+  async getFile(@Req() req: Request, @Res() res: Response) {
+    const marker = '/uploads/files/';
+    const requestPath = req.originalUrl.split('?')[0] ?? '';
+    const markerIndex = requestPath.indexOf(marker);
+    const encodedKey = markerIndex >= 0 ? requestPath.slice(markerIndex + marker.length) : '';
+    return this.streamImage(decodeURIComponent(encodedKey), res);
+  }
+
   private async streamImage(key: string, res: Response) {
     const image = await this.uploads.getImage(key);
 
@@ -99,13 +115,5 @@ export class UploadsController {
     if (image.size) res.setHeader('Content-Length', String(image.size));
 
     return image.stream.pipe(res);
-  }
-
-  private imageBaseUrl(req: Request) {
-    return `${req.protocol}://${req.get('host')}${req.baseUrl}/images`;
-  }
-
-  private fileBaseUrl(req: Request) {
-    return `${req.protocol}://${req.get('host')}${req.baseUrl}/files`;
   }
 }
