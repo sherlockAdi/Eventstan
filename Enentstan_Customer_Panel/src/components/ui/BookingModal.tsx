@@ -1,5 +1,8 @@
 "use client";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { customerApi, getPackages } from "@/api/customerApi";
+import { useAuth } from "@/lib/AuthContext";
 import { Package, Service } from "@/types";
 
 interface Props {
@@ -13,6 +16,7 @@ interface FormData {
   email: string;
   phone: string;
   eventDate: string;
+  eventAddress: string;
   eventType: string;
   numGuests: string;
   numDays: number;
@@ -20,18 +24,24 @@ interface FormData {
 }
 
 export default function BookingModal({ pkg, service, onClose }: Props) {
+  const router = useRouter();
+  const { user } = useAuth();
   const [step, setStep] = useState<1 | 2>(1);
   const [form, setForm] = useState<FormData>({
-    fullName: "",
-    email: "",
-    phone: "",
+    fullName: user?.name ?? "",
+    email: user?.email ?? "",
+    phone: user?.phone ?? "",
     eventDate: "",
+    eventAddress: "",
     eventType: "",
     numGuests: "",
     numDays: 1,
     message: "",
   });
   const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+  const [bookingId, setBookingId] = useState("");
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const p = pkg as any;
@@ -40,15 +50,60 @@ export default function BookingModal({ pkg, service, onClose }: Props) {
   const title = p?.name ?? service?.title ?? "";
   const vendorName = service?.vendor_name ?? "";
   const category = service?.category ?? "";
-  const totalPrice = basePrice * form.numDays;
+  const isPerPerson = priceUnit.toLowerCase().includes("person");
+  const isPerDay = priceUnit.toLowerCase().includes("day");
+  const billingQuantity = isPerPerson
+    ? Math.max(1, Number(form.numGuests) || 1)
+    : isPerDay
+      ? form.numDays
+      : 1;
+  const totalPrice = basePrice * billingQuantity;
 
   const set = (field: keyof FormData) => (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => setForm((prev) => ({ ...prev, [field]: e.target.value }));
 
-  const handleSubmit = () => {
-    setSubmitted(true);
-    setTimeout(onClose, 2200);
+  const handleSubmit = async () => {
+    if (!user) {
+      onClose();
+      router.push("/auth/login?redirect=/promotions");
+      return;
+    }
+
+    setSubmitting(true);
+    setError("");
+    try {
+      const normalize = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, "");
+      const packages = await getPackages();
+      const bookablePackage = packages.find((item) => normalize(item.title) === normalize(title));
+      if (!bookablePackage) throw new Error("This promotion is not available for online booking.");
+
+      await customerApi.cart.clear().catch(() => undefined);
+      await customerApi.cart.add({
+        type: "PACKAGE",
+        itemId: bookablePackage.id,
+        eventDate: form.eventDate,
+        quantity: billingQuantity,
+      });
+      const booking = await customerApi.bookings.checkout<{ id: string }>({
+        eventAddress: form.eventAddress,
+        notes: [
+          `Promotion: ${title}`,
+          form.eventType && `Event: ${form.eventType}`,
+          form.numGuests && `Guests: ${form.numGuests}`,
+          form.phone && `Phone: ${form.phone}`,
+          form.message,
+        ]
+          .filter(Boolean)
+          .join(" - "),
+      });
+      setBookingId(booking.id);
+      setSubmitted(true);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Unable to confirm booking.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const inputClass =
@@ -79,7 +134,7 @@ export default function BookingModal({ pkg, service, onClose }: Props) {
                 ${totalPrice.toLocaleString()}
               </p>
               <p className="text-gray-400 text-xs mt-0.5">
-                {form.numDays} days × ${basePrice.toLocaleString()}
+                {billingQuantity} x ${basePrice.toLocaleString()} {priceUnit}
               </p>
             </div>
           </div>
@@ -117,7 +172,17 @@ export default function BookingModal({ pkg, service, onClose }: Props) {
                 </svg>
               </div>
               <h3 className="text-lg font-bold text-gray-900 mb-1">Booking Requested!</h3>
-              <p className="text-gray-500 text-sm">We'll confirm your booking shortly.</p>
+              <p className="text-gray-500 text-sm">Your booking was created successfully.</p>
+              <p className="text-gray-700 text-xs font-semibold mt-3 break-all">Booking ID: {bookingId}</p>
+              <button
+                onClick={() => {
+                  onClose();
+                  router.push("/bookings");
+                }}
+                className="mt-5 bg-orange-500 text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-orange-600"
+              >
+                View My Bookings
+              </button>
             </div>
           ) : step === 1 ? (
             /* ── Step 1: Your Details ── */
@@ -171,6 +236,18 @@ export default function BookingModal({ pkg, service, onClose }: Props) {
                 </div>
               </div>
 
+              <div>
+                <label className="text-xs font-semibold text-gray-700 mb-1 block">
+                  Event Address <span className="text-orange-400">*</span>
+                </label>
+                <input
+                  value={form.eventAddress}
+                  onChange={set("eventAddress")}
+                  placeholder="Venue or event address"
+                  className={inputClass}
+                />
+              </div>
+
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs font-semibold text-gray-700 mb-1 block">Event Type</label>
@@ -193,7 +270,7 @@ export default function BookingModal({ pkg, service, onClose }: Props) {
               </div>
 
               {/* Number of Days */}
-              <div className="bg-gray-50 rounded-xl p-4">
+              {isPerDay && <div className="bg-gray-50 rounded-xl p-4">
                 <label className="text-xs font-semibold text-gray-700 mb-3 block">
                   Number of Days <span className="text-gray-400 font-normal">(min 1)</span>{" "}
                   <span className="text-orange-400">*</span>
@@ -221,7 +298,15 @@ export default function BookingModal({ pkg, service, onClose }: Props) {
                 <p className="text-orange-500 font-semibold text-sm">
                   Estimated Total: ${totalPrice.toLocaleString()}
                 </p>
-              </div>
+              </div>}
+
+              {!isPerDay && (
+                <div className="bg-orange-50 rounded-xl px-4 py-3">
+                  <p className="text-orange-600 font-semibold text-sm">
+                    Estimated Total: ${totalPrice.toLocaleString()}
+                  </p>
+                </div>
+              )}
 
               {/* Message */}
               <div>
@@ -246,9 +331,10 @@ export default function BookingModal({ pkg, service, onClose }: Props) {
                 <Row label="Service" value={title} />
                 <Row label="Vendor" value={vendorName ?? ""} />
                 <Row label="Event Date" value={form.eventDate || "—"} />
+                <Row label="Event Address" value={form.eventAddress || "—"} />
                 <Row label="Event Type" value={form.eventType || "—"} />
                 <Row label="Guests" value={form.numGuests || "—"} />
-                <Row label="Duration" value={`${form.numDays} day${form.numDays > 1 ? "s" : ""}`} />
+                {isPerDay && <Row label="Duration" value={`${form.numDays} day${form.numDays > 1 ? "s" : ""}`} />}
                 <div className="border-t border-gray-100 pt-2.5 flex justify-between font-bold">
                   <span className="text-gray-900">Total</span>
                   <span className="text-orange-500 text-base">${totalPrice.toLocaleString()}</span>
@@ -270,10 +356,21 @@ export default function BookingModal({ pkg, service, onClose }: Props) {
         {/* Footer */}
         {!submitted && (
           <div className="px-6 pb-6 pt-2">
+            {error && (
+              <p className="mb-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">
+                {error}
+              </p>
+            )}
             {step === 1 ? (
               <button
                 onClick={() => setStep(2)}
-                disabled={!form.fullName || !form.email || !form.eventDate}
+                disabled={
+                  !form.fullName ||
+                  !form.email ||
+                  !form.eventDate ||
+                  !form.eventAddress ||
+                  (isPerPerson && !form.numGuests)
+                }
                 className="w-full bg-orange-500 text-white py-3 rounded-xl font-semibold hover:bg-orange-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
                 Continue to Review
@@ -291,9 +388,10 @@ export default function BookingModal({ pkg, service, onClose }: Props) {
                 </button>
                 <button
                   onClick={handleSubmit}
-                  className="flex-1 py-3 rounded-xl bg-orange-500 text-white text-sm font-semibold hover:bg-orange-600 transition-colors"
+                  disabled={submitting}
+                  className="flex-1 py-3 rounded-xl bg-orange-500 text-white text-sm font-semibold hover:bg-orange-600 transition-colors disabled:opacity-60"
                 >
-                  Confirm Booking
+                  {submitting ? "Confirming..." : "Confirm Booking"}
                 </button>
               </div>
             )}
