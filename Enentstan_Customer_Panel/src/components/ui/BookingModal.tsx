@@ -47,7 +47,7 @@ export default function BookingModal({ pkg, service, onClose }: Props) {
   const p = pkg as any;
   const basePrice = p?.price ?? service?.price_min ?? 0;
   const priceUnit = p?.price_unit ?? service?.price_unit ?? "day";
-  const title = p?.name ?? service?.title ?? "";
+  const title = p?.title ?? p?.name ?? service?.title ?? "";
   const vendorName = service?.vendor_name ?? "";
   const category = service?.category ?? "";
   const isPerPerson = priceUnit.toLowerCase().includes("person");

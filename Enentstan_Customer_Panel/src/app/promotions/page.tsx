@@ -552,6 +552,7 @@ export default function PromotionsPage() {
             title: booking.title,
             description: booking.short_desc,
             price: booking.price,
+            price_unit: booking.price_unit,
             inclusions: booking.inclusions,
             max_guests: booking.max_guests,
             duration_hours: booking.duration_hours,
