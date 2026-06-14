@@ -24,7 +24,7 @@ export class UploadsService implements OnModuleInit {
   private readonly logger = new Logger(UploadsService.name);
   private readonly client: Client;
   private readonly bucket: string;
-  private readonly publicBaseUrl: string;
+  private readonly apiPublicUrl: string;
   private bucketReady = false;
 
   constructor(config: ConfigService) {
@@ -40,9 +40,9 @@ export class UploadsService implements OnModuleInit {
     const useSSL = config.get<string>('MINIO_USE_SSL', 'true') === 'true';
 
     this.bucket = config.get<string>('MINIO_BUCKET', 'eventstan');
-    this.publicBaseUrl =
-      config.get<string>('MINIO_PUBLIC_URL') ??
-      `${useSSL ? 'https' : 'http'}://${endPoint}${port === 443 || port === 80 ? '' : `:${port}`}/${this.bucket}`;
+    this.apiPublicUrl = config
+      .get<string>('API_PUBLIC_URL', 'http://localhost:4000/api/v1')
+      .replace(/\/$/, '');
 
     this.client = new Client({
       endPoint,
@@ -67,14 +67,19 @@ export class UploadsService implements OnModuleInit {
       throw new BadRequestException('Only image files are allowed');
     }
 
-    return this.upload(file, folder || 'images', 10);
+    return this.upload(file, folder || 'images', 10, 'images');
   }
 
   async uploadFile(file: UploadedFile, folder: string) {
-    return this.upload(file, folder || 'files', 20);
+    return this.upload(file, folder || 'files', 20, 'files');
   }
 
-  private async upload(file: UploadedFile, folder: string, maxSizeMb: number) {
+  private async upload(
+    file: UploadedFile,
+    folder: string,
+    maxSizeMb: number,
+    route: 'images' | 'files',
+  ) {
     const maxSize = maxSizeMb * 1024 * 1024;
     if (file.size > maxSize) {
       throw new BadRequestException(`File must be ${maxSizeMb}MB or smaller`);
@@ -96,7 +101,7 @@ export class UploadsService implements OnModuleInit {
     return {
       bucket: this.bucket,
       key,
-      url: `${this.publicBaseUrl.replace(/\/$/, '')}/${this.encodeKey(key)}`,
+      url: `${this.apiPublicUrl}/uploads/${route}/${this.encodeKey(key)}`,
       contentType: file.mimetype,
       size: file.size,
     };
