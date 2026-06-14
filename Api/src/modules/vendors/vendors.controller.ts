@@ -30,6 +30,19 @@ export class VendorsController {
     return this.vendors.findAll(status);
   }
 
+  @Get('me')
+  @Roles(UserRole.VENDOR)
+  findMe(@Req() request: AuthenticatedRequest) {
+    return this.vendors.findForUser(request.user.id);
+  }
+
+  @Put('me')
+  @Roles(UserRole.VENDOR)
+  async updateMe(@Req() request: AuthenticatedRequest, @Body() dto: Partial<CreateVendorDto>) {
+    const vendor = await this.vendors.findForUser(request.user.id);
+    return this.vendors.update(vendor.id, dto);
+  }
+
   @Get(':id')
   @Roles(UserRole.VENDOR, UserRole.ADMIN, UserRole.SUPER_ADMIN)
   async findOne(@Req() request: AuthenticatedRequest, @Param('id') id: string) {

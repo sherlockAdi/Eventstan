@@ -85,7 +85,7 @@ export class ServicesController {
   @ApiBearerAuth()
   async update(@Req() request: AuthenticatedRequest, @Param('id') id: string, @Body() dto: Partial<CreateServiceDto> & { status?: string }) {
     await this.services.assertCanManage(request.user, id);
-    const update = request.user.role === UserRole.VENDOR ? { ...dto, status: undefined, vendorId: undefined } : dto;
+    const update = request.user.role === UserRole.VENDOR ? { ...dto, vendorId: undefined } : dto;
     return this.services.update(id, update);
   }
 
@@ -95,7 +95,7 @@ export class ServicesController {
   @ApiBearerAuth()
   async patch(@Req() request: AuthenticatedRequest, @Param('id') id: string, @Body() dto: Partial<CreateServiceDto> & { status?: string }) {
     await this.services.assertCanManage(request.user, id);
-    const update = request.user.role === UserRole.VENDOR ? { ...dto, status: undefined, vendorId: undefined } : dto;
+    const update = request.user.role === UserRole.VENDOR ? { ...dto, vendorId: undefined } : dto;
     return this.services.update(id, update);
   }
 

@@ -1,15 +1,16 @@
 'use client';
 
-import { mockStats, mockBookings, revenueData, bookingsByMonth } from '@/lib/mockData';
 import { useState, useEffect } from 'react';
 import { getUser } from '@/lib/auth';
+import { vendorApi } from '@/api/vendorApi';
+import { normalizeBooking, type ApiBooking } from '@/lib/vendorData';
 import {
   DollarSign, CalendarCheck, Clock,
-  Star, AlertCircle, ArrowRight, X, CheckCircle, XCircle, MessageSquare,
+  Star, ArrowRight, X, CheckCircle, XCircle, MessageSquare,
   Calendar, Users, MapPin, Phone, Mail, Briefcase
 } from 'lucide-react';
 import Link from 'next/link';
-import type { Booking, BookingStatus } from '@/lib/types';
+import type { Booking } from '@/lib/types';
 import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis,
   CartesianGrid, Tooltip, ResponsiveContainer
@@ -34,20 +35,53 @@ function getGreeting() {
 }
 
 export default function DashboardPage() {
-  const [firstName, setFirstName] = useState('');
+  const [firstName] = useState(() => getUser()?.name?.split(' ')[0] ?? '');
   const [selectedBooking, setSelectedBooking] = useState<DashboardBooking | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [showRejectDialog, setShowRejectDialog] = useState(false);
   const [rejectionReason, setRejectionReason] = useState('');
-  const [bookings, setBookings] = useState<DashboardBooking[]>(mockBookings);
+  const [bookings, setBookings] = useState<DashboardBooking[]>([]);
+  const [stats, setStats] = useState({
+    totalRevenue: 0, totalBookings: 0, pendingBookings: 0,
+    confirmedBookings: 0, averageRating: 0, totalServices: 0,
+  });
+  const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState(false);
+  const [error, setError] = useState('');
   
   const recentBookings = bookings.slice(0, 5);
 
   useEffect(() => {
-    const user = getUser();
-    if (user) setFirstName(user.firstName);
+    Promise.all([
+      vendorApi.dashboard.get<{
+        data: { totalRevenue: number; totalBookings: number; activeServices: number };
+        recentBookings: ApiBooking[];
+      }>(),
+      vendorApi.bookings.list<ApiBooking[]>(),
+    ])
+      .then(([dashboard, allBookings]) => {
+        const normalized = allBookings.map(normalizeBooking);
+        setBookings(normalized);
+        setStats({
+          totalRevenue: dashboard.data.totalRevenue,
+          totalBookings: dashboard.data.totalBookings,
+          pendingBookings: normalized.filter((booking) => booking.status === 'Pending').length,
+          confirmedBookings: normalized.filter((booking) => booking.status === 'Confirmed').length,
+          averageRating: 0,
+          totalServices: dashboard.data.activeServices,
+        });
+      })
+      .catch((cause: unknown) => setError(cause instanceof Error ? cause.message : 'Unable to load dashboard'))
+      .finally(() => setLoading(false));
   }, []);
+
+  const revenueData = [
+    { month: new Date().toLocaleString('en', { month: 'short' }), revenue: stats.totalRevenue },
+  ];
+  const bookingsByMonth = [
+    { month: new Date().toLocaleString('en', { month: 'short' }), bookings: stats.totalBookings },
+  ];
 
   const handleBookingClick = (booking: DashboardBooking) => {
     setSelectedBooking(booking);
@@ -62,36 +96,42 @@ export default function DashboardPage() {
     setShowRejectDialog(true);
   };
 
-  const confirmAccept = () => {
+  const confirmAccept = async () => {
     if (selectedBooking) {
-      const confirmedStatus: BookingStatus = 'Confirmed';
-      const updatedBookings = bookings.map((booking): DashboardBooking =>
-        booking.id === selectedBooking.id
-          ? { ...booking, status: confirmedStatus }
-          : booking
-      );
-      setBookings(updatedBookings);
-      alert('Booking confirmed successfully!');
-      setShowConfirmDialog(false);
-      setShowModal(false);
-      setSelectedBooking(null);
+      setActionLoading(true);
+      setError('');
+      try {
+        const updated = normalizeBooking(await vendorApi.bookings.accept<ApiBooking>(selectedBooking.id));
+        setBookings(current => current.map(booking => booking.id === selectedBooking.id ? updated : booking));
+        setStats(current => ({ ...current, pendingBookings: Math.max(0, current.pendingBookings - 1) }));
+        setShowConfirmDialog(false);
+        setShowModal(false);
+        setSelectedBooking(null);
+      } catch (cause) {
+        setError(cause instanceof Error ? cause.message : 'Unable to accept booking');
+      } finally {
+        setActionLoading(false);
+      }
     }
   };
 
-  const confirmReject = () => {
+  const confirmReject = async () => {
     if (selectedBooking && rejectionReason.trim()) {
-      const rejectedStatus: BookingStatus = 'Rejected (Vendor)';
-      const updatedBookings = bookings.map((booking): DashboardBooking =>
-        booking.id === selectedBooking.id
-          ? { ...booking, status: rejectedStatus, rejectionReason: rejectionReason }
-          : booking
-      );
-      setBookings(updatedBookings);
-      alert('Booking rejected successfully!');
-      setRejectionReason('');
-      setShowRejectDialog(false);
-      setShowModal(false);
-      setSelectedBooking(null);
+      setActionLoading(true);
+      setError('');
+      try {
+        const updated = normalizeBooking(await vendorApi.bookings.reject<ApiBooking>(selectedBooking.id));
+        setBookings(current => current.map(booking => booking.id === selectedBooking.id ? updated : booking));
+        setStats(current => ({ ...current, pendingBookings: Math.max(0, current.pendingBookings - 1) }));
+        setRejectionReason('');
+        setShowRejectDialog(false);
+        setShowModal(false);
+        setSelectedBooking(null);
+      } catch (cause) {
+        setError(cause instanceof Error ? cause.message : 'Unable to reject booking');
+      } finally {
+        setActionLoading(false);
+      }
     }
   };
 
@@ -112,28 +152,30 @@ export default function DashboardPage() {
         </div>
       </div>
 
+      {error && <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
+
       {/* Stats Grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
           {
             label: 'Total Revenue',
-            value: `AED ${mockStats.totalRevenue.toLocaleString()}`,
-            sub: `AED ${mockStats.pendingRevenue.toLocaleString()} pending`,
+            value: loading ? '...' : `AED ${stats.totalRevenue.toLocaleString()}`,
+            sub: 'Successful payments',
             icon: DollarSign,
             color: 'bg-green-50 text-green-600',
             trend: '+12% this month',
           },
           {
             label: 'Total Bookings',
-            value: mockStats.totalBookings,
-            sub: `${mockStats.confirmedBookings} confirmed`,
+            value: loading ? '...' : stats.totalBookings,
+            sub: `${stats.confirmedBookings} confirmed`,
             icon: CalendarCheck,
             color: 'bg-blue-50 text-blue-600',
             trend: '+5 new this week',
           },
           {
             label: 'Pending',
-            value: mockStats.pendingBookings,
+            value: loading ? '...' : stats.pendingBookings,
             sub: 'Need your response',
             icon: Clock,
             color: 'bg-amber-50 text-amber-600',
@@ -141,8 +183,8 @@ export default function DashboardPage() {
           },
           {
             label: 'Avg. Rating',
-            value: mockStats.averageRating,
-            sub: `${mockStats.totalServices} active services`,
+            value: stats.averageRating || '-',
+            sub: `${stats.totalServices} active services`,
             icon: Star,
             color: 'bg-purple-50 text-purple-600',
             trend: '↑ 0.1 from last month',
@@ -551,9 +593,10 @@ export default function DashboardPage() {
                   </button>
                   <button
                     onClick={confirmAccept}
+                    disabled={actionLoading}
                     className="flex-1 py-2.5 rounded-xl bg-green-600 text-white font-semibold hover:bg-green-700 transition-colors"
                   >
-                    Yes, Accept
+                    {actionLoading ? 'Accepting...' : 'Yes, Accept'}
                   </button>
                 </div>
               </div>
@@ -605,10 +648,10 @@ export default function DashboardPage() {
                   </button>
                   <button
                     onClick={confirmReject}
-                    disabled={!rejectionReason.trim()}
+                    disabled={!rejectionReason.trim() || actionLoading}
                     className="flex-1 py-2.5 rounded-xl bg-red-600 text-white font-semibold hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    Confirm Reject
+                    {actionLoading ? 'Rejecting...' : 'Confirm Reject'}
                   </button>
                 </div>
               </div>

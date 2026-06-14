@@ -74,6 +74,12 @@ export class VendorsService {
     return this.prisma.vendor.delete({ where: { id } });
   }
 
+  async findForUser(userId: string) {
+    const vendor = await this.prisma.vendor.findUnique({ where: { userId } });
+    if (!vendor) throw new NotFoundException('Vendor profile not found');
+    return vendor;
+  }
+
   async assertCanManage(user: AuthenticatedUser, vendorId: string) {
     if (user.role === 'ADMIN' || user.role === 'SUPER_ADMIN') return;
     const vendor = await this.prisma.vendor.findUnique({ where: { id: vendorId } });

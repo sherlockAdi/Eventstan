@@ -14,6 +14,7 @@ import {
   CheckCircle,
 } from "lucide-react";
 import { vendorApi } from "@/api/vendorApi";
+import { saveSession, type VendorUser } from "@/lib/auth";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -22,6 +23,7 @@ interface LoginApiResponse {
   tokenType?: string;
   user?: {
     id: string;
+    name: string;
     email: string;
     role: string;
     [key: string]: unknown;
@@ -33,20 +35,11 @@ interface LoginApiResponse {
 // ─── Auth helpers ─────────────────────────────────────────────────────────────
 
 async function loginVendor(email: string, password: string): Promise<LoginApiResponse> {
-  const json = await vendorApi.auth.login<LoginApiResponse>(email, password);
-  console.log("API Response:", json);
-  return json;
+  return vendorApi.auth.login<LoginApiResponse>(email, password);
 }
 
 function extractToken(res: LoginApiResponse): string | null {
   return res.accessToken || null;
-}
-
-function extractData(res: LoginApiResponse): Record<string, unknown> | null {
-  if (res.user) {
-    return { user: res.user };
-  }
-  return null;
 }
 
 function isSuccess(res: LoginApiResponse): boolean {
@@ -61,18 +54,6 @@ function isSuccess(res: LoginApiResponse): boolean {
   }
   
   return false;
-}
-
-function saveSession(token: string, data: Record<string, unknown>) {
-  if (typeof window !== 'undefined') {
-    localStorage.setItem("vendor_token", token);
-    localStorage.setItem("vendor_data", JSON.stringify(data));
-    // Also store user role for authorization
-    if (data.user && typeof data.user === 'object' && 'role' in data.user) {
-      const user = data.user as { role?: string };
-      if (user.role) localStorage.setItem("user_role", user.role);
-    }
-  }
 }
 
 // ─── Page Component ───────────────────────────────────────────────────────────
@@ -92,24 +73,18 @@ export default function LoginPage() {
     try {
       const res = await loginVendor(email, password);
       const token = extractToken(res);
-      const data = extractData(res);
 
-      console.log("Extracted token:", token);
-      console.log("Extracted data:", data);
-      console.log("Status code:", res.statusCode);
-
-      if (isSuccess(res) && token) {
-        saveSession(token, data ?? {});
-        
-        // Role validation removed for testing - will redirect regardless of role
+      if (isSuccess(res) && token && res.user?.role === "VENDOR") {
+        saveSession(token, res.user as VendorUser);
         window.location.href = "/vendor/dashboard";
+      } else if (res.user?.role && res.user.role !== "VENDOR") {
+        setError("This portal is only available to vendor accounts.");
       } else {
         const errorMsg = res.message || "Login failed. Please check your credentials.";
         setError(errorMsg);
       }
     } catch (err) {
-      console.error("[login] Network error:", err);
-      setError("Unable to reach server. Check your connection.");
+      setError(err instanceof Error ? err.message : "Unable to reach server. Check your connection.");
     } finally {
       setLoading(false);
     }

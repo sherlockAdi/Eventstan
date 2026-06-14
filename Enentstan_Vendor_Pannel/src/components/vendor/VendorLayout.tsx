@@ -4,58 +4,20 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
   LayoutDashboard, Briefcase, CalendarDays, Package,
-  BookOpen, User, Bell, LogOut, ChevronRight, Menu, Loader2, X,
+  BookOpen, User, LogOut, ChevronRight, Menu, Loader2, X,
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { vendorApi } from '@/api/vendorApi';
+import { clearSession, getUser, type VendorUser } from '@/lib/auth';
 
 const navItems = [
   { href: '/vendor/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/vendor/services',  label: 'Services',  icon: Briefcase },
   { href: '/vendor/packages',  label: 'Packages',  icon: Package },
-   { href: '/vendor/bookings',  label: 'Bookings',  icon: BookOpen, badge: 6 },
+  { href: '/vendor/bookings',  label: 'Bookings',  icon: BookOpen },
   { href: '/vendor/calendar',  label: 'Calendar',  icon: CalendarDays },
   { href: '/vendor/profile',   label: 'Profile',   icon: User },
 ];
-
-// Auth helpers (copied from your login page)
-interface VendorUser {
-  id?: string;
-  email?: string;
-  firstName?: string;
-  lastName?: string;
-  role?: string;
-  image?: string;
-  [key: string]: unknown;
-}
-
-function getUser(): VendorUser | null {
-  if (typeof window === 'undefined') return null;
-  
-  const token = localStorage.getItem('vendor_token');
-  const dataStr = localStorage.getItem('vendor_data');
-  
-  if (!token || !dataStr) return null;
-  
-  try {
-    const data = JSON.parse(dataStr);
-    // Extract user from the stored data
-    if (data.user && typeof data.user === 'object') {
-      return data.user as VendorUser;
-    }
-    return data as VendorUser;
-  } catch {
-    return null;
-  }
-}
-
-function clearSession() {
-  if (typeof window !== 'undefined') {
-    localStorage.removeItem('vendor_token');
-    localStorage.removeItem('vendor_data');
-    localStorage.removeItem('user_role');
-  }
-}
 
 async function logoutVendor() {
   if (typeof window === 'undefined') return;
@@ -77,13 +39,9 @@ export default function VendorLayout({ children }: { children: React.ReactNode }
   const [mobileOpen,  setMobileOpen]  = useState(false);
   const [loggingOut,  setLoggingOut]  = useState(false);
   const [showLogout,  setShowLogout]  = useState(false);
-  const [vendor,      setVendor]      = useState<VendorUser | null>(null);
+  const [vendor] = useState<VendorUser | null>(() => getUser());
 
   useEffect(() => {
-    const user = getUser();
-    setVendor(user);
-    
-    // Check if user is logged in, if not redirect to login
     const token = localStorage.getItem('vendor_token');
     if (!token && pathname !== '/vendor/login') {
       router.replace('/vendor/login');
@@ -91,13 +49,12 @@ export default function VendorLayout({ children }: { children: React.ReactNode }
   }, [pathname, router]);
 
   const initials = vendor
-    ? `${vendor.firstName?.charAt(0) ?? ''}${vendor.lastName?.charAt(0) ?? ''}`.toUpperCase() ||
-      vendor.email?.charAt(0)?.toUpperCase() ||
-      'V'
+    ? vendor.name?.split(' ').map((part) => part.charAt(0)).slice(0, 2).join('').toUpperCase() ||
+      vendor.email.charAt(0).toUpperCase()
     : 'V';
 
-  const fullName = vendor 
-    ? `${vendor.firstName || ''} ${vendor.lastName || ''}`.trim() || vendor.email?.split('@')[0] || 'Vendor'
+  const fullName = vendor
+    ? vendor.name || vendor.email.split('@')[0] || 'Vendor'
     : 'Vendor';
 
   async function confirmLogout() {
@@ -150,7 +107,7 @@ export default function VendorLayout({ children }: { children: React.ReactNode }
 
         {/* Nav */}
         <nav className="flex-1 py-4 px-3 space-y-1 overflow-y-auto">
-          {navItems.map(({ href, label, icon: Icon, badge }) => {
+          {navItems.map(({ href, label, icon: Icon }) => {
             const active = pathname === href;
             return (
               <Link
@@ -162,11 +119,6 @@ export default function VendorLayout({ children }: { children: React.ReactNode }
               >
                 <Icon size={18} className={active ? 'text-orange-500' : 'text-gray-400 group-hover:text-gray-600'} />
                 <span className="flex-1">{label}</span>
-                {badge && (
-                  <span className="bg-orange-500 text-white text-xs px-1.5 py-0.5 rounded-full min-w-[20px] text-center">
-                    {badge}
-                  </span>
-                )}
                 {active && <ChevronRight size={14} className="text-orange-400" />}
               </Link>
             );

@@ -48,7 +48,7 @@ export class PackagesController {
   @ApiBearerAuth()
   async update(@Req() request: AuthenticatedRequest, @Param('id') id: string, @Body() dto: Partial<CreatePackageDto> & { status?: string }) {
     await this.packages.assertCanManage(request.user, id);
-    const update = request.user.role === UserRole.VENDOR ? { ...dto, status: undefined, vendorId: undefined } : dto;
+    const update = request.user.role === UserRole.VENDOR ? { ...dto, vendorId: undefined } : dto;
     return this.packages.update(id, update);
   }
 
@@ -58,7 +58,7 @@ export class PackagesController {
   @ApiBearerAuth()
   async updatePartial(@Req() request: AuthenticatedRequest, @Param('id') id: string, @Body() dto: Partial<CreatePackageDto> & { status?: string }) {
     await this.packages.assertCanManage(request.user, id);
-    const update = request.user.role === UserRole.VENDOR ? { ...dto, status: undefined, vendorId: undefined } : dto;
+    const update = request.user.role === UserRole.VENDOR ? { ...dto, vendorId: undefined } : dto;
     return this.packages.update(id, update);
   }
 

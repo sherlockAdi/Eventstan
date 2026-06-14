@@ -2,11 +2,12 @@
 
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { serviceStore, ServiceWithSlug } from '@/lib/store';
+import { type ServiceWithSlug } from '@/lib/store';
 import { vendorApi } from '@/api/vendorApi';
+import { getUser } from '@/lib/auth';
 import {
   ArrowLeft, CheckCircle2, AlertTriangle, Search,
-  CheckSquare, Square, Star, Layers, Percent, Info, X, ImageOff, ChevronDown,
+  CheckSquare, Square, Star, Layers, X, ImageOff, ChevronDown,
   Plus, Package as PackageIcon, Loader2,
 } from 'lucide-react';
 
@@ -264,11 +265,9 @@ function AddOnItemComponent({
 
 // ── Searchable Add-on Selector ─────────────────────────────────
 function AddOnSelector({
-  services,
   availableServices,
   onAdd,
 }: {
-  services: ServiceWithSlug[];
   availableServices: ServiceWithSlug[];
   onAdd: (serviceId: string) => void;
 }) {
@@ -470,19 +469,8 @@ export default function AddPackagePage() {
     setSaving(true);
     
     try {
-      const vendorData = localStorage.getItem('vendor_data');
-      let vendorId = 'ven_luxe_events'; // Default vendor ID
-      
-      if (vendorData) {
-        try {
-          const parsed = JSON.parse(vendorData);
-          if (parsed.user && parsed.user.id) {
-            vendorId = parsed.user.id;
-          }
-        } catch (e) {
-          console.error('Error parsing vendor data:', e);
-        }
-      }
+      const vendorId = getUser()?.vendorId;
+      if (!vendorId) throw new Error('Vendor profile not found. Please sign in again.');
 
       const packageData: ApiPackage = {
         vendorId: vendorId,
@@ -495,8 +483,7 @@ export default function AddPackagePage() {
         }
       };
 
-      const result = await vendorApi.packages.create(packageData);
-      console.log('Package created:', result);
+      await vendorApi.packages.create(packageData);
       
       sessionStorage.setItem('pkg_success', `Package "${form.title}" created successfully!`);
       router.push('/vendor/packages');
@@ -605,7 +592,6 @@ export default function AddPackagePage() {
           })}
           
           <AddOnSelector
-            services={services}
             availableServices={availableAddOns}
             onAdd={addAddOn}
           />

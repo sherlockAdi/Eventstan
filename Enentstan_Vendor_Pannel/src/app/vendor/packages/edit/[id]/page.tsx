@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { vendorApi } from '@/api/vendorApi';
 import {
-  ArrowLeft, CheckCircle2, AlertTriangle, Search,
+  ArrowLeft, AlertTriangle, Search,
   CheckSquare, Square, Star, Layers, X, ImageOff, ChevronDown,
   Loader2, Save,
 } from 'lucide-react';

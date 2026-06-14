@@ -167,7 +167,7 @@ export default function EditServicePage() {
     };
   }, [mainImage, galleryImages, subServices]);
 
-  const setFormField = (key: keyof typeof form, value: any) => {
+  const setFormField = <K extends keyof typeof form>(key: K, value: (typeof form)[K]) => {
     setForm((current) => ({ ...current, [key]: value }));
     setError("");
   };
@@ -629,7 +629,7 @@ export default function EditServicePage() {
           </div>
 
           <div>
-            <label className="text-xs font-semibold text-gray-700 mb-1.5 block">Features / What's Included</label>
+            <label className="text-xs font-semibold text-gray-700 mb-1.5 block">Features / What&apos;s Included</label>
             <div className="flex gap-2 mb-3">
               <input
                 value={featuresInput}

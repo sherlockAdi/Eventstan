@@ -1,7 +1,5 @@
-import { BASE_URL } from '@/lib/constants';
-
 type JsonBody = object | unknown[];
-const API_BASE_URL = `${BASE_URL}/api/v1`;
+const API_BASE_URL = '/api/proxy/api/v1';
 
 function getVendorToken() {
   if (typeof window === 'undefined') return null;
@@ -25,6 +23,7 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     throw new Error(message);
   }
 
+  if (response.status === 204) return undefined as T;
   return response.json() as Promise<T>;
 }
 
@@ -44,6 +43,7 @@ export const vendorApi = {
 
       const response = await fetch(`${API_BASE_URL}/uploads/images?folder=${encodeURIComponent(folder)}`, {
         method: 'POST',
+        headers: getVendorToken() ? { Authorization: `Bearer ${getVendorToken()}` } : undefined,
         body,
       });
 
@@ -56,6 +56,28 @@ export const vendorApi = {
     login: <T = unknown>(email: string, password: string) =>
       request<T>('auth/login', jsonOptions('POST', { email, password })),
     logout: () => request<void>('auth/logout', jsonOptions('POST')),
+    me: <T = unknown>() => request<T>('auth/me', { headers: headers() }),
+  },
+
+  dashboard: {
+    get: <T = unknown>() => request<T>('dashboard/vendor', { cache: 'no-store', headers: headers() }),
+  },
+
+  bookings: {
+    list: <T = unknown[]>() => request<T>('bookings', { cache: 'no-store', headers: headers() }),
+    accept: <T = unknown>(id: string) => request<T>(`bookings/${id}/vendor-accept`, jsonOptions('PATCH')),
+    reject: <T = unknown>(id: string) => request<T>(`bookings/${id}/vendor-reject`, jsonOptions('PATCH')),
+    complete: <T = unknown>(id: string) => request<T>(`bookings/${id}/complete`, jsonOptions('PATCH')),
+  },
+
+  profile: {
+    get: <T = unknown>() => request<T>('vendors/me', { cache: 'no-store', headers: headers() }),
+    update: <T = unknown>(payload: JsonBody) => request<T>('vendors/me', jsonOptions('PUT', payload)),
+  },
+
+  availability: {
+    list: <T = unknown[]>() => request<T>('availability/me', { cache: 'no-store', headers: headers() }),
+    upsert: <T = unknown>(payload: JsonBody) => request<T>('availability', jsonOptions('PUT', payload)),
   },
 
   services: {
@@ -90,5 +112,6 @@ export const vendorApi = {
 
   masterData: {
     countries: <T = unknown[]>() => request<T>('master-data/countries'),
+    categories: <T = unknown[]>() => request<T>('master-data/categories'),
   },
 };

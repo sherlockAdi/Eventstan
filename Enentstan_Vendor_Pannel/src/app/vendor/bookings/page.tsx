@@ -1,11 +1,12 @@
 'use client';
 
-import { useState, useMemo } from 'react';
-import { mockBookings } from '@/lib/mockData';
+import { useState, useMemo, useEffect } from 'react';
 import { Booking, BookingStatus } from '@/lib/types';
+import { vendorApi } from '@/api/vendorApi';
+import { normalizeBooking, type ApiBooking } from '@/lib/vendorData';
 import {
   Search, CheckCircle2, XCircle, Eye, Calendar, Users,
-  DollarSign, MessageSquare, X, ChevronLeft, ChevronRight,
+  MessageSquare, X, ChevronLeft, ChevronRight,
   ChevronUp, ChevronDown, ChevronsUpDown, Phone, Mail,
   MapPin, Clock, Download, Filter, Briefcase,
 } from 'lucide-react';
@@ -51,7 +52,10 @@ function SortIcon({ col, sortKey, sortDir }: { col: SortKey; sortKey: SortKey; s
 }
 
 export default function BookingsPage() {
-  const [bookings, setBookings] = useState<Booking[]>(mockBookings);
+  const [bookings, setBookings] = useState<Booking[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [actionId, setActionId] = useState<string | null>(null);
+  const [error, setError] = useState('');
   const [tab, setTab] = useState<BookingStatus | 'All'>('All');
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<Booking | null>(null);
@@ -71,18 +75,62 @@ export default function BookingsPage() {
     setPage(1);
   };
 
-  const handleAccept = (id: string) => {
-    setBookings(prev => prev.map(b => b.id === id ? { ...b, status: 'Accepted' } : b));
-    setSelected(null);
-    setAcceptModal(null);
+  useEffect(() => {
+    vendorApi.bookings.list<ApiBooking[]>()
+      .then((items) => setBookings(items.map(normalizeBooking)))
+      .catch((cause: unknown) => setError(cause instanceof Error ? cause.message : 'Unable to load bookings'))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const handleAccept = async (id: string) => {
+    setActionId(id);
+    setError('');
+    try {
+      const updated = await vendorApi.bookings.accept<ApiBooking>(id);
+      const normalized = normalizeBooking(updated);
+      setBookings(prev => prev.map(b => b.id === id ? normalized : b));
+      setSelected(null);
+      setAcceptModal(null);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Unable to accept booking');
+    } finally {
+      setActionId(null);
+    }
   };
 
-  const handleReject = (id: string) => {
+  const handleReject = async (id: string) => {
     if (!rejectReason.trim()) return;
-    setBookings(prev => prev.map(b => b.id === id ? { ...b, status: 'Rejected (Vendor)', message: b.message ? `${b.message}\n[Rejection reason: ${rejectReason}]` : `[Rejection reason: ${rejectReason}]` } : b));
-    setSelected(prev => prev?.id === id ? { ...prev, status: 'Rejected (Vendor)' } : prev);
-    setRejectConfirm(null);
-    setRejectReason('');
+    setActionId(id);
+    setError('');
+    try {
+      const updated = await vendorApi.bookings.reject<ApiBooking>(id);
+      const normalized = normalizeBooking(updated);
+      setBookings(prev => prev.map(b => b.id === id ? normalized : b));
+      setSelected(null);
+      setRejectConfirm(null);
+      setRejectReason('');
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Unable to reject booking');
+    } finally {
+      setActionId(null);
+    }
+  };
+
+  const exportBookings = () => {
+    const escape = (value: string | number) => `"${String(value).replaceAll('"', '""')}"`;
+    const rows = [
+      ['Booking ID', 'Customer', 'Email', 'Service', 'Event Date', 'Amount', 'Paid', 'Status'],
+      ...bookings.map((booking) => [
+        booking.id, booking.customerName, booking.customerEmail, booking.serviceName,
+        booking.eventDate, booking.amount, booking.paidAmount, booking.status,
+      ]),
+    ];
+    const blob = new Blob([rows.map(row => row.map(escape).join(',')).join('\n')], { type: 'text/csv' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `eventstan-vendor-bookings-${new Date().toISOString().slice(0, 10)}.csv`;
+    link.click();
+    URL.revokeObjectURL(link.href);
   };
 
   const filtered = useMemo(() => {
@@ -128,10 +176,12 @@ export default function BookingsPage() {
           <h1 className="text-2xl font-bold text-gray-900">Bookings</h1>
           <p className="text-sm text-gray-500 mt-0.5">Manage and respond to booking requests</p>
         </div>
-        <button className="flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 transition-colors">
+        <button onClick={exportBookings} className="flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 transition-colors">
           <Download size={15} /> Export
         </button>
       </div>
+
+      {error && <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
 
       {/* Summary cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -213,7 +263,10 @@ export default function BookingsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
-              {paginated.length === 0 && (
+              {loading && (
+                <tr><td colSpan={7} className="px-4 py-12 text-center text-gray-400 text-sm">Loading bookings...</td></tr>
+              )}
+              {!loading && paginated.length === 0 && (
                 <tr>
                   <td colSpan={7} className="px-4 py-12 text-center text-gray-400 text-sm">
                     No bookings found
@@ -530,9 +583,10 @@ export default function BookingsPage() {
                 </button>
                 <button
                   onClick={() => handleAccept(acceptModal)}
+                  disabled={actionId === acceptModal}
                   className="flex-1 py-2.5 rounded-xl bg-green-500 hover:bg-green-600 text-white font-semibold transition-colors flex items-center justify-center gap-2"
                 >
-                  <CheckCircle2 size={15} /> Confirm Accept
+                  <CheckCircle2 size={15} /> {actionId === acceptModal ? 'Accepting...' : 'Confirm Accept'}
                 </button>
               </div>
             </div>
@@ -569,10 +623,10 @@ export default function BookingsPage() {
               </button>
               <button
                 onClick={() => handleReject(rejectConfirm)}
-                disabled={!rejectReason.trim()}
+                disabled={!rejectReason.trim() || actionId === rejectConfirm}
                 className="flex-1 py-2.5 rounded-xl bg-red-500 hover:bg-red-600 disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold transition-colors"
               >
-                Yes, Reject
+                {actionId === rejectConfirm ? 'Rejecting...' : 'Yes, Reject'}
               </button>
             </div>
           </div>

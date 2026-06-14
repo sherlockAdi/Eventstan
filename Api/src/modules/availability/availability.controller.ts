@@ -30,4 +30,12 @@ export class AvailabilityController {
   list(@Param('vendorId') vendorId: string) {
     return this.availability.list(vendorId);
   }
+
+  @Get('me')
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles(UserRole.VENDOR)
+  @ApiBearerAuth()
+  async listMine(@Req() request: AuthenticatedRequest) {
+    return this.availability.list(await this.availability.vendorIdForUser(request.user.id));
+  }
 }

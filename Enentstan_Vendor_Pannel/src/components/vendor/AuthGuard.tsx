@@ -2,25 +2,24 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import { isLoggedIn } from '@/lib/auth';
+import { getUser, isLoggedIn } from '@/lib/auth';
 import { Loader2 } from 'lucide-react';
 
 export default function AuthGuard({ children }: { children: React.ReactNode }) {
   const router   = useRouter();
   const pathname = usePathname();
-  const [checking, setChecking] = useState(true);
+  const [checking, setChecking] = useState(pathname !== '/vendor/login');
 
   useEffect(() => {
     // Login page is always public
     if (pathname === '/vendor/login') {
-      setChecking(false);
       return;
     }
 
-    if (!isLoggedIn()) {
+    if (!isLoggedIn() || getUser()?.role !== 'VENDOR') {
       router.replace('/vendor/login');
     } else {
-      setChecking(false);
+      queueMicrotask(() => setChecking(false));
     }
   }, [pathname, router]);
 

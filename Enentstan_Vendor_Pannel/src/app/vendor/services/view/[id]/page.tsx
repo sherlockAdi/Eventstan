@@ -20,7 +20,6 @@ import {
   X,
 } from 'lucide-react';
 import { vendorApi } from '@/api/vendorApi';
-import Image from 'next/image';
 
 interface SubService {
   id: string;

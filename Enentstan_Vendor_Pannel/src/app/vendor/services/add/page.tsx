@@ -17,13 +17,7 @@ import {
   ImagePlus,
 } from "lucide-react";
 import { vendorApi } from "@/api/vendorApi";
-
-const CATEGORIES = [
-  { id: "cat_wedding", label: "Wedding" },
-  { id: "cat_corporate", label: "Corporate" },
-  { id: "cat_birthday", label: "Birthday" },
-  { id: "cat_concert", label: "Concert" },
-] as const;
+import { getUser } from "@/lib/auth";
 
 const CURRENCIES = ["AED", "USD", "EUR", "SAR"] as const;
 
@@ -67,45 +61,11 @@ const emptyForm = {
   tags: [] as string[],
   features: [] as string[],
   imageUrl: "",
-  categoryId: "cat_wedding",
+  categoryId: "",
 };
 
 function getVendorId(): string {
-  if (typeof window === "undefined") return "";
-  try {
-    const raw = localStorage.getItem("vendor_data");
-    console.log("Raw vendor_data:", raw);
-    
-    if (!raw) {
-      // Try alternative key names
-      const altRaw = localStorage.getItem("vendor") || localStorage.getItem("user");
-      console.log("Alternative vendor data:", altRaw);
-      if (!altRaw) return "";
-      
-      const parsed = JSON.parse(altRaw);
-      console.log("Parsed alt data:", parsed);
-      
-      // Try different paths to get vendor ID
-      return parsed?.id || 
-             parsed?.vendorId || 
-             parsed?.user?.id || 
-             parsed?.user?.vendorId ||
-             "";
-    }
-    
-    const parsed = JSON.parse(raw);
-    console.log("Parsed vendor_data:", parsed);
-    
-    // Try different paths to get vendor ID
-    return parsed?.user?.id || 
-           parsed?.user?.vendorId || 
-           parsed?.vendorId || 
-           parsed?.id ||
-           "";
-  } catch (error) {
-    console.error("Error getting vendor ID:", error);
-    return "";
-  }
+  return getUser()?.vendorId ?? "";
 }
 
 export default function AddServicePage() {
@@ -118,6 +78,7 @@ export default function AddServicePage() {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
   const [vendorId, setVendorId] = useState<string>("");
+  const [categories, setCategories] = useState<Array<{ id: string; name: string }>>([]);
   
   const [mainImage, setMainImage] = useState<{ file: File | null; preview: string }>({ file: null, preview: "" });
   const [galleryImages, setGalleryImages] = useState<{ file: File; preview: string }[]>([]);
@@ -128,26 +89,30 @@ export default function AddServicePage() {
   useEffect(() => {
     // Get vendor ID on component mount
     const id = getVendorId();
-    console.log("Retrieved vendor ID:", id);
-    
     if (!id) {
-      setError("Vendor information not found. Please ensure you are logged in as a vendor.");
+      queueMicrotask(() => setError("Vendor information not found. Please ensure you are logged in as a vendor."));
     } else {
-      setVendorId(id);
+      queueMicrotask(() => setVendorId(id));
     }
 
-    const fetchCountries = async () => {
+    const fetchMasterData = async () => {
       try {
-        const data = await vendorApi.masterData.countries<any[]>();
-        const uae = data?.find((c) => c.code === "AE");
-        if (uae && uae.defaultCurrency) {
-          setFormField("currency", uae.defaultCurrency);
-        }
+        const [countries, categoryRows] = await Promise.all([
+          vendorApi.masterData.countries<Array<{ code: string; defaultCurrency: string }>>(),
+          vendorApi.masterData.categories<Array<{ id: string; name: string }>>(),
+        ]);
+        const uae = countries.find((country) => country.code === "AE");
+        setCategories(categoryRows);
+        setForm((current) => ({
+          ...current,
+          currency: uae?.defaultCurrency ?? current.currency,
+          categoryId: current.categoryId || categoryRows[0]?.id || "",
+        }));
       } catch (err) {
         console.error("Error fetching countries:", err);
       }
     };
-    fetchCountries();
+    fetchMasterData();
   }, []);
 
   useEffect(() => {
@@ -164,7 +129,7 @@ export default function AddServicePage() {
     };
   }, [mainImage, galleryImages, subServices]);
 
-  const setFormField = (key: keyof typeof form, value: any) => {
+  const setFormField = <K extends keyof typeof form>(key: K, value: (typeof form)[K]) => {
     setForm((current) => ({ ...current, [key]: value }));
     setError("");
   };
@@ -347,8 +312,6 @@ export default function AddServicePage() {
         features: form.features.length > 0 ? form.features : undefined,
       };
 
-      console.log("Creating service with payload:", servicePayload);
-
       const createdService = await vendorApi.services.create<{ id: string }>(servicePayload);
       const serviceId = createdService.id;
 
@@ -415,9 +378,9 @@ export default function AddServicePage() {
               onChange={(e) => setFormField("categoryId", e.target.value)}
               className="w-full px-4 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-orange-400"
             >
-              {CATEGORIES.map((c) => (
+              {categories.map((c) => (
                 <option key={c.id} value={c.id}>
-                  {c.label}
+                  {c.name}
                 </option>
               ))}
             </select>
@@ -621,7 +584,7 @@ export default function AddServicePage() {
           </div>
 
           <div>
-            <label className="text-xs font-semibold text-gray-700 mb-1.5 block">Features / What's Included</label>
+            <label className="text-xs font-semibold text-gray-700 mb-1.5 block">Features / What&apos;s Included</label>
             <div className="flex gap-2 mb-3">
               <input
                 value={featuresInput}
