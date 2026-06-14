@@ -1,6 +1,7 @@
 import { Injectable, ServiceUnavailableException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import nodemailer, { Transporter } from 'nodemailer';
+import * as nodemailer from 'nodemailer';
+import type { Transporter } from 'nodemailer';
 
 export interface SendEmailInput {
   to: string;
