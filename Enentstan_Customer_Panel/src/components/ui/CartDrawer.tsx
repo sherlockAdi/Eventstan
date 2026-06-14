@@ -75,12 +75,18 @@ export default function CartDrawer() {
           type: item.type === "service" ? "SERVICE" : "PACKAGE",
           itemId: item.type === "service" ? item.service!.id : item.pkg!.id,
           eventDate: details.event_date,
-          quantity: Math.max(1, Number(details.guest_count) || 1),
+          quantity: 1,
         });
       }
       const booking = await customerApi.bookings.checkout<{ id: string }>({
         eventAddress: details.event_address,
-        notes: [details.event_type, details.message].filter(Boolean).join(" - "),
+        notes: [
+          details.event_type,
+          details.guest_count ? `${details.guest_count} guests` : "",
+          details.message,
+        ]
+          .filter(Boolean)
+          .join(" - "),
       });
       setConfirmId(booking.id);
       setStep("confirm");
