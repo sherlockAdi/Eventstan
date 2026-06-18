@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { Eye, Loader2, Plus, RefreshCw, ToggleLeft, ToggleRight } from 'lucide-react';
+import { Edit, Eye, Loader2, Plus, RefreshCw, ToggleLeft, ToggleRight } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { adminApi } from '@/api/adminApi';
 import Button from '@/components/admin/Button';
@@ -122,12 +122,12 @@ export default function UsersPage() {
       label: 'Actions',
       render: (_: unknown, user: AdminUserRecord) => (
         <div className="flex gap-2">
-          <button onClick={() => { setSelected(user); setViewOpen(true); }} className="text-blue-500"><Eye size={15} /></button>
+          <button onClick={() => { setSelected(user); setViewOpen(true); }} className="text-blue-500 hover:text-blue-700"><Eye size={15} /></button>
           <button onClick={() => {
             setSelected(user);
             setForm({ name: user.name, email: user.email, phone: user.phone || '', role: user.role, password: '' });
             setFormOpen(true);
-          }} className="text-orange-500">Edit</button>
+          }} className="text-orange-500 hover:text-orange-700"><Edit size={15} /></button>
         </div>
       ),
     },

@@ -4,7 +4,8 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
   LayoutDashboard, Users, Truck, Package, BookOpen, Star,
-  Bell, Tag, Grid3X3, LogOut, Menu, Loader2, X, ChevronDown,
+  Bell, Tag, Grid3X3, LogOut, Menu, Loader2, X, ChevronDown,Share2  ,UserCog, 
+  Newspaper
 } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { getSession, getUser, clearSession } from '@/lib/auth';
@@ -31,16 +32,19 @@ const navItems: NavItem[] = [
       { href: '/admin/masters/event-slots', label: 'Event Slots' },
       { href: '/admin/masters/coupons', label: 'Coupons' },
       { href: '/admin/masters/countries', label: 'Countries' },
+      { href: '/admin/masters/states', label: 'States' },
       { href: '/admin/masters/categories', label: 'Categories' },
       { href: '/admin/masters/email-templates', label: 'Email Templates' },
     ],
   },
+  { href: '/admin/role-permission', label: 'Role-Permission', icon: UserCog  },
   {
     href: '#userManagement',
     label: 'User Management',
     icon: Users,
     children: [
       { href: '/admin/users', label: 'User List' },
+      { href: '/admin/users-lead', label: 'User Leads' },
     ],
   },
   {
@@ -49,6 +53,7 @@ const navItems: NavItem[] = [
     icon: Truck,
     children: [
       { href: '/admin/vendors', label: 'Vendor List' },
+      { href: '/admin/lead-vendor', label: 'Lead Vendor' },
     ],
   },
   { href: '/admin/vendor-services', label: 'Vendor Services', icon: Package },
@@ -64,6 +69,8 @@ const navItems: NavItem[] = [
   { href: '/admin/booking-management', label: 'Booking Management', icon: BookOpen },
   { href: '/admin/feedback-testimonial', label: 'Feedback & Testimonial', icon: Star },
   { href: '/admin/system-notifications', label: 'System Notifications', icon: Bell },
+  { href: '/admin/affiliate-links', label: 'Affiliate-Links', icon: Share2  },
+  { href: '/admin/blog', label: 'Blogs', icon: Newspaper  },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {

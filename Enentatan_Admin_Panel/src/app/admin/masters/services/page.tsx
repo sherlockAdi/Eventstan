@@ -625,7 +625,6 @@ export default function ServicesPage() {
               )}
               <div>
                 <h3 className="text-xl font-bold text-gray-900">{selected.title}</h3>
-                <p className="text-sm text-gray-500 mt-1">ID: {selected.id}</p>
                 <div className="flex gap-2 mt-2">
                   {getVerificationStatusBadge(selected.verificationStatus)}
                   <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${

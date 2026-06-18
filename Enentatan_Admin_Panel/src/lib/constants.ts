@@ -1,7 +1,14 @@
-export const BASE_URL =
-  process.env.NEXT_PUBLIC_BASE_URL?.replace(/\/$/, '') ?? 'https://api.eventstan.com';
+// Use proxy in browser (avoids CORS), direct URL on server
+const isServer = typeof window === 'undefined';
 
-export const BASE_API_URL = `${BASE_URL}/api/v1/`;
+export const BASE_URL = isServer
+  ? (process.env.NEXT_PUBLIC_BASE_URL?.replace(/\/$/, '') ?? 'https://api.eventstan.com')
+  : '';
+
+export const BASE_API_URL = isServer
+  ? `${BASE_URL}/api/v1/`
+  : '/api/proxy/';
+
 const API_URL = BASE_API_URL.replace(/\/$/, '');
 
 export const API_ENDPOINTS = {
