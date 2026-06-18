@@ -11,8 +11,8 @@ export interface AuthUser extends ApiUser {
 interface AuthContextType {
   user: AuthUser | null;
   loading: boolean;
-  login: (email: string, password: string) => Promise<{ ok: boolean; error?: string }>;
-  signup: (name: string, email: string, password: string, type: "individual" | "corporate") => Promise<{ ok: boolean; error?: string; welcomeEmailSent?: boolean }>;
+  login: (email: string, password: string) => Promise<{ ok: boolean; error?: string; name?: string }>;
+  signup: (name: string, email: string, phone: string, password: string, type: "individual" | "corporate") => Promise<{ ok: boolean; error?: string; welcomeEmailSent?: boolean }>;
   logout: () => void;
 }
 
@@ -65,15 +65,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const response = await customerApi.auth.login(email, password);
       if (response.user.role !== "CUSTOMER") return { ok: false, error: "Please use the correct portal for this account." };
       setUser(saveSession(response));
-      return { ok: true };
+      return { ok: true, name: response.user.name };
     } catch (error) {
       return { ok: false, error: error instanceof Error ? error.message : "Login failed." };
     }
   };
 
-  const signup = async (name: string, email: string, password: string, type: "individual" | "corporate") => {
+  const signup = async (name: string, email: string, phone: string, password: string, type: "individual" | "corporate") => {
     try {
-      const response = await customerApi.auth.register(name, email, password);
+      const response = await customerApi.auth.register(name, email, phone, password);
       setUser(saveSession(response, type));
       return { ok: true, welcomeEmailSent: response.welcomeEmailSent };
     } catch (error) {

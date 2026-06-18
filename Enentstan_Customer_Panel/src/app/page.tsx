@@ -7,39 +7,8 @@ import ServiceCard from "@/components/ui/ServiceCard";
 import PreviousWorks from "@/components/PreviousWorks";
 import PartnerMarquee from "@/components/PartnerMarquee";
 import { Search, ClipboardList, PartyPopper } from "lucide-react";
+import { categoryService, CategoryWithMetadata } from "@/services/api/event.service";
 
-const CATEGORY_DATA = [
-  {
-    name: "Venue",
-    desc: "Halls, gardens, resorts & unique spaces",
-    icon: "🏛️",
-    img: "/images/categories/venue.jpg",
-  },
-  {
-    name: "Decor",
-    desc: "Themes, florals, lighting & staging",
-    icon: "🌸",
-    img: "/images/categories/decor.jpg",
-  },
-  {
-    name: "Catering",
-    desc: "Cuisines, buffets, desserts & bars",
-    icon: "🍽️",
-    img: "/images/categories/catering.jpg",
-  },
-  {
-    name: "Entertainment",
-    desc: "DJs, bands, performers & MCs",
-    icon: "🎵",
-    img: "/images/categories/entertainment.jpg",
-  },
-  {
-    name: "Rentals",
-    desc: "Furniture, tents, sound systems & event essentials",
-    icon: "🪑",
-    img: "/images/categories/rentals.jpg",
-  },
-];
 
 // ─── Avatar Colors ────────────────────────────────────────────────────────────
 const AVATAR_COLORS = [
@@ -166,7 +135,7 @@ function ReviewsSlider() {
   const trackRef = useRef<HTMLDivElement>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
   const CARD_W = 292;
-  const CLONES = 2; // clones on each side
+  const CLONES = 2;
 
   const goTo = useCallback((idx: number) => {
     setCurrent(((idx % REVIEWS.length) + REVIEWS.length) % REVIEWS.length);
@@ -187,7 +156,6 @@ function ReviewsSlider() {
     trackRef.current.style.transform = `translateX(${offset}px)`;
   }, [current]);
 
-  // Build extended array: [last CLONES items] + REVIEWS + [first CLONES items]
   const extended = [
     ...REVIEWS.slice(-CLONES),
     ...REVIEWS,
@@ -269,7 +237,28 @@ function ReviewsSlider() {
 // ─── Landing Page ─────────────────────────────────────────────────────────────
 export default function LandingPage() {
   const [search, setSearch] = useState("");
+  const [categories, setCategories] = useState<CategoryWithMetadata[]>([]);
+  const [loading, setLoading] = useState(true);
   const router = useRouter();
+
+  // ─── Fetch categories using service ─────────────────────────────────────
+  useEffect(() => {
+    async function loadCategories() {
+      try {
+        setLoading(true);
+        const data = await categoryService.fetchCategoriesWithMetadata();
+        setCategories(data);
+      } catch (error) {
+        console.error("Failed to load categories:", error);
+        // Service already handles fallback, but just in case
+        setCategories(categoryService.getStaticCategories());
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadCategories();
+  }, []);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -280,11 +269,12 @@ export default function LandingPage() {
 
   return (
     <div>
-      {/* Hero */}
+      {/* Hero Section - Same as before */}
       <section
         className="relative min-h-[85vh] md:min-h-[90vh] flex items-center justify-center overflow-x-hidden"
         style={{ background: "#fff5eb" }}
       >
+        {/* ... Hero content (same as before) ... */}
         <div className="absolute top-20 left-20 w-64 h-64 bg-orange-300/30 rounded-full blur-3xl opacity-50 max-sm:w-48 max-sm:h-48 max-sm:left-10 max-sm:top-10" />
         <div className="absolute bottom-20 right-20 w-80 h-80 bg-orange-300/25 rounded-full blur-3xl opacity-50 max-sm:w-56 max-sm:h-56 max-sm:right-10 max-sm:bottom-10" />
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-orange-200/30 rounded-full blur-3xl opacity-40" />
@@ -421,26 +411,37 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Categories */}
+      {/* Categories Section - Using data from service */}
       <section className="py-12 px-4 max-w-7xl mx-auto">
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-          {CATEGORY_DATA.map((cat) => (
-            <Link key={cat.name} href={`/services?category=${cat.name}`}>
-              <div className="relative rounded-2xl overflow-hidden h-44 group cursor-pointer">
-                <img
-                  src={cat.img}
-                  alt={cat.name}
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
-                <div className="absolute bottom-4 left-4 text-white">
-                  <div className="text-lg font-bold">{cat.name}</div>
-                  <div className="text-xs text-white/80">{cat.desc}</div>
+        {loading ? (
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+            {[1, 2, 3, 4, 5].map((i) => (
+              <div
+                key={i}
+                className="h-44 rounded-2xl bg-gray-200 animate-pulse"
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+            {categories.map((cat) => (
+              <Link key={cat.id} href={`/services?category=${cat.name}`}>
+                <div className="relative rounded-2xl overflow-hidden h-44 group cursor-pointer">
+                  <img
+                    src={cat.img}
+                    alt={cat.name}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
+                  <div className="absolute bottom-4 left-4 text-white">
+                    <div className="text-lg font-bold">{cat.name}</div>
+                    <div className="text-xs text-white/80">{cat.desc}</div>
+                  </div>
                 </div>
-              </div>
-            </Link>
-          ))}
-        </div>
+              </Link>
+            ))}
+          </div>
+        )}
       </section>
 
       {/* Featured Services */}
@@ -510,7 +511,7 @@ export default function LandingPage() {
       {/* Previous Works */}
       <PreviousWorks />
 
-      {/* Reviews — centered focus slider */}
+      {/* Reviews */}
       <section className="py-12 bg-gray-50 overflow-hidden">
         <div className="max-w-6xl mx-auto px-4 mb-2 text-center">
           <div className="inline-flex items-center gap-1.5 bg-orange-50 text-orange-800 border border-orange-100 rounded-full px-3 py-1 text-[11px] font-medium tracking-widest uppercase mb-4">

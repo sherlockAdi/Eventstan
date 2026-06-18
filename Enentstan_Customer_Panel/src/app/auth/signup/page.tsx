@@ -10,9 +10,9 @@ export default function SignupPage() {
 
   const [name,     setName]     = useState("");
   const [email,    setEmail]    = useState("");
+  const [phone,    setPhone]    = useState("");
   const [password, setPassword] = useState("");
   const [confirm,  setConfirm]  = useState("");
-  const [type,     setType]     = useState<"individual" | "corporate">("individual");
   const [showPass, setShowPass] = useState(false);
   const [error,    setError]    = useState("");
   const [loading,  setLoading]  = useState(false);
@@ -36,8 +36,9 @@ export default function SignupPage() {
 
   const handleStep1 = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim()) { setError("Please enter your full name."); return; }
+    if (!name.trim())  { setError("Please enter your full name."); return; }
     if (!email.trim()) { setError("Please enter your email."); return; }
+    if (!phone.trim()) { setError("Please enter your phone number."); return; }
     setError("");
     setStep(2);
   };
@@ -45,31 +46,17 @@ export default function SignupPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (password !== confirm) { setError("Passwords do not match."); return; }
-    if (pwStrength < 2) { setError("Please choose a stronger password."); return; }
+    if (pwStrength < 2)       { setError("Please choose a stronger password."); return; }
     setError(""); setLoading(true);
-    const res = await signup(name, email, password, type);
+    const res = await signup(name, email, phone, password, "individual");
     setLoading(false);
     if (res.ok) router.push("/");
     else setError(res.error || "Sign up failed.");
   };
 
-  const Field = ({ id, label, type: ftype = "text", value, onChange, placeholder, icon }: {
-    id: string; label: string; type?: string; value: string;
-    onChange: (v: string) => void; placeholder: string; icon: React.ReactNode;
-  }) => (
-    <div>
-      <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wider mb-1.5">{label}</label>
-      <div className={`relative flex items-center bg-white border rounded-xl transition-all ${focused === id ? "border-orange-400 ring-2 ring-orange-100" : "border-gray-200"}`}>
-        <span className="absolute left-3.5 text-gray-400">{icon}</span>
-        <input
-          id={id} type={ftype} value={value} required placeholder={placeholder}
-          onChange={e => { onChange(e.target.value); setError(""); }}
-          onFocus={() => setFocused(id)} onBlur={() => setFocused(null)}
-          className="w-full bg-transparent pl-10 pr-4 py-3 text-sm text-gray-900 placeholder-gray-400 rounded-xl focus:outline-none"
-        />
-      </div>
-    </div>
-  );
+  const inputBase = "w-full bg-transparent pl-10 pr-4 py-3 text-sm text-gray-900 placeholder-gray-400 rounded-xl focus:outline-none";
+  const boxClass  = (id: string) =>
+    `relative flex items-center bg-white border rounded-xl transition-all ${focused === id ? "border-orange-400 ring-2 ring-orange-100" : "border-gray-200"}`;
 
   return (
     <div className="min-h-screen flex bg-white">
@@ -101,12 +88,11 @@ export default function SignupPage() {
           <p className="text-gray-400 text-sm leading-relaxed mb-8 max-w-sm">
             Join thousands of customers who plan unforgettable events with verified vendors across the UAE.
           </p>
-
           <div className="space-y-4">
             {[
-              { icon: "🏛️", title: "500+ Verified Vendors",  desc: "Every vendor is background-checked and reviewed." },
-              { icon: "💳", title: "Secure 50% Advance",     desc: "Pay just 50% upfront — rest before your event." },
-              { icon: "🎉", title: "All Event Types",        desc: "Weddings, birthdays, corporate galas, and more." },
+              { icon: "🏛️", title: "500+ Verified Vendors", desc: "Every vendor is background-checked and reviewed." },
+              { icon: "💳", title: "Secure 50% Advance",    desc: "Pay just 50% upfront — rest before your event." },
+              { icon: "🎉", title: "All Event Types",       desc: "Weddings, birthdays, corporate galas, and more." },
             ].map(f => (
               <div key={f.title} className="flex items-start gap-3 bg-white/5 border border-white/8 rounded-2xl p-4">
                 <span className="text-xl flex-shrink-0">{f.icon}</span>
@@ -145,15 +131,17 @@ export default function SignupPage() {
 
           {/* Step indicator */}
           <div className="flex items-center gap-2 mb-6">
-            {[1, 2].map(s => (
+            {([1, 2] as const).map(s => (
               <div key={s} className="flex items-center gap-2">
                 <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all ${step >= s ? "bg-orange-500 text-white" : "bg-gray-200 text-gray-400"}`}>
-                  {step > s ? <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7"/></svg> : s}
+                  {step > s
+                    ? <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7"/></svg>
+                    : s}
                 </div>
                 <span className={`text-xs font-medium ${step >= s ? "text-gray-700" : "text-gray-400"}`}>
                   {s === 1 ? "Your Info" : "Password"}
                 </span>
-                {s < 2 && <div className={`w-10 h-px mx-1 ${step > s ? "bg-orange-400" : "bg-gray-200"}`}/>}
+                {s < 2 && <div className={`w-10 h-px mx-1 ${step > s ? "bg-orange-400" : "bg-gray-200"}`} />}
               </div>
             ))}
           </div>
@@ -167,7 +155,6 @@ export default function SignupPage() {
             </p>
           </div>
 
-          {/* Error */}
           {error && (
             <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-600 text-sm px-4 py-3 rounded-xl mb-4">
               <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
@@ -178,24 +165,46 @@ export default function SignupPage() {
           {/* STEP 1 */}
           {step === 1 && (
             <form onSubmit={handleStep1} className="space-y-4">
-              <Field id="name" label="Full Name" value={name} onChange={setName} placeholder="Your full name"
-                icon={<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>}
-              />
-              <Field id="email" label="Email Address" type="email" value={email} onChange={setEmail} placeholder="you@email.com"
-                icon={<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>}
-              />
 
-              {/* Account type */}
+              {/* Name */}
               <div>
-                <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wider mb-2">Account Type</label>
-                <div className="grid grid-cols-2 gap-2">
-                  {(["individual", "corporate"] as const).map(t => (
-                    <button key={t} type="button" onClick={() => setType(t)}
-                      className={`flex items-center gap-2.5 px-4 py-3 rounded-xl border text-sm font-semibold transition-all text-left ${type === t ? "border-orange-400 bg-orange-50 text-orange-600" : "border-gray-200 bg-white text-gray-600 hover:border-gray-300"}`}>
-                      <span className="text-lg">{t === "individual" ? "👤" : "🏢"}</span>
-                      <span className="capitalize">{t}</span>
-                    </button>
-                  ))}
+                <label htmlFor="name" className="block text-xs font-semibold text-gray-600 uppercase tracking-wider mb-1.5">Full Name</label>
+                <div className={boxClass("name")}>
+                  <svg className="absolute left-3.5 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+                  <input
+                    id="name" type="text" value={name} required placeholder="Your full name"
+                    onChange={e => { setName(e.target.value); setError(""); }}
+                    onFocus={() => setFocused("name")} onBlur={() => setFocused(null)}
+                    className={inputBase}
+                  />
+                </div>
+              </div>
+
+              {/* Email */}
+              <div>
+                <label htmlFor="email" className="block text-xs font-semibold text-gray-600 uppercase tracking-wider mb-1.5">Email Address</label>
+                <div className={boxClass("email")}>
+                  <svg className="absolute left-3.5 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+                  <input
+                    id="email" type="email" value={email} required placeholder="you@email.com"
+                    onChange={e => { setEmail(e.target.value); setError(""); }}
+                    onFocus={() => setFocused("email")} onBlur={() => setFocused(null)}
+                    className={inputBase}
+                  />
+                </div>
+              </div>
+
+              {/* Phone */}
+              <div>
+                <label htmlFor="phone" className="block text-xs font-semibold text-gray-600 uppercase tracking-wider mb-1.5">Phone Number</label>
+                <div className={boxClass("phone")}>
+                  <svg className="absolute left-3.5 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/></svg>
+                  <input
+                    id="phone" type="tel" value={phone} required placeholder="+971500000000"
+                    onChange={e => { setPhone(e.target.value); setError(""); }}
+                    onFocus={() => setFocused("phone")} onBlur={() => setFocused(null)}
+                    className={inputBase}
+                  />
                 </div>
               </div>
 
@@ -209,27 +218,32 @@ export default function SignupPage() {
           {/* STEP 2 */}
           {step === 2 && (
             <form onSubmit={handleSubmit} className="space-y-4">
+
               {/* Password */}
               <div>
-                <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wider mb-1.5">Password</label>
-                <div className={`relative flex items-center bg-white border rounded-xl transition-all ${focused === "pass" ? "border-orange-400 ring-2 ring-orange-100" : "border-gray-200"}`}>
+                <label htmlFor="password" className="block text-xs font-semibold text-gray-600 uppercase tracking-wider mb-1.5">Password</label>
+                <div className={boxClass("pass")}>
                   <svg className="absolute left-3.5 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
                   <input
-                    type={showPass ? "text" : "password"} value={password} required placeholder="Min 8 characters"
+                    id="password" type={showPass ? "text" : "password"} value={password} required placeholder="Min 8 characters"
                     onChange={e => { setPassword(e.target.value); setError(""); }}
                     onFocus={() => setFocused("pass")} onBlur={() => setFocused(null)}
                     className="w-full bg-transparent pl-10 pr-11 py-3 text-sm text-gray-900 placeholder-gray-400 rounded-xl focus:outline-none"
                   />
-                  <button type="button" onClick={() => setShowPass(!showPass)} className="absolute right-3.5 text-gray-400 hover:text-gray-600">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={showPass ? "M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" : "M15 12a3 3 0 11-6 0 3 3 0 016 0zM2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"}/></svg>
+                  <button type="button" onClick={() => setShowPass(p => !p)} className="absolute right-3.5 text-gray-400 hover:text-gray-600">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={showPass
+                        ? "M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"
+                        : "M15 12a3 3 0 11-6 0 3 3 0 016 0zM2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"}
+                      />
+                    </svg>
                   </button>
                 </div>
-                {/* Strength bar */}
                 {password && (
                   <div className="mt-2 flex items-center gap-2">
                     <div className="flex-1 flex gap-1">
                       {[1,2,3,4].map(i => (
-                        <div key={i} className={`h-1.5 flex-1 rounded-full transition-all ${pwStrength >= i ? strengthColor : "bg-gray-200"}`}/>
+                        <div key={i} className={`h-1.5 flex-1 rounded-full transition-all ${pwStrength >= i ? strengthColor : "bg-gray-200"}`} />
                       ))}
                     </div>
                     <span className={`text-xs font-semibold ${pwStrength <= 1 ? "text-red-400" : pwStrength === 2 ? "text-amber-500" : pwStrength === 3 ? "text-blue-500" : "text-green-500"}`}>
@@ -241,11 +255,11 @@ export default function SignupPage() {
 
               {/* Confirm */}
               <div>
-                <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wider mb-1.5">Confirm Password</label>
+                <label htmlFor="confirm" className="block text-xs font-semibold text-gray-600 uppercase tracking-wider mb-1.5">Confirm Password</label>
                 <div className={`relative flex items-center bg-white border rounded-xl transition-all ${focused === "confirm" ? "border-orange-400 ring-2 ring-orange-100" : confirm && confirm !== password ? "border-red-300" : "border-gray-200"}`}>
                   <svg className="absolute left-3.5 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
                   <input
-                    type={showPass ? "text" : "password"} value={confirm} required placeholder="Re-enter password"
+                    id="confirm" type={showPass ? "text" : "password"} value={confirm} required placeholder="Re-enter password"
                     onChange={e => { setConfirm(e.target.value); setError(""); }}
                     onFocus={() => setFocused("confirm")} onBlur={() => setFocused(null)}
                     className="w-full bg-transparent pl-10 pr-4 py-3 text-sm text-gray-900 placeholder-gray-400 rounded-xl focus:outline-none"
@@ -261,7 +275,6 @@ export default function SignupPage() {
                 </div>
               </div>
 
-              {/* Terms */}
               <p className="text-xs text-gray-400">
                 By creating an account, you agree to our{" "}
                 <span className="text-orange-500 cursor-pointer hover:underline">Terms of Service</span> and{" "}

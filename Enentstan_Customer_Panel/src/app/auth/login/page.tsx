@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/AuthContext";
 import { Suspense } from "react";
+import toast from "react-hot-toast";
 
 function LoginForm() {
   const { login, user } = useAuth();
@@ -27,9 +28,15 @@ function LoginForm() {
     const res = await login(email.trim(), password);
     setLoading(false);
     if (res.ok) {
+      toast.success(`Welcome back, ${res.name ?? email.trim().split("@")[0]}! 👋`, {
+        style: { borderRadius: "12px", fontWeight: "600" },
+      });
       router.push(redirectTo);
     } else {
       setError(res.error || "Login failed.");
+      toast.error(res.error || "Login failed.", {
+        style: { borderRadius: "12px", fontWeight: "600" },
+      });
       setShake(true);
       setTimeout(() => setShake(false), 500);
     }
@@ -45,7 +52,6 @@ function LoginForm() {
         <div className="absolute inset-0 opacity-[0.035]"
           style={{ backgroundImage: "linear-gradient(rgba(255,255,255,0.6) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.6) 1px,transparent 1px)", backgroundSize: "52px 52px" }} />
 
-        {/* Logo */}
         <Link href="/" className="relative z-10 flex items-center gap-2.5">
           <div className="w-9 h-9 bg-orange-500 rounded-xl flex items-center justify-center shadow-lg shadow-orange-500/30">
             <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -58,7 +64,6 @@ function LoginForm() {
           </div>
         </Link>
 
-        {/* Centre copy */}
         <div className="relative z-10">
           <div className="inline-flex items-center gap-2 bg-orange-500/12 border border-orange-500/20 rounded-full px-4 py-1.5 mb-5">
             <span className="w-1.5 h-1.5 bg-orange-400 rounded-full animate-pulse" />
@@ -72,7 +77,6 @@ function LoginForm() {
             Book venues, caterers, decorators, and entertainers — all in one place, with transparent pricing and verified vendors.
           </p>
 
-          {/* Testimonial */}
           <div className="mt-8 bg-white/5 border border-white/10 rounded-2xl p-5 backdrop-blur-sm">
             <div className="flex gap-1 mb-2">
               {Array(5).fill(0).map((_,i) => <svg key={i} className="w-3.5 h-3.5 text-orange-400" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>)}
@@ -88,7 +92,6 @@ function LoginForm() {
           </div>
         </div>
 
-        {/* Stats */}
         <div className="relative z-10 grid grid-cols-3 gap-3">
           {[["500+","Vendors"],["1.2K+","Events"],["4.9★","Rating"]].map(([v,l]) => (
             <div key={l} className="bg-white/5 border border-white/8 rounded-xl p-3 text-center">
@@ -103,7 +106,6 @@ function LoginForm() {
       <div className="flex-1 flex flex-col items-center justify-center px-6 py-12 bg-gray-50">
         <div className="w-full max-w-md">
 
-          {/* Mobile logo */}
           <Link href="/" className="lg:hidden flex items-center gap-2 mb-8">
             <div className="w-8 h-8 bg-orange-500 rounded-lg flex items-center justify-center">
               <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -118,7 +120,6 @@ function LoginForm() {
             <p className="text-gray-500 text-sm">Sign in to manage your bookings and events.</p>
           </div>
 
-          {/* Error */}
           {error && (
             <div className={`flex items-center gap-2.5 bg-red-50 border border-red-200 text-red-600 text-sm px-4 py-3 rounded-xl mb-4 ${shake ? "animate-[shake_0.4s_ease]" : ""}`}>
               <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -128,9 +129,7 @@ function LoginForm() {
             </div>
           )}
 
-          {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Email */}
             <div>
               <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wider mb-1.5">Email</label>
               <div className={`relative flex items-center bg-white border rounded-xl transition-all ${focused === "email" ? "border-orange-400 ring-2 ring-orange-100" : "border-gray-200"}`}>
@@ -147,7 +146,6 @@ function LoginForm() {
               </div>
             </div>
 
-            {/* Password */}
             <div>
               <div className="flex items-center justify-between mb-1.5">
                 <label className="text-xs font-semibold text-gray-600 uppercase tracking-wider">Password</label>
@@ -173,7 +171,6 @@ function LoginForm() {
               </div>
             </div>
 
-            {/* Submit */}
             <button
               type="submit" disabled={loading}
               className="w-full bg-orange-500 hover:bg-orange-600 active:scale-[0.98] text-white font-bold py-3.5 rounded-xl text-sm transition-all shadow-md shadow-orange-200 disabled:opacity-60 flex items-center justify-center gap-2"

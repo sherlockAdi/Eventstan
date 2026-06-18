@@ -1,6 +1,10 @@
 import { Package, Review, Service } from "@/types";
 
-const API_BASE_URL = "/api/proxy/api/v1";
+const isServer = typeof window === "undefined";
+const API_BASE_URL = isServer
+  ? `${process.env.NEXT_PUBLIC_BASE_URL?.replace(/\/$/, "") ?? "https://api.eventstan.com"}/api/v1`
+  : "/api/proxy";
+
 export { API_BASE_URL };
 
 export interface ApiUser {
@@ -47,8 +51,8 @@ export const customerApi = {
   auth: {
     login: (email: string, password: string) =>
       request<AuthResponse>("/auth/login", { method: "POST", body: JSON.stringify({ email, password }) }),
-    register: (name: string, email: string, password: string) =>
-      request<AuthResponse>("/auth/register", { method: "POST", body: JSON.stringify({ name, email, password }) }),
+    register: (name: string, email: string, phone: string, password: string) =>
+      request<AuthResponse>("/auth/register", { method: "POST", body: JSON.stringify({ name, email, phone, password }) }),
     me: () => request<ApiUser>("/auth/me"),
     logout: () => request<{ loggedOut: boolean }>("/auth/logout", { method: "POST" }),
   },

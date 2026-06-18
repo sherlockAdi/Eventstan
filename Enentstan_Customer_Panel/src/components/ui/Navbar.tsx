@@ -5,6 +5,7 @@ import { useState, useEffect, useRef } from "react";
 import { useCart } from "@/lib/CartContext";
 import { useAuth } from "@/lib/AuthContext";
 import Image from 'next/image';
+import toast from "react-hot-toast";
 
 export default function Navbar() {
   const pathname = usePathname();
@@ -15,6 +16,7 @@ export default function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [userDropOpen, setUserDropOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
   const dropRef = useRef<HTMLDivElement>(null);
 
   const links = [
@@ -23,29 +25,23 @@ export default function Navbar() {
     { href: "/about", label: "About Us" },
     { href: "/promotions", label: "Promotions" },
     { href: "/bookings", label: "My Bookings" },
-    // { href: "/blog", label: "Blog" },
+    { href: "/blog", label: "Blog" },
+    { href: "/contact", label: "Contact" },
   ];
 
-  // Handle responsive breakpoint at 900px
   useEffect(() => {
-    const checkScreenSize = () => {
-      setIsMobile(window.innerWidth < 900); // Changed from 768 to 900
-    };
-    
+    const checkScreenSize = () => setIsMobile(window.innerWidth < 900);
     checkScreenSize();
     window.addEventListener('resize', checkScreenSize);
-    
     return () => window.removeEventListener('resize', checkScreenSize);
   }, []);
 
-  useEffect(() => { 
-    queueMicrotask(() => setMenuOpen(false));
-  }, [pathname]);
+  useEffect(() => { queueMicrotask(() => setMenuOpen(false)); }, [pathname]);
 
   useEffect(() => {
-    document.body.style.overflow = menuOpen ? "hidden" : "";
+    document.body.style.overflow = (menuOpen || showLogoutModal) ? "hidden" : "";
     return () => { document.body.style.overflow = ""; };
-  }, [menuOpen]);
+  }, [menuOpen, showLogoutModal]);
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -57,9 +53,15 @@ export default function Navbar() {
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  const handleLogout = () => {
+  const handleLogoutConfirm = () => {
     logout();
+    setShowLogoutModal(false);
     setUserDropOpen(false);
+    setMenuOpen(false);
+    toast.success("Logged out successfully!", {
+      icon: "👋",
+      style: { borderRadius: "12px", fontWeight: "600" },
+    });
     router.push("/");
   };
 
@@ -68,147 +70,135 @@ export default function Navbar() {
     : "bg-orange-500";
 
   return (
-    <nav className="sticky top-0 z-50 bg-white border-b border-gray-100 shadow-sm">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16 sm:h-20">
+    <>
+      <nav className="sticky top-0 z-50 bg-white border-b border-gray-100 shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16 sm:h-20">
 
-          <Link href="/" className="flex items-center shrink-0">
-            <Image
-              src="/eventstan-logo.png"
-              alt="EventStan Logo"
-              width={180}      
-              height={48}     
-              className="rounded-lg w-auto h-auto"
-              style={{ width: "auto", height: "auto" }}
-              priority
-            />
-          </Link>
+            <Link href="/" className="flex items-center shrink-0">
+              <Image
+                src="/eventstan-logo.png"
+                alt="EventStan Logo"
+                width={180}
+                height={48}
+                className="rounded-lg w-auto h-auto"
+                style={{ width: "auto", height: "auto" }}
+                priority
+              />
+            </Link>
 
-          {/* Desktop links - hidden when screen width < 900px */}
-          <div className={`hidden items-center gap-4 lg:gap-6 ${!isMobile ? 'md:flex' : ''}`}>
-            {links.map(link => (
-              <Link key={link.href} href={link.href}
-                className={`text-sm font-medium transition-colors whitespace-nowrap ${pathname === link.href ? "text-orange-500" : "text-gray-600 hover:text-orange-500"
-                  }`}>
-                {link.label}
-              </Link>
-            ))}
-          </div>
+            {/* Desktop links */}
+            <div className={`hidden items-center gap-4 lg:gap-6 ${!isMobile ? 'md:flex' : ''}`}>
+              {links.map(link => (
+                <Link key={link.href} href={link.href}
+                  className={`text-sm font-medium transition-colors whitespace-nowrap ${pathname === link.href ? "text-orange-500" : "text-gray-600 hover:text-orange-500"}`}>
+                  {link.label}
+                </Link>
+              ))}
+            </div>
 
-          {/* Right side */}
-          <div className="flex items-center gap-2 sm:gap-3">
+            {/* Right side */}
+            <div className="flex items-center gap-2 sm:gap-3">
 
-            {/* Cart */}
-            <button onClick={toggleCart}
-              className="relative flex items-center gap-1.5 sm:gap-2 bg-gray-900 text-white px-3 sm:px-4 py-2 rounded-full text-sm font-medium hover:bg-gray-800 active:scale-95 transition-all"
-              aria-label="Open shopping cart">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
-              </svg>
-              {/* <span className="hidden sm:inline">Cart</span> */}
-              {count > 0 && (
-                <span className="absolute -top-2 -right-2 bg-orange-500 text-white text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center animate-bounce">
-                  {count > 9 ? "9+" : count}
-                </span>
-              )}
-            </button>
+              {/* Cart */}
+              <button onClick={toggleCart}
+                className="relative flex items-center gap-1.5 sm:gap-2 bg-gray-900 text-white px-3 sm:px-4 py-2 rounded-full text-sm font-medium hover:bg-gray-800 active:scale-95 transition-all"
+                aria-label="Open shopping cart">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+                </svg>
+                {count > 0 && (
+                  <span className="absolute -top-2 -right-2 bg-orange-500 text-white text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center animate-bounce">
+                    {count > 9 ? "9+" : count}
+                  </span>
+                )}
+              </button>
 
-            {/* Auth area */}
-            {!loading && (
-              user ? (
-                /* ── Logged-in user card ── */
-                <div className="relative hidden sm:block" ref={dropRef}>
-                  <button
-                    onClick={() => setUserDropOpen(o => !o)}
-                    className="flex items-center gap-2 bg-gray-50 border border-gray-200 hover:border-orange-300 hover:bg-orange-50 rounded-full pl-1 pr-3 py-1 transition-all group"
-                  >
-                    <div className={`w-8 h-8 ${avatarColor} rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0`}>
-                      {user.avatar}
-                    </div>
-                    <div className="text-left hidden lg:block">
-                      <p className="text-xs font-bold text-gray-900 leading-none group-hover:text-orange-600 transition-colors">
-                        {user.name.split(" ")[0]}
-                      </p>
-                      <p className="text-xs text-gray-400 capitalize leading-none mt-0.5">{user.type}</p>
-                    </div>
-                    <svg className={`w-3.5 h-3.5 text-gray-400 transition-transform ${userDropOpen ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                    </svg>
-                  </button>
-
-                  {/* Dropdown */}
-                  {userDropOpen && (
-                    <div className="absolute right-0 top-12 w-56 bg-white rounded-2xl shadow-xl border border-gray-100 z-50 overflow-hidden">
-                      {/* Header */}
-                      <div className="px-4 py-3 bg-gradient-to-r from-orange-50 to-white border-b border-gray-100 flex items-center gap-3">
-                        <div className={`w-10 h-10 ${avatarColor} rounded-xl flex items-center justify-center text-white text-sm font-bold flex-shrink-0`}>
-                          {user.avatar}
-                        </div>
-                        <div className="min-w-0">
-                          <p className="font-bold text-sm text-gray-900 truncate">{user.name}</p>
-                          <p className="text-xs text-gray-400 truncate">{user.email}</p>
-                          <span className={`inline-block mt-0.5 text-xs px-1.5 py-0.5 rounded-full font-semibold ${user.type === "corporate" ? "bg-blue-100 text-blue-600" : "bg-orange-100 text-orange-600"}`}>
-                            {user.type}
-                          </span>
-                        </div>
+              {/* Auth area */}
+              {!loading && (
+                user ? (
+                  <div className="relative hidden sm:block" ref={dropRef}>
+                    <button
+                      onClick={() => setUserDropOpen(o => !o)}
+                      className="flex items-center gap-2 bg-gray-50 border border-gray-200 hover:border-orange-300 hover:bg-orange-50 rounded-full pl-1 pr-3 py-1 transition-all group"
+                    >
+                      <div className={`w-8 h-8 ${avatarColor} rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0`}>
+                        {user.avatar}
                       </div>
-                      {/* Links */}
-                      <div className="py-1">
-                        {[
-                          { href: "/bookings", label: "My Bookings", icon: "M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" },
-                          { href: "/", label: "Browse Events", icon: "M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" },
-                        ].map(item => (
-                          <Link key={item.href} href={item.href} onClick={() => setUserDropOpen(false)}
-                            className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-600 hover:bg-gray-50 hover:text-orange-500 transition-colors">
-                            <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={item.icon} />
+                      <div className="text-left hidden lg:block">
+                        <p className="text-xs font-bold text-gray-900 leading-none group-hover:text-orange-600 transition-colors">
+                          {user.name.split(" ")[0]}
+                        </p>
+                      </div>
+                      <svg className={`w-3.5 h-3.5 text-gray-400 transition-transform ${userDropOpen ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </button>
+
+                    {/* Dropdown */}
+                    {userDropOpen && (
+                      <div className="absolute right-0 top-12 w-56 bg-white rounded-2xl shadow-xl border border-gray-100 z-50 overflow-hidden">
+                        <div className="px-4 py-3 bg-gradient-to-r from-orange-50 to-white border-b border-gray-100 flex items-center gap-3">
+                          <div className={`w-10 h-10 ${avatarColor} rounded-xl flex items-center justify-center text-white text-sm font-bold flex-shrink-0`}>
+                            {user.avatar}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="font-bold text-sm text-gray-900 truncate">{user.name}</p>
+                            <p className="text-xs text-gray-400 truncate">{user.email}</p>
+                          </div>
+                        </div>
+                        <div className="py-1">
+                          {[
+                            { href: "/my-profile", label: "My Profile", icon: "M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" },
+                            { href: "/bookings", label: "My Bookings", icon: "M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" },
+                            // { href: "/", label: "Browse Events", icon: "M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" },
+                          ].map(item => (
+                            <Link key={item.href} href={item.href} onClick={() => setUserDropOpen(false)}
+                              className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-600 hover:bg-gray-50 hover:text-orange-500 transition-colors">
+                              <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={item.icon} />
+                              </svg>
+                              {item.label}
+                            </Link>
+                          ))}
+                        </div>
+                        <div className="border-t border-gray-100">
+                          <button onClick={() => { setUserDropOpen(false); setShowLogoutModal(true); }}
+                            className="w-full flex items-center gap-3 px-4 py-3 text-sm text-red-500 hover:bg-red-50 transition-colors">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
                             </svg>
-                            {item.label}
-                          </Link>
-                        ))}
+                            Logout
+                          </button>
+                        </div>
                       </div>
-                      {/* Logout */}
-                      <div className="border-t border-gray-100">
-                        <button onClick={handleLogout}
-                          className="w-full flex items-center gap-3 px-4 py-3 text-sm text-red-500 hover:bg-red-50 transition-colors">
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                          </svg>
-                          Sign Out
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              ) : (
-                /* ── Guest buttons ── */
-                <div className="hidden sm:flex items-center gap-2">
-                  {/* <Link href="/auth/login"
-                    className="text-sm font-medium text-gray-600 hover:text-orange-500 transition-colors px-3 py-2">
-                    Sign In
-                  </Link> */}
-                  <Link href="/auth/signup"
-                    className="bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold px-4 py-2 rounded-full transition-colors">
-                    Sign Up
-                  </Link>
-                </div>
-              )
-            )}
+                    )}
+                  </div>
+                ) : (
+                  <div className="hidden sm:flex items-center gap-2">
+                    <Link href="/auth/signup"
+                      className="bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold px-4 py-2 rounded-full transition-colors">
+                      Sign Up
+                    </Link>
+                  </div>
+                )
+              )}
 
-            {/* Mobile hamburger - visible when screen width < 900px */}
-            <button 
-              className={`p-2 -mr-2 rounded-lg hover:bg-gray-100 transition-colors ${isMobile ? 'block' : 'md:hidden'}`}
-              onClick={() => setMenuOpen(!menuOpen)} 
-              aria-label="Open menu">
-              <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-              </svg>
-            </button>
+              {/* Mobile hamburger */}
+              <button
+                className={`p-2 -mr-2 rounded-lg hover:bg-gray-100 transition-colors ${isMobile ? 'block' : 'md:hidden'}`}
+                onClick={() => setMenuOpen(!menuOpen)}
+                aria-label="Open menu">
+                <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+              </button>
+            </div>
           </div>
         </div>
-      </div>
+      </nav>
 
-      {/* Mobile slide-in panel - conditionally rendered based on isMobile state */}
+      {/* Mobile slide-in panel */}
       {menuOpen && isMobile && (
         <>
           <div className="fixed inset-0 bg-black/40 z-40" onClick={() => setMenuOpen(false)} aria-hidden />
@@ -222,7 +212,6 @@ export default function Navbar() {
               </button>
             </div>
 
-            {/* Mobile user card */}
             {user && (
               <div className="mx-4 mb-4 bg-orange-50 border border-orange-100 rounded-2xl px-4 py-3 flex items-center gap-3">
                 <div className={`w-10 h-10 ${avatarColor} rounded-xl flex items-center justify-center text-white font-bold text-sm`}>
@@ -245,15 +234,14 @@ export default function Navbar() {
               ))}
             </div>
 
-            {/* Mobile auth buttons */}
             <div className="px-6 pb-10 pt-4 space-y-2">
               {user ? (
-                <button onClick={() => { handleLogout(); setMenuOpen(false); }}
+                <button onClick={() => { setMenuOpen(false); setShowLogoutModal(true); }}
                   className="w-full flex items-center justify-center gap-2 border border-red-200 text-red-500 py-3 rounded-full text-sm font-semibold hover:bg-red-50 transition-colors">
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
                   </svg>
-                  Sign Out
+                  Logout
                 </button>
               ) : (
                 <>
@@ -272,13 +260,47 @@ export default function Navbar() {
         </>
       )}
 
+      {/* Logout Confirmation Modal */}
+      {showLogoutModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center px-4">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowLogoutModal(false)} />
+          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 animate-fadeInUp">
+            {/* Icon */}
+            <div className="w-14 h-14 bg-red-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <svg className="w-7 h-7 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+              </svg>
+            </div>
+            <h2 className="text-lg font-bold text-gray-900 text-center mb-1">Logout?</h2>
+            <p className="text-sm text-gray-500 text-center mb-6">Are you sure you want to logout from your account?</p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowLogoutModal(false)}
+                className="flex-1 border border-gray-200 text-gray-700 py-3 rounded-xl text-sm font-semibold hover:bg-gray-50 transition-colors">
+                Cancel
+              </button>
+              <button
+                onClick={handleLogoutConfirm}
+                className="flex-1 bg-red-500 hover:bg-red-600 text-white py-3 rounded-xl text-sm font-bold transition-colors">
+                Yes, Logout
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <style jsx>{`
         @keyframes slideInRight {
           from { opacity: 0; transform: translateX(100%); }
           to   { opacity: 1; transform: translateX(0); }
         }
+        @keyframes fadeInUp {
+          from { opacity: 0; transform: translateY(16px) scale(0.97); }
+          to   { opacity: 1; transform: translateY(0) scale(1); }
+        }
         .animate-slideInRight { animation: slideInRight 0.25s cubic-bezier(0.16,1,0.3,1); }
+        .animate-fadeInUp { animation: fadeInUp 0.2s cubic-bezier(0.16,1,0.3,1); }
       `}</style>
-    </nav>
+    </>
   );
 }
