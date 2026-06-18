@@ -65,8 +65,6 @@ export default function BookingsPage() {
   const [pageSize, setPageSize] = useState(10);
   const [rejectConfirm, setRejectConfirm] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState('');
-
-  // Accept modal state
   const [acceptModal, setAcceptModal] = useState<string | null>(null);
 
   const handleSort = (key: SortKey) => {
@@ -119,9 +117,9 @@ export default function BookingsPage() {
   const exportBookings = () => {
     const escape = (value: string | number) => `"${String(value).replaceAll('"', '""')}"`;
     const rows = [
-      ['Booking ID', 'Customer', 'Email', 'Service', 'Event Date', 'Amount', 'Paid', 'Status'],
-      ...bookings.map((booking) => [
-        booking.id, booking.customerName, booking.customerEmail, booking.serviceName,
+      ['Sr. No.', 'Booking ID', 'Customer', 'Email', 'Service', 'Event Date', 'Amount', 'Paid', 'Status'],
+      ...bookings.map((booking, i) => [
+        i + 1, booking.id, booking.customerName, booking.customerEmail, booking.serviceName,
         booking.eventDate, booking.amount, booking.paidAmount, booking.status,
       ]),
     ];
@@ -159,13 +157,13 @@ export default function BookingsPage() {
   const tabCount = (t: BookingStatus | 'All') =>
     t === 'All' ? bookings.length : bookings.filter(b => b.status === t).length;
 
+  // Sr. No. column is not sortable, so separate from sortable cols
   const cols: { key: SortKey; label: string; w: string }[] = [
-    { key: 'id',           label: 'Booking ID',   w: 'w-[110px]' },
-    { key: 'customerName', label: 'Customer',      w: 'min-w-[160px]' },
-    { key: 'eventDate',    label: 'Event Date',    w: 'w-[120px]' },
-    { key: 'amount',       label: 'Amount',        w: 'w-[130px]' },
-    { key: 'status',       label: 'Status',        w: 'w-[180px]' },
-    { key: 'createdAt',    label: 'Booked On',     w: 'w-[110px]' },
+    { key: 'customerName', label: 'Customer',   w: 'min-w-[160px]' },
+    { key: 'eventDate',    label: 'Event Date', w: 'w-[120px]' },
+    { key: 'amount',       label: 'Amount',     w: 'w-[130px]' },
+    { key: 'status',       label: 'Status',     w: 'w-[180px]' },
+    { key: 'createdAt',    label: 'Booked On',  w: 'w-[110px]' },
   ];
 
   return (
@@ -186,10 +184,10 @@ export default function BookingsPage() {
       {/* Summary cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
-          { label: 'Total', val: bookings.length, color: 'text-gray-900' },
-          { label: 'Pending',   val: bookings.filter(b => b.status === 'Pending').length,   color: 'text-amber-600' },
-          { label: 'Confirmed', val: bookings.filter(b => b.status === 'Confirmed').length, color: 'text-green-600' },
-          { label: 'Rejected',  val: bookings.filter(b => b.status.startsWith('Rejected')).length, color: 'text-red-500' },
+          { label: 'Total',     val: bookings.length,                                                    color: 'text-gray-900' },
+          { label: 'Pending',   val: bookings.filter(b => b.status === 'Pending').length,                color: 'text-amber-600' },
+          { label: 'Confirmed', val: bookings.filter(b => b.status === 'Confirmed').length,              color: 'text-green-600' },
+          { label: 'Rejected',  val: bookings.filter(b => b.status.startsWith('Rejected')).length,       color: 'text-red-500' },
         ].map(c => (
           <div key={c.label} className="bg-white rounded-2xl border border-gray-100 p-4 text-center">
             <p className={`text-2xl font-bold ${c.color}`}>{c.val}</p>
@@ -247,6 +245,10 @@ export default function BookingsPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-gray-50 border-b border-gray-100">
+                {/* Sr. No. — not sortable */}
+                <th className="w-[60px] px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                  Sr. No.
+                </th>
                 {cols.map(col => (
                   <th
                     key={col.key}
@@ -268,88 +270,93 @@ export default function BookingsPage() {
               )}
               {!loading && paginated.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="px-4 py-12 text-center text-gray-400 text-sm">
-                    No bookings found
-                  </td>
+                  <td colSpan={7} className="px-4 py-12 text-center text-gray-400 text-sm">No bookings found</td>
                 </tr>
               )}
-              {paginated.map(booking => (
-                <tr key={booking.id} className="hover:bg-gray-50/50 transition-colors">
-                  <td className="px-4 py-3.5">
-                    <span className="font-mono text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-lg">{booking.id}</span>
-                  </td>
-                  <td className="px-4 py-3.5">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-orange-100 to-orange-200 flex items-center justify-center text-orange-700 font-bold text-xs shrink-0">
-                        {booking.customerName.charAt(0)}
+              {paginated.map((booking, idx) => {
+                // Sr. No. = global index across all pages
+                const srNo = (page - 1) * pageSize + idx + 1;
+                return (
+                  <tr key={booking.id} className="hover:bg-gray-50/50 transition-colors">
+                    {/* Sr. No. */}
+                    <td className="px-4 py-3.5">
+                      <span className="text-xs font-semibold text-gray-400 bg-gray-100 px-2 py-1 rounded-lg">
+                        {srNo}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3.5">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-orange-100 to-orange-200 flex items-center justify-center text-orange-700 font-bold text-xs shrink-0">
+                          {booking.customerName.charAt(0)}
+                        </div>
+                        <div>
+                          <p className="font-medium text-gray-900 leading-tight">{booking.customerName}</p>
+                          <p className="text-xs text-gray-400 mt-0.5">{booking.serviceName}</p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="font-medium text-gray-900 leading-tight">{booking.customerName}</p>
-                        <p className="text-xs text-gray-400 mt-0.5">{booking.serviceName}</p>
+                    </td>
+                    <td className="px-4 py-3.5">
+                      <div className="flex items-center gap-1.5 text-gray-700">
+                        <Calendar size={13} className="text-gray-400" />
+                        {booking.eventDate}
                       </div>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3.5">
-                    <div className="flex items-center gap-1.5 text-gray-700">
-                      <Calendar size={13} className="text-gray-400" />
-                      {booking.eventDate}
-                    </div>
-                    <p className="text-xs text-gray-400 mt-0.5 ml-5">{booking.eventType}</p>
-                  </td>
-                  <td className="px-4 py-3.5">
-                    <p className="font-semibold text-gray-900">AED {booking.amount.toLocaleString()}</p>
-                    <div className="mt-1 h-1.5 bg-gray-100 rounded-full w-20">
-                      <div
-                        className="h-full bg-orange-400 rounded-full"
-                        style={{ width: `${Math.min(100, (booking.paidAmount / booking.amount) * 100)}%` }}
-                      />
-                    </div>
-                    <p className="text-xs text-gray-400 mt-0.5">Paid: AED {booking.paidAmount.toLocaleString()}</p>
-                  </td>
-                  <td className="px-4 py-3.5">
-                    <StatusBadge status={booking.status} />
-                    {booking.message && (
-                      <div className="flex items-center gap-1 mt-1.5 text-xs text-blue-400">
-                        <MessageSquare size={11} /> Has note
+                      <p className="text-xs text-gray-400 mt-0.5 ml-5">{booking.eventType}</p>
+                    </td>
+                    <td className="px-4 py-3.5">
+                      <p className="font-semibold text-gray-900">AED {booking.amount.toLocaleString()}</p>
+                      <div className="mt-1 h-1.5 bg-gray-100 rounded-full w-20">
+                        <div
+                          className="h-full bg-orange-400 rounded-full"
+                          style={{ width: `${Math.min(100, (booking.paidAmount / booking.amount) * 100)}%` }}
+                        />
                       </div>
-                    )}
-                  </td>
-                  <td className="px-4 py-3.5">
-                    <div className="flex items-center gap-1 text-xs text-gray-500">
-                      <Clock size={11} /> {booking.createdAt}
-                    </div>
-                  </td>
-                  <td className="px-4 py-3.5">
-                    <div className="flex items-center justify-end gap-1.5">
-                      <button
-                        onClick={() => setSelected(booking)}
-                        title="View Details"
-                        className="p-1.5 rounded-lg border border-gray-200 text-gray-500 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 transition-colors"
-                      >
-                        <Eye size={14} />
-                      </button>
-                      {booking.status === 'Pending' && (
-                        <>
-                          <button
-                            onClick={() => setAcceptModal(booking.id)}
-                            title="Accept"
-                            className="p-1.5 rounded-lg border border-green-200 text-green-600 hover:bg-green-50 transition-colors"
-                          >
-                            <CheckCircle2 size={14} />
-                          </button>
-                          <button
-                            onClick={() => setRejectConfirm(booking.id)}
-                            title="Reject"
-                            className="p-1.5 rounded-lg border border-red-200 text-red-500 hover:bg-red-50 transition-colors"
-                          >
-                            <XCircle size={14} />
-                          </button>
-                        </>
+                      <p className="text-xs text-gray-400 mt-0.5">Paid: AED {booking.paidAmount.toLocaleString()}</p>
+                    </td>
+                    <td className="px-4 py-3.5">
+                      <StatusBadge status={booking.status} />
+                      {booking.message && (
+                        <div className="flex items-center gap-1 mt-1.5 text-xs text-blue-400">
+                          <MessageSquare size={11} /> Has note
+                        </div>
                       )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
+                    </td>
+                    <td className="px-4 py-3.5">
+                      <div className="flex items-center gap-1 text-xs text-gray-500">
+                        <Clock size={11} /> {booking.createdAt}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3.5">
+                      <div className="flex items-center justify-end gap-1.5">
+                        <button
+                          onClick={() => setSelected(booking)}
+                          title="View Details"
+                          className="p-1.5 rounded-lg border border-gray-200 text-gray-500 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 transition-colors"
+                        >
+                          <Eye size={14} />
+                        </button>
+                        {booking.status === 'Pending' && (
+                          <>
+                            <button
+                              onClick={() => setAcceptModal(booking.id)}
+                              title="Accept"
+                              className="p-1.5 rounded-lg border border-green-200 text-green-600 hover:bg-green-50 transition-colors"
+                            >
+                              <CheckCircle2 size={14} />
+                            </button>
+                            <button
+                              onClick={() => setRejectConfirm(booking.id)}
+                              title="Reject"
+                              className="p-1.5 rounded-lg border border-red-200 text-red-500 hover:bg-red-50 transition-colors"
+                            >
+                              <XCircle size={14} />
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -403,7 +410,6 @@ export default function BookingsPage() {
       {selected && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setSelected(null)}>
           <div className="bg-white rounded-3xl w-full max-w-2xl shadow-2xl max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-            {/* Modal header */}
             <div className="sticky top-0 bg-white rounded-t-3xl flex items-center justify-between px-6 py-5 border-b border-gray-100 z-10">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-100 to-orange-200 flex items-center justify-center text-orange-700 font-bold">
@@ -423,7 +429,6 @@ export default function BookingsPage() {
             </div>
 
             <div className="p-6 space-y-5">
-              {/* Customer info */}
               <div className="bg-gray-50 rounded-2xl p-4">
                 <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Customer Information</p>
                 <div className="grid sm:grid-cols-3 gap-3">
@@ -459,17 +464,16 @@ export default function BookingsPage() {
                 </div>
               </div>
 
-              {/* Event details */}
               <div>
                 <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Event Details</p>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                   {[
-                    { label: 'Service',    value: selected.serviceName,                     icon: <Calendar size={14} /> },
-                    { label: 'Event Type', value: selected.eventType,                       icon: <Calendar size={14} /> },
-                    { label: 'Event Date', value: selected.eventDate,                       icon: <Calendar size={14} /> },
-                    { label: 'Guests',     value: `${selected.guests} people`,              icon: <Users size={14} /> },
-                    { label: 'Venue',      value: selected.eventVenue ?? '—',               icon: <MapPin size={14} /> },
-                    { label: 'Booking ID', value: `#${selected.id}`,                        icon: null },
+                    { label: 'Service',    value: selected.serviceName,           icon: <Calendar size={14} /> },
+                    { label: 'Event Type', value: selected.eventType,             icon: <Calendar size={14} /> },
+                    { label: 'Event Date', value: selected.eventDate,             icon: <Calendar size={14} /> },
+                    { label: 'Guests',     value: `${selected.guests} people`,    icon: <Users size={14} /> },
+                    { label: 'Venue',      value: selected.eventVenue ?? '—',     icon: <MapPin size={14} /> },
+                    { label: 'Booking ID', value: `#${selected.id}`,              icon: null },
                   ].map(({ label, value, icon }) => (
                     <div key={label} className="bg-gray-50 rounded-xl p-3">
                       <p className="text-xs text-gray-400 mb-1">{label}</p>
@@ -482,7 +486,6 @@ export default function BookingsPage() {
                 </div>
               </div>
 
-              {/* Payment */}
               <div className="bg-orange-50 rounded-2xl p-4">
                 <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Payment Summary</p>
                 <div className="flex items-end justify-between mb-2">
@@ -507,7 +510,6 @@ export default function BookingsPage() {
                 </div>
               </div>
 
-              {/* Message */}
               {selected.message && (
                 <div className="bg-blue-50 rounded-2xl p-4">
                   <p className="text-xs font-semibold text-blue-500 uppercase tracking-wide mb-2 flex items-center gap-1.5">
@@ -518,7 +520,6 @@ export default function BookingsPage() {
               )}
             </div>
 
-            {/* Actions */}
             {selected.status === 'Pending' && (
               <div className="flex gap-3 px-6 pb-6">
                 <button
@@ -553,8 +554,6 @@ export default function BookingsPage() {
               <p className="text-sm text-gray-500 text-center mb-5">
                 You are about to accept booking <strong>{booking.id}</strong> for <strong>{booking.customerName}</strong>.
               </p>
-
-              {/* Booking summary */}
               <div className="bg-gray-50 rounded-xl p-4 mb-5 space-y-2.5">
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-gray-500 flex items-center gap-1.5"><Briefcase size={13} className="text-orange-400" /> Service</span>
@@ -573,7 +572,6 @@ export default function BookingsPage() {
                   <span className="font-bold text-orange-600">AED {booking.amount.toLocaleString()}</span>
                 </div>
               </div>
-
               <div className="flex gap-3">
                 <button
                   onClick={() => setAcceptModal(null)}
@@ -605,7 +603,6 @@ export default function BookingsPage() {
             <p className="text-sm text-gray-500 text-center mb-4">
               Please provide a <strong>reason</strong> for rejecting booking <strong>{rejectConfirm}</strong>
             </p>
-
             <textarea
               value={rejectReason}
               onChange={e => setRejectReason(e.target.value)}
@@ -613,7 +610,6 @@ export default function BookingsPage() {
               rows={3}
               className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-200 focus:border-red-400 resize-none mb-5"
             />
-
             <div className="flex gap-3">
               <button
                 onClick={() => { setRejectConfirm(null); setRejectReason(''); }}
