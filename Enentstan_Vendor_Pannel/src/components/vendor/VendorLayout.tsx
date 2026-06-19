@@ -42,7 +42,9 @@ export default function VendorLayout({ children }: { children: React.ReactNode }
   const [showLogout,  setShowLogout]  = useState(false);
   const vendor = getUser();
   const profileComplete = isVendorProfileComplete(vendor);
-  const visibleNavItems = profileComplete ? navItems : navItems.filter((item) => item.href === '/vendor/profile');
+  const visibleNavItems = profileComplete
+    ? navItems
+    : navItems.filter((item) => ['/vendor/profile', '/vendor/support'].includes(item.href));
 
   useEffect(() => {
     const token = localStorage.getItem('vendor_token');
@@ -51,7 +53,8 @@ export default function VendorLayout({ children }: { children: React.ReactNode }
       return;
     }
 
-    if (token && !profileComplete && pathname !== '/vendor/profile' && pathname !== '/vendor/login') {
+    const supportRoute = pathname.startsWith('/vendor/support');
+    if (token && !profileComplete && pathname !== '/vendor/profile' && pathname !== '/vendor/login' && !supportRoute) {
       router.replace('/vendor/profile');
     }
   }, [pathname, profileComplete, router]);
@@ -79,7 +82,7 @@ export default function VendorLayout({ children }: { children: React.ReactNode }
   // Don't show layout on login page
   if (pathname === '/vendor/login') return <>{children}</>;
 
-  if (!profileComplete && pathname !== '/vendor/profile') {
+  if (!profileComplete && pathname !== '/vendor/profile' && !pathname.startsWith('/vendor/support')) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <Loader2 size={28} className="animate-spin text-orange-500" />
@@ -125,7 +128,7 @@ export default function VendorLayout({ children }: { children: React.ReactNode }
         <nav className="flex-1 py-4 px-3 space-y-1 overflow-y-auto">
           {!profileComplete && (
             <div className="mb-3 rounded-xl border border-orange-100 bg-orange-50/80 p-3 text-xs text-orange-700">
-              Complete your profile to unlock dashboard, services, packages, bookings, calendar, and support.
+              Complete your profile to unlock dashboard, services, packages, bookings, and calendar. Help & Support stays available.
             </div>
           )}
           {visibleNavItems.map(({ href, label, icon: Icon }) => {
