@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 import { vendorApi } from '@/api/vendorApi';
-import { clearSession, getToken, getUser, isLoggedIn, saveSession, type VendorUser } from '@/lib/auth';
+import { clearSession, getToken, getUser, isLoggedIn, isVendorProfileComplete, saveSession, type VendorUser } from '@/lib/auth';
 
 const PUBLIC_PATHS = new Set(['/vendor/login']);
 
@@ -29,7 +29,7 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
           if (token && me) {
             saveSession(token, me);
           }
-          router.replace(me?.updatedProfile ? '/vendor/dashboard' : '/vendor/profile');
+          router.replace(isVendorProfileComplete(me) ? '/vendor/dashboard' : '/vendor/profile');
         } catch {
           clearSession();
         }
@@ -53,7 +53,7 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
           return;
         }
 
-        if (user.updatedProfile === false && pathname !== '/vendor/profile') {
+        if (!isVendorProfileComplete(user) && pathname !== '/vendor/profile') {
           saveSession(token, user);
           router.replace('/vendor/profile');
           return;

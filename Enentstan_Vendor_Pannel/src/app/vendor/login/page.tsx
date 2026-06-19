@@ -15,7 +15,7 @@ import {
   CheckCircle,
 } from "lucide-react";
 import { vendorApi } from "@/api/vendorApi";
-import { clearSession, getToken, getUser, isLoggedIn, saveSession, updateSessionUser, type VendorUser } from "@/lib/auth";
+import { clearSession, getToken, getUser, isLoggedIn, isVendorProfileComplete, saveSession, updateSessionUser, type VendorUser } from "@/lib/auth";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -86,7 +86,7 @@ export default function LoginPage() {
         const token = getToken();
         if (token) saveSession(token, res);
         updateSessionUser(res);
-        router.replace(res.updatedProfile ? '/vendor/dashboard' : '/vendor/profile');
+        router.replace(isVendorProfileComplete(res) ? '/vendor/dashboard' : '/vendor/profile');
       })
       .catch(() => clearSession());
   }, [router]);
@@ -102,7 +102,7 @@ export default function LoginPage() {
 
       if (isSuccess(res) && token && res.user?.role === "VENDOR") {
         saveSession(token, res.user as VendorUser);
-        window.location.href = res.user.updatedProfile ? "/vendor/dashboard" : "/vendor/profile";
+        window.location.href = isVendorProfileComplete(res.user as VendorUser) ? "/vendor/dashboard" : "/vendor/profile";
       } else if (res.user?.role && res.user.role !== "VENDOR") {
         setError("This portal is only available to vendor accounts.");
       } else {

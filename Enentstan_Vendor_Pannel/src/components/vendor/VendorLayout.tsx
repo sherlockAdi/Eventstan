@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { vendorApi } from '@/api/vendorApi';
-import { clearSession, getUser, type VendorUser } from '@/lib/auth';
+import { clearSession, getUser, isVendorProfileComplete, type VendorUser } from '@/lib/auth';
 
 const navItems = [
   { href: '/vendor/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -40,7 +40,7 @@ export default function VendorLayout({ children }: { children: React.ReactNode }
   const [loggingOut,  setLoggingOut]  = useState(false);
   const [showLogout,  setShowLogout]  = useState(false);
   const vendor = getUser();
-  const profileComplete = vendor?.updatedProfile === true;
+  const profileComplete = isVendorProfileComplete(vendor);
   const visibleNavItems = profileComplete ? navItems : navItems.filter((item) => item.href === '/vendor/profile');
 
   useEffect(() => {
@@ -77,6 +77,14 @@ export default function VendorLayout({ children }: { children: React.ReactNode }
 
   // Don't show layout on login page
   if (pathname === '/vendor/login') return <>{children}</>;
+
+  if (!profileComplete && pathname !== '/vendor/profile') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <Loader2 size={28} className="animate-spin text-orange-500" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 flex">

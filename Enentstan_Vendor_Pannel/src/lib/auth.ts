@@ -11,6 +11,10 @@ export interface VendorUser {
   image?: string | null;
 }
 
+export function isVendorProfileComplete(user: VendorUser | null | undefined) {
+  return user?.role === 'VENDOR' && user.updatedProfile === true;
+}
+
 const TOKEN_KEY = 'vendor_token';
 const USER_KEY = 'vendor_data';
 

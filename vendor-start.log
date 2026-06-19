@@ -16,3 +16,20 @@
 ○ Compiling /_error ...
  GET /vendor/login 200 in 412ms (next.js: 34ms, application-code: 377ms)
  GET /vendor/login 200 in 469ms (next.js: 24ms, application-code: 445ms)
+  Reload env: .env
+ GET /vendor/login 200 in 5.5s (next.js: 2.8s, application-code: 2.6s)
+▲ Next.js 16.2.4 (Turbopack)
+- Local:         http://localhost:3003
+- Network:       http://192.168.1.4:3003
+- Environments: .env
+✓ Ready in 9.9s
+
+ GET /vendor/login 200 in 10.5s (next.js: 5.3s, application-code: 5.2s)
+✓ Compiled in 535ms
+ GET /vendor/login 200 in 1037ms (next.js: 624ms, application-code: 413ms)
+✓ Compiled in 515ms
+ GET /vendor/login 200 in 468ms (next.js: 284ms, application-code: 185ms)
+✓ Compiled in 759ms
+ GET /vendor/login 200 in 683ms (next.js: 374ms, application-code: 309ms)
+✓ Compiled in 528ms
+ GET /vendor/login 200 in 876ms (next.js: 558ms, application-code: 318ms)
