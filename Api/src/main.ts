@@ -44,6 +44,7 @@ async function bootstrap() {
     .addTag('coupons')
     .addTag('reviews')
     .addTag('settlements')
+    .addTag('support')
     .addTag('uploads')
     .build();
 

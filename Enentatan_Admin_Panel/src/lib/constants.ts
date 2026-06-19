@@ -2,7 +2,7 @@
 const isServer = typeof window === 'undefined';
 
 export const BASE_URL = isServer
-  ? (process.env.NEXT_PUBLIC_BASE_URL?.replace(/\/$/, '') ?? 'https://api.eventstan.com')
+  ? (process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, '') ?? process.env.NEXT_PUBLIC_BASE_URL?.replace(/\/$/, '') ?? 'https://api.eventstan.com')
   : '';
 
 export const BASE_API_URL = isServer

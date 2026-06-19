@@ -92,6 +92,15 @@ enum SettlementStatus {
   CANCELLED
 }
 
+enum SupportTicketStatus {
+  OPEN
+  IN_PROGRESS
+  WAITING_FOR_ADMIN
+  WAITING_FOR_VENDOR
+  RESOLVED
+  CLOSED
+}
+
 model User {
   id           String   @id @default(cuid())
   name         String
@@ -107,6 +116,8 @@ model User {
   carts        Cart[]
   bookings     Booking[]
   reviews      Review[]
+  supportTicketsCreated SupportTicket[] @relation("SupportTicketCreator")
+  supportMessagesAuthored SupportMessage[] @relation("SupportMessageAuthor")
 
   @@map("users")
 }
@@ -155,6 +166,7 @@ model Vendor {
   packages           EventPackage[]
   availability       VendorAvailability[]
   settlements        Settlement[]
+  supportTickets     SupportTicket[]
 
   @@map("vendors")
 }
@@ -171,6 +183,40 @@ model VendorDocument {
   vendor    Vendor   @relation(fields: [vendorId], references: [id])
 
   @@map("vendor_documents")
+}
+
+model SupportTicket {
+  id             String              @id @default(cuid())
+  vendorId       String
+  createdByUserId String
+  subject        String
+  description    String?
+  status         SupportTicketStatus  @default(OPEN)
+  lastMessageAt  DateTime            @default(now())
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+
+  vendor         Vendor              @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  createdBy      User                @relation("SupportTicketCreator", fields: [createdByUserId], references: [id], onDelete: Cascade)
+  messages       SupportMessage[]
+
+  @@index([vendorId, status, lastMessageAt])
+  @@map("support_tickets")
+}
+
+model SupportMessage {
+  id            String   @id @default(cuid())
+  ticketId      String
+  authorUserId  String
+  body          String
+  attachments   String[]  @default([])
+  createdAt     DateTime  @default(now())
+
+  ticket        SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  author        User          @relation("SupportMessageAuthor", fields: [authorUserId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId, createdAt])
+  @@map("support_messages")
 }
 
 model Category {

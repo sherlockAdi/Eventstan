@@ -5,7 +5,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import {
   LayoutDashboard, Users, Truck, Package, BookOpen, Star,
   Bell, Tag, Grid3X3, LogOut, Menu, Loader2, X, ChevronDown,Share2  ,UserCog, 
-  Newspaper
+  Newspaper, LifeBuoy
 } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { getSession, getUser, clearSession } from '@/lib/auth';
@@ -67,6 +67,7 @@ const navItems: NavItem[] = [
     ],
   },
   { href: '/admin/booking-management', label: 'Booking Management', icon: BookOpen },
+  { href: '/admin/support', label: 'Help & Support', icon: LifeBuoy },
   { href: '/admin/feedback-testimonial', label: 'Feedback & Testimonial', icon: Star },
   { href: '/admin/system-notifications', label: 'System Notifications', icon: Bell },
   { href: '/admin/affiliate-links', label: 'Affiliate-Links', icon: Share2  },

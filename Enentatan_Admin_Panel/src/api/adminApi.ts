@@ -174,4 +174,12 @@ export const adminApi = {
     markSent: (id: string) => request<any>(`notifications/${id}/sent`, jsonOptions('PATCH')),
     delete: (id: string) => request<void>(`notifications/${id}`, jsonOptions('DELETE')),
   },
+
+  support: {
+    list: () => request<any[]>('support/tickets'),
+    get: (id: string) => request<any>(`support/tickets/${id}`),
+    reply: (id: string, payload: JsonBody) => request<any>(`support/tickets/${id}/replies`, jsonOptions('POST', payload)),
+    updateStatus: (id: string, status: string) =>
+      request<any>(`support/tickets/${id}/status`, jsonOptions('PATCH', { status })),
+  },
 };

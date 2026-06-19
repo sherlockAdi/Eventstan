@@ -114,4 +114,13 @@ export const vendorApi = {
     countries: <T = unknown[]>() => request<T>('master-data/countries'),
     categories: <T = unknown[]>() => request<T>('master-data/categories'),
   },
+
+  support: {
+    list: <T = unknown[]>() => request<T>('support/tickets', { cache: 'no-store', headers: headers() }),
+    get: <T = unknown>(id: string) => request<T>(`support/tickets/${id}`, { cache: 'no-store', headers: headers() }),
+    create: <T = unknown>(payload: JsonBody) => request<T>('support/tickets', jsonOptions('POST', payload)),
+    reply: <T = unknown>(id: string, payload: JsonBody) => request<T>(`support/tickets/${id}/replies`, jsonOptions('POST', payload)),
+    updateStatus: <T = unknown>(id: string, status: string) =>
+      request<T>(`support/tickets/${id}/status`, jsonOptions('PATCH', { status })),
+  },
 };

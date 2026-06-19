@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
   LayoutDashboard, Briefcase, CalendarDays, Package,
-  BookOpen, User, LogOut, ChevronRight, Menu, Loader2, X,
+  BookOpen, User, LogOut, ChevronRight, Menu, Loader2, X, LifeBuoy,
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { vendorApi } from '@/api/vendorApi';
@@ -16,6 +16,7 @@ const navItems = [
   { href: '/vendor/packages',  label: 'Packages',  icon: Package },
   { href: '/vendor/bookings',  label: 'Bookings',  icon: BookOpen },
   { href: '/vendor/calendar',  label: 'Calendar',  icon: CalendarDays },
+  { href: '/vendor/support',   label: 'Help & Support', icon: LifeBuoy },
   { href: '/vendor/profile',   label: 'Update Profile',   icon: User },
 ];
 
@@ -124,7 +125,7 @@ export default function VendorLayout({ children }: { children: React.ReactNode }
         <nav className="flex-1 py-4 px-3 space-y-1 overflow-y-auto">
           {!profileComplete && (
             <div className="mb-3 rounded-xl border border-orange-100 bg-orange-50/80 p-3 text-xs text-orange-700">
-              Complete your profile to unlock dashboard, services, packages, bookings, and calendar.
+              Complete your profile to unlock dashboard, services, packages, bookings, calendar, and support.
             </div>
           )}
           {visibleNavItems.map(({ href, label, icon: Icon }) => {
