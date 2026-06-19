@@ -57,6 +57,5 @@ jobs:
             PORT=3003 pm2 restart eventstan-vendor --update-env || PORT=3003 pm2 start npm --name eventstan-vendor -- start
 
             pm2 save
-            pm2 list
 
             systemctl restart httpd
