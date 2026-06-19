@@ -16,7 +16,7 @@ const navItems = [
   { href: '/vendor/packages',  label: 'Packages',  icon: Package },
   { href: '/vendor/bookings',  label: 'Bookings',  icon: BookOpen },
   { href: '/vendor/calendar',  label: 'Calendar',  icon: CalendarDays },
-  { href: '/vendor/profile',   label: 'Profile',   icon: User },
+  { href: '/vendor/profile',   label: 'Update Profile',   icon: User },
 ];
 
 async function logoutVendor() {
