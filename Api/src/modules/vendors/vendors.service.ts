@@ -79,17 +79,19 @@ export class VendorsService {
           company_name: dto.companyName,
           email: loginEmail,
           password: dto.password,
-          login_url: 'https://vendor.eventstan.com/vendor/login',
+          login_url: 'https://vendor.eventstan.com',
+          panel_url: 'https://vendor.eventstan.com',
         },
         {
-          subject: 'Your EventStan vendor account is ready',
+          subject: 'Welcome to EventStan, {{name}}',
           body: `
             <h2>Welcome to EventStan, {{name}}!</h2>
             <p>Your vendor account for <strong>{{company_name}}</strong> has been created.</p>
-            <p><strong>Login URL:</strong> <a href="{{login_url}}">{{login_url}}</a><br>
+            <p><strong>Vendor Panel:</strong> <a href="{{panel_url}}">{{panel_url}}</a><br>
+            <strong>Login URL:</strong> <a href="{{login_url}}">{{login_url}}</a><br>
             <strong>Email:</strong> {{email}}<br>
             <strong>Temporary password:</strong> {{password}}</p>
-            <p>Please sign in and change your password.</p>
+            <p>Please sign in, complete your profile, and then you can access the rest of the vendor panel.</p>
           `,
         },
       );
@@ -117,6 +119,16 @@ export class VendorsService {
     return this.prisma.vendor.update({
       where: { id },
       data: this.vendorData(dto),
+    });
+  }
+
+  updateProfile(id: string, dto: Partial<CreateVendorDto>) {
+    return this.prisma.vendor.update({
+      where: { id },
+      data: {
+        ...this.vendorData(dto),
+        updatedProfile: true,
+      },
     });
   }
 

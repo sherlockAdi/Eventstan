@@ -1,4 +1,4 @@
-import { ConflictException, Injectable, UnauthorizedException } from '@nestjs/common';
+import { ConflictException, Injectable, ServiceUnavailableException, UnauthorizedException } from '@nestjs/common';
 import { UserRole } from '@prisma/client';
 import { PrismaService } from '../../shared/prisma/prisma.service';
 import { LoginDto } from './dto/login.dto';
@@ -68,18 +68,28 @@ export class AuthService {
   }
 
   async login(dto: LoginDto) {
-    const email = dto.email.trim().toLowerCase();
-    const user = await this.prisma.user.findUnique({
-      where: { email },
-      include: { vendor: true },
-    });
+    try {
+      const email = dto.email.trim().toLowerCase();
+      const user = await this.prisma.user.findUnique({
+        where: { email },
+        include: { vendor: true },
+      });
 
-    if (!user?.passwordHash || !(await this.passwords.verify(dto.password, user.passwordHash))) {
-      throw new UnauthorizedException('Invalid email or password');
+      if (!user?.passwordHash || !(await this.passwords.verify(dto.password, user.passwordHash))) {
+        throw new UnauthorizedException('Invalid email or password');
+      }
+      if (!user.isActive) throw new UnauthorizedException('Account is inactive');
+
+      return this.session(user);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '';
+      if (message.includes('denied access on the database') || message.includes('PrismaClientInitializationError')) {
+        throw new ServiceUnavailableException(
+          'Vendor login is temporarily unavailable because the configured database is rejecting connections from this environment.',
+        );
+      }
+      throw error;
     }
-    if (!user.isActive) throw new UnauthorizedException('Account is inactive');
-
-    return this.session(user);
   }
 
   async profile(userId: string) {
@@ -121,7 +131,7 @@ export class AuthService {
     email: string;
     phone: string | null;
     role: UserRole;
-    vendor?: { id: string; status: string; companyName: string } | null;
+    vendor?: { id: string; status: string; companyName: string; updatedProfile: boolean } | null;
   }) {
     return {
       ...this.tokens.issue({ id: user.id, email: user.email, role: user.role }),
@@ -135,7 +145,7 @@ export class AuthService {
     email: string;
     phone: string | null;
     role: UserRole;
-    vendor?: { id: string; status: string; companyName: string } | null;
+    vendor?: { id: string; status: string; companyName: string; updatedProfile: boolean } | null;
   }) {
     return {
       id: user.id,
@@ -146,6 +156,7 @@ export class AuthService {
       vendorId: user.vendor?.id ?? null,
       vendorStatus: user.vendor?.status ?? null,
       companyName: user.vendor?.companyName ?? null,
+      updatedProfile: user.vendor?.updatedProfile ?? null,
     };
   }
 }

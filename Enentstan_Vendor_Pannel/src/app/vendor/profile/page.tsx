@@ -1,12 +1,14 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   Save, MapPin, Phone, Mail, Shield, Loader2, Building2,
   User, CreditCard, CalendarClock, Landmark, BadgeCheck,
   Globe, FileText, Percent, Lock, ChevronDown
 } from 'lucide-react';
 import { vendorApi } from '@/api/vendorApi';
+import { updateSessionUser } from '@/lib/auth';
 
 interface VendorProfile {
   id: string;
@@ -131,6 +133,7 @@ function Field({
 
 /* ─── main page ────────────────────────────────────────────── */
 export default function ProfilePage() {
+  const router = useRouter();
   const [profile, setProfile] = useState<VendorProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -168,7 +171,9 @@ export default function ProfilePage() {
         telephone: profile.telephone ?? '',
       });
       setProfile(updated);
+      updateSessionUser({ companyName: updated.companyName, email: updated.email, phone: updated.phone, updatedProfile: true });
       setMessage('Profile saved successfully.');
+      router.replace('/vendor/dashboard');
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Unable to save profile');
     } finally {

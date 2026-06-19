@@ -1,0 +1,13 @@
+
+> eventstan-admin@1.0.0 dev
+> next dev -p 3001
+
+   ▲ Next.js 14.0.4
+   - Local:        http://localhost:3001
+   - Environments: .env
+
+ ✓ Ready in 20s
+ ○ Compiling / ...
+ ✓ Compiled / in 29.1s (426 modules)
+ ✓ Compiled in 2.5s (213 modules)
+ ✓ Compiled in 720ms (199 modules)

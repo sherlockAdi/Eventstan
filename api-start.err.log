@@ -1,0 +1,325 @@
+[31m[Nest] 9972  - [39m20/06/2026, 1:04:53 am [31m  ERROR[39m [38;5;3m[ExceptionsHandler] [39m[31m
+Invalid `this.prisma.user.findUnique()` invocation in
+D:\Aditya Kumar Dwivedi\Neural\Eventstan\Api\dist\src\modules\auth\auth.service.js:71:49
+
+  68 async login(dto) {
+  69     try {
+  70         const email = dto.email.trim().toLowerCase();
+→ 71         const user = await this.prisma.user.findUnique(
+The column `vendors.updatedProfile` does not exist in the current database.[39m
+PrismaClientKnownRequestError: 
+Invalid `this.prisma.user.findUnique()` invocation in
+D:\Aditya Kumar Dwivedi\Neural\Eventstan\Api\dist\src\modules\auth\auth.service.js:71:49
+
+  68 async login(dto) {
+  69     try {
+  70         const email = dto.email.trim().toLowerCase();
+→ 71         const user = await this.prisma.user.findUnique(
+The column `vendors.updatedProfile` does not exist in the current database.
+    at ei.handleRequestError (D:\Aditya Kumar Dwivedi\Neural\Eventstan\Api\node_modules\@prisma\client\runtime\library.js:121:7268)
+    at ei.handleAndLogRequestError (D:\Aditya Kumar Dwivedi\Neural\Eventstan\Api\node_modules\@prisma\client\runtime\library.js:121:6593)
+    at ei.request (D:\Aditya Kumar Dwivedi\Neural\Eventstan\Api\node_modules\@prisma\client\runtime\library.js:121:6300)
+    at async a (D:\Aditya Kumar Dwivedi\Neural\Eventstan\Api\node_modules\@prisma\client\runtime\library.js:130:9551)
+    at async AuthService.login (D:\Aditya Kumar Dwivedi\Neural\Eventstan\Api\dist\src\modules\auth\auth.service.js:71:26)
+    at async D:\Aditya Kumar Dwivedi\Neural\Eventstan\Api\node_modules\@nestjs\core\router\router-execution-context.js:46:28
+    at async D:\Aditya Kumar Dwivedi\Neural\Eventstan\Api\node_modules\@nestjs\core\router\router-proxy.js:9:17
+[31m[Nest] 9972  - [39m20/06/2026, 1:04:55 am [31m  ERROR[39m [38;5;3m[ExceptionsHandler] [39m[31m
+Invalid `this.prisma.user.findUnique()` invocation in
+D:\Aditya Kumar Dwivedi\Neural\Eventstan\Api\dist\src\modules\auth\auth.service.js:71:49
+
+  68 async login(dto) {
+  69     try {
+  70         const email = dto.email.trim().toLowerCase();
+→ 71         const user = await this.prisma.user.findUnique(
+The column `vendors.updatedProfile` does not exist in the current database.[39m
+PrismaClientKnownRequestError: 
+Invalid `this.prisma.user.findUnique()` invocation in
+D:\Aditya Kumar Dwivedi\Neural\Eventstan\Api\dist\src\modules\auth\auth.service.js:71:49
+
+  68 async login(dto) {
+  69     try {
+  70         const email = dto.email.trim().toLowerCase();
+→ 71         const user = await this.prisma.user.findUnique(
+The column `vendors.updatedProfile` does not exist in the current database.
+    at ei.handleRequestError (D:\Aditya Kumar Dwivedi\Neural\Eventstan\Api\node_modules\@prisma\client\runtime\library.js:121:7268)
+    at ei.handleAndLogRequestError (D:\Aditya Kumar Dwivedi\Neural\Eventstan\Api\node_modules\@prisma\client\runtime\library.js:121:6593)
+    at ei.request (D:\Aditya Kumar Dwivedi\Neural\Eventstan\Api\node_modules\@prisma\client\runtime\library.js:121:6300)
+    at async a (D:\Aditya Kumar Dwivedi\Neural\Eventstan\Api\node_modules\@prisma\client\runtime\library.js:130:9551)
+    at async AuthService.login (D:\Aditya Kumar Dwivedi\Neural\Eventstan\Api\dist\src\modules\auth\auth.service.js:71:26)
+    at async D:\Aditya Kumar Dwivedi\Neural\Eventstan\Api\node_modules\@nestjs\core\router\router-execution-context.js:46:28
+    at async D:\Aditya Kumar Dwivedi\Neural\Eventstan\Api\node_modules\@nestjs\core\router\router-proxy.js:9:17
+[31m[Nest] 9972  - [39m20/06/2026, 1:05:02 am [31m  ERROR[39m [38;5;3m[ExceptionsHandler] [39m[31m
+Invalid `this.prisma.user.findUnique()` invocation in
+D:\Aditya Kumar Dwivedi\Neural\Eventstan\Api\dist\src\modules\auth\auth.service.js:71:49
+
+  68 async login(dto) {
+  69     try {
+  70         const email = dto.email.trim().toLowerCase();
+→ 71         const user = await this.prisma.user.findUnique(
+The column `vendors.updatedProfile` does not exist in the current database.[39m
+PrismaClientKnownRequestError: 
+Invalid `this.prisma.user.findUnique()` invocation in
+D:\Aditya Kumar Dwivedi\Neural\Eventstan\Api\dist\src\modules\auth\auth.service.js:71:49
+
+  68 async login(dto) {
+  69     try {
+  70         const email = dto.email.trim().toLowerCase();
+→ 71         const user = await this.prisma.user.findUnique(
+The column `vendors.updatedProfile` does not exist in the current database.
+    at ei.handleRequestError (D:\Aditya Kumar Dwivedi\Neural\Eventstan\Api\node_modules\@prisma\client\runtime\library.js:121:7268)
+    at ei.handleAndLogRequestError (D:\Aditya Kumar Dwivedi\Neural\Eventstan\Api\node_modules\@prisma\client\runtime\library.js:121:6593)
+    at ei.request (D:\Aditya Kumar Dwivedi\Neural\Eventstan\Api\node_modules\@prisma\client\runtime\library.js:121:6300)
+    at async a (D:\Aditya Kumar Dwivedi\Neural\Eventstan\Api\node_modules\@prisma\client\runtime\library.js:130:9551)
+    at async AuthService.login (D:\Aditya Kumar Dwivedi\Neural\Eventstan\Api\dist\src\modules\auth\auth.service.js:71:26)
+    at async D:\Aditya Kumar Dwivedi\Neural\Eventstan\Api\node_modules\@nestjs\core\router\router-execution-context.js:46:28
+    at async D:\Aditya Kumar Dwivedi\Neural\Eventstan\Api\node_modules\@nestjs\core\router\router-proxy.js:9:17
+[31m[Nest] 9972  - [39m20/06/2026, 1:05:20 am [31m  ERROR[39m [38;5;3m[ExceptionsHandler] [39m[31m
+Invalid `this.prisma.user.findUnique()` invocation in
+D:\Aditya Kumar Dwivedi\Neural\Eventstan\Api\dist\src\modules\auth\auth.service.js:71:49
+
+  68 async login(dto) {
+  69     try {
+  70         const email = dto.email.trim().toLowerCase();
+→ 71         const user = await this.prisma.user.findUnique(
+The column `vendors.updatedProfile` does not exist in the current database.[39m
+PrismaClientKnownRequestError: 
+Invalid `this.prisma.user.findUnique()` invocation in
+D:\Aditya Kumar Dwivedi\Neural\Eventstan\Api\dist\src\modules\auth\auth.service.js:71:49
+
+  68 async login(dto) {
+  69     try {
+  70         const email = dto.email.trim().toLowerCase();
+→ 71         const user = await this.prisma.user.findUnique(
+The column `vendors.updatedProfile` does not exist in the current database.
+    at ei.handleRequestError (D:\Aditya Kumar Dwivedi\Neural\Eventstan\Api\node_modules\@prisma\client\runtime\library.js:121:7268)
+    at ei.handleAndLogRequestError (D:\Aditya Kumar Dwivedi\Neural\Eventstan\Api\node_modules\@prisma\client\runtime\library.js:121:6593)
+    at ei.request (D:\Aditya Kumar Dwivedi\Neural\Eventstan\Api\node_modules\@prisma\client\runtime\library.js:121:6300)
+    at async a (D:\Aditya Kumar Dwivedi\Neural\Eventstan\Api\node_modules\@prisma\client\runtime\library.js:130:9551)
+    at async AuthService.login (D:\Aditya Kumar Dwivedi\Neural\Eventstan\Api\dist\src\modules\auth\auth.service.js:71:26)
+    at async D:\Aditya Kumar Dwivedi\Neural\Eventstan\Api\node_modules\@nestjs\core\router\router-execution-context.js:46:28
+    at async D:\Aditya Kumar Dwivedi\Neural\Eventstan\Api\node_modules\@nestjs\core\router\router-proxy.js:9:17
+[31m[Nest] 9972  - [39m20/06/2026, 1:06:06 am [31m  ERROR[39m [38;5;3m[ExceptionsHandler] [39m[31m
+Invalid `this.prisma.user.findUnique()` invocation in
+D:\Aditya Kumar Dwivedi\Neural\Eventstan\Api\dist\src\modules\auth\auth.service.js:71:49
+
+  68 async login(dto) {
+  69     try {
+  70         const email = dto.email.trim().toLowerCase();
+→ 71         const user = await this.prisma.user.findUnique(
+The column `vendors.updatedProfile` does not exist in the current database.[39m
+PrismaClientKnownRequestError: 
+Invalid `this.prisma.user.findUnique()` invocation in
+D:\Aditya Kumar Dwivedi\Neural\Eventstan\Api\dist\src\modules\auth\auth.service.js:71:49
+
+  68 async login(dto) {
+  69     try {
+  70         const email = dto.email.trim().toLowerCase();
+→ 71         const user = await this.prisma.user.findUnique(
+The column `vendors.updatedProfile` does not exist in the current database.
+    at ei.handleRequestError (D:\Aditya Kumar Dwivedi\Neural\Eventstan\Api\node_modules\@prisma\client\runtime\library.js:121:7268)
+    at ei.handleAndLogRequestError (D:\Aditya Kumar Dwivedi\Neural\Eventstan\Api\node_modules\@prisma\client\runtime\library.js:121:6593)
+    at ei.request (D:\Aditya Kumar Dwivedi\Neural\Eventstan\Api\node_modules\@prisma\client\runtime\library.js:121:6300)
+    at async a (D:\Aditya Kumar Dwivedi\Neural\Eventstan\Api\node_modules\@prisma\client\runtime\library.js:130:9551)
+    at async AuthService.login (D:\Aditya Kumar Dwivedi\Neural\Eventstan\Api\dist\src\modules\auth\auth.service.js:71:26)
+    at async D:\Aditya Kumar Dwivedi\Neural\Eventstan\Api\node_modules\@nestjs\core\router\router-execution-context.js:46:28
+    at async D:\Aditya Kumar Dwivedi\Neural\Eventstan\Api\node_modules\@nestjs\core\router\router-proxy.js:9:17
+[31m[Nest] 9972  - [39m20/06/2026, 1:06:07 am [31m  ERROR[39m [38;5;3m[ExceptionsHandler] [39m[31m
+Invalid `this.prisma.user.findUnique()` invocation in
+D:\Aditya Kumar Dwivedi\Neural\Eventstan\Api\dist\src\modules\auth\auth.service.js:71:49
+
+  68 async login(dto) {
+  69     try {
+  70         const email = dto.email.trim().toLowerCase();
+→ 71         const user = await this.prisma.user.findUnique(
+The column `vendors.updatedProfile` does not exist in the current database.[39m
+PrismaClientKnownRequestError: 
+Invalid `this.prisma.user.findUnique()` invocation in
+D:\Aditya Kumar Dwivedi\Neural\Eventstan\Api\dist\src\modules\auth\auth.service.js:71:49
+
+  68 async login(dto) {
+  69     try {
+  70         const email = dto.email.trim().toLowerCase();
+→ 71         const user = await this.prisma.user.findUnique(
+The column `vendors.updatedProfile` does not exist in the current database.
+    at ei.handleRequestError (D:\Aditya Kumar Dwivedi\Neural\Eventstan\Api\node_modules\@prisma\client\runtime\library.js:121:7268)
+    at ei.handleAndLogRequestError (D:\Aditya Kumar Dwivedi\Neural\Eventstan\Api\node_modules\@prisma\client\runtime\library.js:121:6593)
+    at ei.request (D:\Aditya Kumar Dwivedi\Neural\Eventstan\Api\node_modules\@prisma\client\runtime\library.js:121:6300)
+    at async a (D:\Aditya Kumar Dwivedi\Neural\Eventstan\Api\node_modules\@prisma\client\runtime\library.js:130:9551)
+    at async AuthService.login (D:\Aditya Kumar Dwivedi\Neural\Eventstan\Api\dist\src\modules\auth\auth.service.js:71:26)
+    at async D:\Aditya Kumar Dwivedi\Neural\Eventstan\Api\node_modules\@nestjs\core\router\router-execution-context.js:46:28
+    at async D:\Aditya Kumar Dwivedi\Neural\Eventstan\Api\node_modules\@nestjs\core\router\router-proxy.js:9:17
+[31m[Nest] 9972  - [39m20/06/2026, 1:06:08 am [31m  ERROR[39m [38;5;3m[ExceptionsHandler] [39m[31m
+Invalid `this.prisma.user.findUnique()` invocation in
+D:\Aditya Kumar Dwivedi\Neural\Eventstan\Api\dist\src\modules\auth\auth.service.js:71:49
+
+  68 async login(dto) {
+  69     try {
+  70         const email = dto.email.trim().toLowerCase();
+→ 71         const user = await this.prisma.user.findUnique(
+The column `vendors.updatedProfile` does not exist in the current database.[39m
+PrismaClientKnownRequestError: 
+Invalid `this.prisma.user.findUnique()` invocation in
+D:\Aditya Kumar Dwivedi\Neural\Eventstan\Api\dist\src\modules\auth\auth.service.js:71:49
+
+  68 async login(dto) {
+  69     try {
+  70         const email = dto.email.trim().toLowerCase();
+→ 71         const user = await this.prisma.user.findUnique(
+The column `vendors.updatedProfile` does not exist in the current database.
+    at ei.handleRequestError (D:\Aditya Kumar Dwivedi\Neural\Eventstan\Api\node_modules\@prisma\client\runtime\library.js:121:7268)
+    at ei.handleAndLogRequestError (D:\Aditya Kumar Dwivedi\Neural\Eventstan\Api\node_modules\@prisma\client\runtime\library.js:121:6593)
+    at ei.request (D:\Aditya Kumar Dwivedi\Neural\Eventstan\Api\node_modules\@prisma\client\runtime\library.js:121:6300)
+    at async a (D:\Aditya Kumar Dwivedi\Neural\Eventstan\Api\node_modules\@prisma\client\runtime\library.js:130:9551)
+    at async AuthService.login (D:\Aditya Kumar Dwivedi\Neural\Eventstan\Api\dist\src\modules\auth\auth.service.js:71:26)
+    at async D:\Aditya Kumar Dwivedi\Neural\Eventstan\Api\node_modules\@nestjs\core\router\router-execution-context.js:46:28
+    at async D:\Aditya Kumar Dwivedi\Neural\Eventstan\Api\node_modules\@nestjs\core\router\router-proxy.js:9:17
+[31m[Nest] 9972  - [39m20/06/2026, 1:06:15 am [31m  ERROR[39m [38;5;3m[ExceptionsHandler] [39m[31m
+Invalid `this.prisma.user.findUnique()` invocation in
+D:\Aditya Kumar Dwivedi\Neural\Eventstan\Api\dist\src\modules\auth\auth.service.js:71:49
+
+  68 async login(dto) {
+  69     try {
+  70         const email = dto.email.trim().toLowerCase();
+→ 71         const user = await this.prisma.user.findUnique(
+The column `vendors.updatedProfile` does not exist in the current database.[39m
+PrismaClientKnownRequestError: 
+Invalid `this.prisma.user.findUnique()` invocation in
+D:\Aditya Kumar Dwivedi\Neural\Eventstan\Api\dist\src\modules\auth\auth.service.js:71:49
+
+  68 async login(dto) {
+  69     try {
+  70         const email = dto.email.trim().toLowerCase();
+→ 71         const user = await this.prisma.user.findUnique(
+The column `vendors.updatedProfile` does not exist in the current database.
+    at ei.handleRequestError (D:\Aditya Kumar Dwivedi\Neural\Eventstan\Api\node_modules\@prisma\client\runtime\library.js:121:7268)
+    at ei.handleAndLogRequestError (D:\Aditya Kumar Dwivedi\Neural\Eventstan\Api\node_modules\@prisma\client\runtime\library.js:121:6593)
+    at ei.request (D:\Aditya Kumar Dwivedi\Neural\Eventstan\Api\node_modules\@prisma\client\runtime\library.js:121:6300)
+    at async a (D:\Aditya Kumar Dwivedi\Neural\Eventstan\Api\node_modules\@prisma\client\runtime\library.js:130:9551)
+    at async AuthService.login (D:\Aditya Kumar Dwivedi\Neural\Eventstan\Api\dist\src\modules\auth\auth.service.js:71:26)
+    at async D:\Aditya Kumar Dwivedi\Neural\Eventstan\Api\node_modules\@nestjs\core\router\router-execution-context.js:46:28
+    at async D:\Aditya Kumar Dwivedi\Neural\Eventstan\Api\node_modules\@nestjs\core\router\router-proxy.js:9:17
+[31m[Nest] 9972  - [39m20/06/2026, 1:06:17 am [31m  ERROR[39m [38;5;3m[ExceptionsHandler] [39m[31m
+Invalid `this.prisma.user.findUnique()` invocation in
+D:\Aditya Kumar Dwivedi\Neural\Eventstan\Api\dist\src\modules\auth\auth.service.js:71:49
+
+  68 async login(dto) {
+  69     try {
+  70         const email = dto.email.trim().toLowerCase();
+→ 71         const user = await this.prisma.user.findUnique(
+The column `vendors.updatedProfile` does not exist in the current database.[39m
+PrismaClientKnownRequestError: 
+Invalid `this.prisma.user.findUnique()` invocation in
+D:\Aditya Kumar Dwivedi\Neural\Eventstan\Api\dist\src\modules\auth\auth.service.js:71:49
+
+  68 async login(dto) {
+  69     try {
+  70         const email = dto.email.trim().toLowerCase();
+→ 71         const user = await this.prisma.user.findUnique(
+The column `vendors.updatedProfile` does not exist in the current database.
+    at ei.handleRequestError (D:\Aditya Kumar Dwivedi\Neural\Eventstan\Api\node_modules\@prisma\client\runtime\library.js:121:7268)
+    at ei.handleAndLogRequestError (D:\Aditya Kumar Dwivedi\Neural\Eventstan\Api\node_modules\@prisma\client\runtime\library.js:121:6593)
+    at ei.request (D:\Aditya Kumar Dwivedi\Neural\Eventstan\Api\node_modules\@prisma\client\runtime\library.js:121:6300)
+    at async a (D:\Aditya Kumar Dwivedi\Neural\Eventstan\Api\node_modules\@prisma\client\runtime\library.js:130:9551)
+    at async AuthService.login (D:\Aditya Kumar Dwivedi\Neural\Eventstan\Api\dist\src\modules\auth\auth.service.js:71:26)
+    at async D:\Aditya Kumar Dwivedi\Neural\Eventstan\Api\node_modules\@nestjs\core\router\router-execution-context.js:46:28
+    at async D:\Aditya Kumar Dwivedi\Neural\Eventstan\Api\node_modules\@nestjs\core\router\router-proxy.js:9:17
+[31m[Nest] 9972  - [39m20/06/2026, 1:07:28 am [31m  ERROR[39m [38;5;3m[ExceptionsHandler] [39m[31m
+Invalid `this.prisma.user.findUnique()` invocation in
+D:\Aditya Kumar Dwivedi\Neural\Eventstan\Api\dist\src\modules\auth\auth.service.js:71:49
+
+  68 async login(dto) {
+  69     try {
+  70         const email = dto.email.trim().toLowerCase();
+→ 71         const user = await this.prisma.user.findUnique(
+The column `vendors.updatedProfile` does not exist in the current database.[39m
+PrismaClientKnownRequestError: 
+Invalid `this.prisma.user.findUnique()` invocation in
+D:\Aditya Kumar Dwivedi\Neural\Eventstan\Api\dist\src\modules\auth\auth.service.js:71:49
+
+  68 async login(dto) {
+  69     try {
+  70         const email = dto.email.trim().toLowerCase();
+→ 71         const user = await this.prisma.user.findUnique(
+The column `vendors.updatedProfile` does not exist in the current database.
+    at ei.handleRequestError (D:\Aditya Kumar Dwivedi\Neural\Eventstan\Api\node_modules\@prisma\client\runtime\library.js:121:7268)
+    at ei.handleAndLogRequestError (D:\Aditya Kumar Dwivedi\Neural\Eventstan\Api\node_modules\@prisma\client\runtime\library.js:121:6593)
+    at ei.request (D:\Aditya Kumar Dwivedi\Neural\Eventstan\Api\node_modules\@prisma\client\runtime\library.js:121:6300)
+    at async a (D:\Aditya Kumar Dwivedi\Neural\Eventstan\Api\node_modules\@prisma\client\runtime\library.js:130:9551)
+    at async AuthService.login (D:\Aditya Kumar Dwivedi\Neural\Eventstan\Api\dist\src\modules\auth\auth.service.js:71:26)
+    at async D:\Aditya Kumar Dwivedi\Neural\Eventstan\Api\node_modules\@nestjs\core\router\router-execution-context.js:46:28
+    at async D:\Aditya Kumar Dwivedi\Neural\Eventstan\Api\node_modules\@nestjs\core\router\router-proxy.js:9:17
+[31m[Nest] 9972  - [39m20/06/2026, 1:07:29 am [31m  ERROR[39m [38;5;3m[ExceptionsHandler] [39m[31m
+Invalid `this.prisma.user.findUnique()` invocation in
+D:\Aditya Kumar Dwivedi\Neural\Eventstan\Api\dist\src\modules\auth\auth.service.js:71:49
+
+  68 async login(dto) {
+  69     try {
+  70         const email = dto.email.trim().toLowerCase();
+→ 71         const user = await this.prisma.user.findUnique(
+The column `vendors.updatedProfile` does not exist in the current database.[39m
+PrismaClientKnownRequestError: 
+Invalid `this.prisma.user.findUnique()` invocation in
+D:\Aditya Kumar Dwivedi\Neural\Eventstan\Api\dist\src\modules\auth\auth.service.js:71:49
+
+  68 async login(dto) {
+  69     try {
+  70         const email = dto.email.trim().toLowerCase();
+→ 71         const user = await this.prisma.user.findUnique(
+The column `vendors.updatedProfile` does not exist in the current database.
+    at ei.handleRequestError (D:\Aditya Kumar Dwivedi\Neural\Eventstan\Api\node_modules\@prisma\client\runtime\library.js:121:7268)
+    at ei.handleAndLogRequestError (D:\Aditya Kumar Dwivedi\Neural\Eventstan\Api\node_modules\@prisma\client\runtime\library.js:121:6593)
+    at ei.request (D:\Aditya Kumar Dwivedi\Neural\Eventstan\Api\node_modules\@prisma\client\runtime\library.js:121:6300)
+    at async a (D:\Aditya Kumar Dwivedi\Neural\Eventstan\Api\node_modules\@prisma\client\runtime\library.js:130:9551)
+    at async AuthService.login (D:\Aditya Kumar Dwivedi\Neural\Eventstan\Api\dist\src\modules\auth\auth.service.js:71:26)
+    at async D:\Aditya Kumar Dwivedi\Neural\Eventstan\Api\node_modules\@nestjs\core\router\router-execution-context.js:46:28
+    at async D:\Aditya Kumar Dwivedi\Neural\Eventstan\Api\node_modules\@nestjs\core\router\router-proxy.js:9:17
+[31m[Nest] 9972  - [39m20/06/2026, 1:07:30 am [31m  ERROR[39m [38;5;3m[ExceptionsHandler] [39m[31m
+Invalid `this.prisma.user.findUnique()` invocation in
+D:\Aditya Kumar Dwivedi\Neural\Eventstan\Api\dist\src\modules\auth\auth.service.js:71:49
+
+  68 async login(dto) {
+  69     try {
+  70         const email = dto.email.trim().toLowerCase();
+→ 71         const user = await this.prisma.user.findUnique(
+The column `vendors.updatedProfile` does not exist in the current database.[39m
+PrismaClientKnownRequestError: 
+Invalid `this.prisma.user.findUnique()` invocation in
+D:\Aditya Kumar Dwivedi\Neural\Eventstan\Api\dist\src\modules\auth\auth.service.js:71:49
+
+  68 async login(dto) {
+  69     try {
+  70         const email = dto.email.trim().toLowerCase();
+→ 71         const user = await this.prisma.user.findUnique(
+The column `vendors.updatedProfile` does not exist in the current database.
+    at ei.handleRequestError (D:\Aditya Kumar Dwivedi\Neural\Eventstan\Api\node_modules\@prisma\client\runtime\library.js:121:7268)
+    at ei.handleAndLogRequestError (D:\Aditya Kumar Dwivedi\Neural\Eventstan\Api\node_modules\@prisma\client\runtime\library.js:121:6593)
+    at ei.request (D:\Aditya Kumar Dwivedi\Neural\Eventstan\Api\node_modules\@prisma\client\runtime\library.js:121:6300)
+    at async a (D:\Aditya Kumar Dwivedi\Neural\Eventstan\Api\node_modules\@prisma\client\runtime\library.js:130:9551)
+    at async AuthService.login (D:\Aditya Kumar Dwivedi\Neural\Eventstan\Api\dist\src\modules\auth\auth.service.js:71:26)
+    at async D:\Aditya Kumar Dwivedi\Neural\Eventstan\Api\node_modules\@nestjs\core\router\router-execution-context.js:46:28
+    at async D:\Aditya Kumar Dwivedi\Neural\Eventstan\Api\node_modules\@nestjs\core\router\router-proxy.js:9:17
+[31m[Nest] 9972  - [39m20/06/2026, 1:07:30 am [31m  ERROR[39m [38;5;3m[ExceptionsHandler] [39m[31m
+Invalid `this.prisma.user.findUnique()` invocation in
+D:\Aditya Kumar Dwivedi\Neural\Eventstan\Api\dist\src\modules\auth\auth.service.js:71:49
+
+  68 async login(dto) {
+  69     try {
+  70         const email = dto.email.trim().toLowerCase();
+→ 71         const user = await this.prisma.user.findUnique(
+The column `vendors.updatedProfile` does not exist in the current database.[39m
+PrismaClientKnownRequestError: 
+Invalid `this.prisma.user.findUnique()` invocation in
+D:\Aditya Kumar Dwivedi\Neural\Eventstan\Api\dist\src\modules\auth\auth.service.js:71:49
+
+  68 async login(dto) {
+  69     try {
+  70         const email = dto.email.trim().toLowerCase();
+→ 71         const user = await this.prisma.user.findUnique(
+The column `vendors.updatedProfile` does not exist in the current database.
+    at ei.handleRequestError (D:\Aditya Kumar Dwivedi\Neural\Eventstan\Api\node_modules\@prisma\client\runtime\library.js:121:7268)
+    at ei.handleAndLogRequestError (D:\Aditya Kumar Dwivedi\Neural\Eventstan\Api\node_modules\@prisma\client\runtime\library.js:121:6593)
+    at ei.request (D:\Aditya Kumar Dwivedi\Neural\Eventstan\Api\node_modules\@prisma\client\runtime\library.js:121:6300)
+    at async a (D:\Aditya Kumar Dwivedi\Neural\Eventstan\Api\node_modules\@prisma\client\runtime\library.js:130:9551)
+    at async AuthService.login (D:\Aditya Kumar Dwivedi\Neural\Eventstan\Api\dist\src\modules\auth\auth.service.js:71:26)
+    at async D:\Aditya Kumar Dwivedi\Neural\Eventstan\Api\node_modules\@nestjs\core\router\router-execution-context.js:46:28
+    at async D:\Aditya Kumar Dwivedi\Neural\Eventstan\Api\node_modules\@nestjs\core\router\router-proxy.js:9:17

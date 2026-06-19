@@ -131,6 +131,7 @@ model Vendor {
   address            String?
   tradeLicenseNumber String
   vatNumber          String?
+  updatedProfile     Boolean      @default(false)
   status             VendorStatus @default(PENDING_VERIFICATION)
   cities             String[]
   capacityPerDay     Int          @default(1)

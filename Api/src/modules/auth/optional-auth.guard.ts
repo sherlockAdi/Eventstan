@@ -20,9 +20,16 @@ export class OptionalAuthGuard implements CanActivate {
       const payload = this.tokens.verify(token);
       const user = await this.prisma.user.findUnique({
         where: { id: payload.sub },
-        select: { id: true, email: true, role: true, isActive: true },
+        select: { id: true, email: true, role: true, isActive: true, vendor: { select: { updatedProfile: true } } },
       });
-      if (user?.isActive) request.user = { id: user.id, email: user.email, role: user.role };
+      if (user?.isActive) {
+        request.user = {
+          id: user.id,
+          email: user.email,
+          role: user.role,
+          updatedProfile: user.vendor?.updatedProfile ?? undefined,
+        };
+      }
     } catch {
       request.user = undefined;
     }

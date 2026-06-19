@@ -1,0 +1,18 @@
+
+> eventstan-vendor@0.1.0 dev
+> next dev -p 3003
+
+▲ Next.js 16.2.4 (Turbopack)
+- Local:         http://localhost:3003
+- Network:       http://192.168.1.4:3003
+- Environments: .env
+✓ Ready in 3.9s
+
+○ Compiling / ...
+ GET / 307 in 17.4s (next.js: 14.8s, application-code: 2.6s)
+○ Compiling /vendor/login ...
+ GET / 307 in 3.6s (next.js: 887ms, application-code: 2.7s)
+ GET /vendor/login 200 in 1567ms (next.js: 497ms, application-code: 1070ms)
+○ Compiling /_error ...
+ GET /vendor/login 200 in 412ms (next.js: 34ms, application-code: 377ms)
+ GET /vendor/login 200 in 469ms (next.js: 24ms, application-code: 445ms)

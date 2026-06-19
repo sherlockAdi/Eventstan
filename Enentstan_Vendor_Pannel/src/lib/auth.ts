@@ -7,6 +7,7 @@ export interface VendorUser {
   vendorId?: string | null;
   vendorStatus?: string | null;
   companyName?: string | null;
+  updatedProfile?: boolean | null;
   image?: string | null;
 }
 
@@ -17,6 +18,14 @@ export function saveSession(token: string, user: VendorUser) {
   localStorage.setItem(TOKEN_KEY, token);
   localStorage.setItem(USER_KEY, JSON.stringify({ user }));
   localStorage.setItem('user_role', user.role);
+}
+
+export function updateSessionUser(patch: Partial<VendorUser>) {
+  if (typeof window === 'undefined') return;
+  const current = getUser();
+  if (!current) return;
+  const updated = { ...current, ...patch };
+  localStorage.setItem(USER_KEY, JSON.stringify({ user: updated }));
 }
 
 export function clearSession() {

@@ -1,0 +1,52 @@
+Failed to proxy http://localhost:4000/api/v1/master-data/categories AggregateError: 
+    at ignore-listed frames {
+  code: 'ECONNREFUSED',
+  [errors]: [
+    Error: connect ECONNREFUSED ::1:4000
+        at <unknown> (Error: connect ECONNREFUSED ::1:4000) {
+      errno: -4078,
+      code: 'ECONNREFUSED',
+      syscall: 'connect',
+      address: '::1',
+      port: 4000
+    },
+    Error: connect ECONNREFUSED 127.0.0.1:4000
+        at <unknown> (Error: connect ECONNREFUSED 127.0.0.1:4000) {
+      errno: -4078,
+      code: 'ECONNREFUSED',
+      syscall: 'connect',
+      address: '127.0.0.1',
+      port: 4000
+    }
+  ]
+}
+AggregateError: 
+    at ignore-listed frames {
+  code: 'ECONNREFUSED',
+  [errors]: [
+    Error: connect ECONNREFUSED ::1:4000
+        at <unknown> (Error: connect ECONNREFUSED ::1:4000) {
+      errno: -4078,
+      code: 'ECONNREFUSED',
+      syscall: 'connect',
+      address: '::1',
+      port: 4000
+    },
+    Error: connect ECONNREFUSED 127.0.0.1:4000
+        at <unknown> (Error: connect ECONNREFUSED 127.0.0.1:4000) {
+      errno: -4078,
+      code: 'ECONNREFUSED',
+      syscall: 'connect',
+      address: '127.0.0.1',
+      port: 4000
+    }
+  ]
+}
+[browser] Error fetching categories: Error: Failed to fetch categories: 500
+    at CategoryService.fetchCategories (file://D:/Aditya Kumar Dwivedi/Neural/Eventstan/Enentstan_Customer_Panel/.next/dev/static/chunks/src_0_yd4cm._.js:1189:23)
+    at async CategoryService.fetchCategoriesWithMetadata (file://D:/Aditya Kumar Dwivedi/Neural/Eventstan/Enentstan_Customer_Panel/.next/dev/static/chunks/src_0_yd4cm._.js:1202:32)
+    at async loadCategories (file://D:/Aditya Kumar Dwivedi/Neural/Eventstan/Enentstan_Customer_Panel/.next/dev/static/chunks/src_0_yd4cm._.js:1589:34) (file://D:/Aditya Kumar Dwivedi/Neural/Eventstan/Enentstan_Customer_Panel/.next/dev/static/chunks/src_0_yd4cm._.js:1194:21)
+[browser] Error fetching categories with metadata: Error: Failed to fetch categories: 500
+    at CategoryService.fetchCategories (file://D:/Aditya Kumar Dwivedi/Neural/Eventstan/Enentstan_Customer_Panel/.next/dev/static/chunks/src_0_yd4cm._.js:1189:23)
+    at async CategoryService.fetchCategoriesWithMetadata (file://D:/Aditya Kumar Dwivedi/Neural/Eventstan/Enentstan_Customer_Panel/.next/dev/static/chunks/src_0_yd4cm._.js:1202:32)
+    at async loadCategories (file://D:/Aditya Kumar Dwivedi/Neural/Eventstan/Enentstan_Customer_Panel/.next/dev/static/chunks/src_0_yd4cm._.js:1589:34) (file://D:/Aditya Kumar Dwivedi/Neural/Eventstan/Enentstan_Customer_Panel/.next/dev/static/chunks/src_0_yd4cm._.js:1212:21)

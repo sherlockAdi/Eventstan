@@ -39,14 +39,21 @@ export default function VendorLayout({ children }: { children: React.ReactNode }
   const [mobileOpen,  setMobileOpen]  = useState(false);
   const [loggingOut,  setLoggingOut]  = useState(false);
   const [showLogout,  setShowLogout]  = useState(false);
-  const [vendor] = useState<VendorUser | null>(() => getUser());
+  const vendor = getUser();
+  const profileComplete = vendor?.updatedProfile === true;
+  const visibleNavItems = profileComplete ? navItems : navItems.filter((item) => item.href === '/vendor/profile');
 
   useEffect(() => {
     const token = localStorage.getItem('vendor_token');
     if (!token && pathname !== '/vendor/login') {
       router.replace('/vendor/login');
+      return;
     }
-  }, [pathname, router]);
+
+    if (token && !profileComplete && pathname !== '/vendor/profile' && pathname !== '/vendor/login') {
+      router.replace('/vendor/profile');
+    }
+  }, [pathname, profileComplete, router]);
 
   const initials = vendor
     ? vendor.name?.split(' ').map((part) => part.charAt(0)).slice(0, 2).join('').toUpperCase() ||
@@ -107,7 +114,12 @@ export default function VendorLayout({ children }: { children: React.ReactNode }
 
         {/* Nav */}
         <nav className="flex-1 py-4 px-3 space-y-1 overflow-y-auto">
-          {navItems.map(({ href, label, icon: Icon }) => {
+          {!profileComplete && (
+            <div className="mb-3 rounded-xl border border-orange-100 bg-orange-50/80 p-3 text-xs text-orange-700">
+              Complete your profile to unlock dashboard, services, packages, bookings, and calendar.
+            </div>
+          )}
+          {visibleNavItems.map(({ href, label, icon: Icon }) => {
             const active = pathname === href;
             return (
               <Link

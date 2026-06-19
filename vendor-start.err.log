@@ -1,0 +1,176 @@
+Failed to proxy http://localhost:4000/api/v1/auth/login AggregateError: 
+    at ignore-listed frames {
+  code: 'ECONNREFUSED',
+  [errors]: [
+    Error: connect ECONNREFUSED ::1:4000
+        at <unknown> (Error: connect ECONNREFUSED ::1:4000) {
+      errno: -4078,
+      code: 'ECONNREFUSED',
+      syscall: 'connect',
+      address: '::1',
+      port: 4000
+    },
+    Error: connect ECONNREFUSED 127.0.0.1:4000
+        at <unknown> (Error: connect ECONNREFUSED 127.0.0.1:4000) {
+      errno: -4078,
+      code: 'ECONNREFUSED',
+      syscall: 'connect',
+      address: '127.0.0.1',
+      port: 4000
+    }
+  ]
+}
+AggregateError: 
+    at ignore-listed frames {
+  code: 'ECONNREFUSED',
+  [errors]: [
+    Error: connect ECONNREFUSED ::1:4000
+        at <unknown> (Error: connect ECONNREFUSED ::1:4000) {
+      errno: -4078,
+      code: 'ECONNREFUSED',
+      syscall: 'connect',
+      address: '::1',
+      port: 4000
+    },
+    Error: connect ECONNREFUSED 127.0.0.1:4000
+        at <unknown> (Error: connect ECONNREFUSED 127.0.0.1:4000) {
+      errno: -4078,
+      code: 'ECONNREFUSED',
+      syscall: 'connect',
+      address: '127.0.0.1',
+      port: 4000
+    }
+  ]
+}
+Failed to proxy http://localhost:4000/api/v1/auth/login AggregateError: 
+    at ignore-listed frames {
+  code: 'ECONNREFUSED',
+  [errors]: [
+    Error: connect ECONNREFUSED ::1:4000
+        at <unknown> (Error: connect ECONNREFUSED ::1:4000) {
+      errno: -4078,
+      code: 'ECONNREFUSED',
+      syscall: 'connect',
+      address: '::1',
+      port: 4000
+    },
+    Error: connect ECONNREFUSED 127.0.0.1:4000
+        at <unknown> (Error: connect ECONNREFUSED 127.0.0.1:4000) {
+      errno: -4078,
+      code: 'ECONNREFUSED',
+      syscall: 'connect',
+      address: '127.0.0.1',
+      port: 4000
+    }
+  ]
+}
+AggregateError: 
+    at ignore-listed frames {
+  code: 'ECONNREFUSED',
+  [errors]: [
+    Error: connect ECONNREFUSED ::1:4000
+        at <unknown> (Error: connect ECONNREFUSED ::1:4000) {
+      errno: -4078,
+      code: 'ECONNREFUSED',
+      syscall: 'connect',
+      address: '::1',
+      port: 4000
+    },
+    Error: connect ECONNREFUSED 127.0.0.1:4000
+        at <unknown> (Error: connect ECONNREFUSED 127.0.0.1:4000) {
+      errno: -4078,
+      code: 'ECONNREFUSED',
+      syscall: 'connect',
+      address: '127.0.0.1',
+      port: 4000
+    }
+  ]
+}
+Failed to proxy http://localhost:4000/api/v1/auth/login AggregateError: 
+    at ignore-listed frames {
+  code: 'ECONNREFUSED',
+  [errors]: [
+    Error: connect ECONNREFUSED ::1:4000
+        at <unknown> (Error: connect ECONNREFUSED ::1:4000) {
+      errno: -4078,
+      code: 'ECONNREFUSED',
+      syscall: 'connect',
+      address: '::1',
+      port: 4000
+    },
+    Error: connect ECONNREFUSED 127.0.0.1:4000
+        at <unknown> (Error: connect ECONNREFUSED 127.0.0.1:4000) {
+      errno: -4078,
+      code: 'ECONNREFUSED',
+      syscall: 'connect',
+      address: '127.0.0.1',
+      port: 4000
+    }
+  ]
+}
+AggregateError: 
+    at ignore-listed frames {
+  code: 'ECONNREFUSED',
+  [errors]: [
+    Error: connect ECONNREFUSED ::1:4000
+        at <unknown> (Error: connect ECONNREFUSED ::1:4000) {
+      errno: -4078,
+      code: 'ECONNREFUSED',
+      syscall: 'connect',
+      address: '::1',
+      port: 4000
+    },
+    Error: connect ECONNREFUSED 127.0.0.1:4000
+        at <unknown> (Error: connect ECONNREFUSED 127.0.0.1:4000) {
+      errno: -4078,
+      code: 'ECONNREFUSED',
+      syscall: 'connect',
+      address: '127.0.0.1',
+      port: 4000
+    }
+  ]
+}
+Failed to proxy http://localhost:4000/api/v1/auth/login AggregateError: 
+    at ignore-listed frames {
+  code: 'ECONNREFUSED',
+  [errors]: [
+    Error: connect ECONNREFUSED ::1:4000
+        at <unknown> (Error: connect ECONNREFUSED ::1:4000) {
+      errno: -4078,
+      code: 'ECONNREFUSED',
+      syscall: 'connect',
+      address: '::1',
+      port: 4000
+    },
+    Error: connect ECONNREFUSED 127.0.0.1:4000
+        at <unknown> (Error: connect ECONNREFUSED 127.0.0.1:4000) {
+      errno: -4078,
+      code: 'ECONNREFUSED',
+      syscall: 'connect',
+      address: '127.0.0.1',
+      port: 4000
+    }
+  ]
+}
+AggregateError: 
+    at ignore-listed frames {
+  code: 'ECONNREFUSED',
+  [errors]: [
+    Error: connect ECONNREFUSED ::1:4000
+        at <unknown> (Error: connect ECONNREFUSED ::1:4000) {
+      errno: -4078,
+      code: 'ECONNREFUSED',
+      syscall: 'connect',
+      address: '::1',
+      port: 4000
+    },
+    Error: connect ECONNREFUSED 127.0.0.1:4000
+        at <unknown> (Error: connect ECONNREFUSED 127.0.0.1:4000) {
+      errno: -4078,
+      code: 'ECONNREFUSED',
+      syscall: 'connect',
+      address: '127.0.0.1',
+      port: 4000
+    }
+  ]
+}

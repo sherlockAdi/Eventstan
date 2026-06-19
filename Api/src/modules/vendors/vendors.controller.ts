@@ -4,6 +4,7 @@ import { ApiBearerAuth, ApiCreatedResponse, ApiOkResponse, ApiQuery, ApiTags } f
 import { AuthGuard, AuthenticatedRequest } from '../auth/auth.guard';
 import { Roles } from '../auth/roles.decorator';
 import { RolesGuard } from '../auth/roles.guard';
+import { VendorOnboardingBypass } from '../auth/vendor-onboarding.decorator';
 import { CreateVendorDto } from './dto/create-vendor.dto';
 import { UpdateVendorStatusDto } from './dto/update-vendor-status.dto';
 import { VendorsService } from './vendors.service';
@@ -32,15 +33,17 @@ export class VendorsController {
 
   @Get('me')
   @Roles(UserRole.VENDOR)
+  @VendorOnboardingBypass()
   findMe(@Req() request: AuthenticatedRequest) {
     return this.vendors.findForUser(request.user.id);
   }
 
   @Put('me')
   @Roles(UserRole.VENDOR)
+  @VendorOnboardingBypass()
   async updateMe(@Req() request: AuthenticatedRequest, @Body() dto: Partial<CreateVendorDto>) {
     const vendor = await this.vendors.findForUser(request.user.id);
-    return this.vendors.update(vendor.id, dto);
+    return this.vendors.updateProfile(vendor.id, dto);
   }
 
   @Get(':id')
