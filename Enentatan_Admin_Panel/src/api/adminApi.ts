@@ -176,10 +176,10 @@ export const adminApi = {
   },
 
   support: {
-    list: () => request<any[]>('support/tickets'),
-    get: (id: string) => request<any>(`support/tickets/${id}`),
-    reply: (id: string, payload: JsonBody) => request<any>(`support/tickets/${id}/replies`, jsonOptions('POST', payload)),
-    updateStatus: (id: string, status: string) =>
-      request<any>(`support/tickets/${id}/status`, jsonOptions('PATCH', { status })),
+    list: <T = unknown[]>() => request<T>('support/tickets'),
+    get: <T = unknown>(id: string) => request<T>(`support/tickets/${id}`),
+    reply: <T = unknown>(id: string, payload: JsonBody) => request<T>(`support/tickets/${id}/replies`, jsonOptions('POST', payload)),
+    updateStatus: <T = unknown>(id: string, status: string) =>
+      request<T>(`support/tickets/${id}/status`, jsonOptions('PATCH', { status })),
   },
 };
