@@ -11,3 +11,16 @@
  ✓ Compiled / in 29.1s (426 modules)
  ✓ Compiled in 2.5s (213 modules)
  ✓ Compiled in 720ms (199 modules)
+ ○ Compiling /admin/login ...
+ ✓ Compiled /admin/login in 12.1s (567 modules)
+ ○ Compiling /not-found ...
+ ✓ Compiled /not-found in 3.2s (557 modules)
+ ✓ Compiled in 3.6s (283 modules)
+ ✓ Compiled in 5.1s (283 modules)
+ ✓ Compiled in 3.8s (284 modules)
+ ✓ Compiled in 2.6s (270 modules)
+ ✓ Compiled in 2.4s (270 modules)
+ ✓ Compiled in 1658ms (284 modules)
+ ✓ Compiled in 1770ms (284 modules)
+ ✓ Compiled in 1659ms (270 modules)
+ ✓ Compiled in 1314ms (270 modules)
