@@ -2,14 +2,12 @@ name: Deploy EventStan Applications
 
 on:
   push:
-   branches:
-    - main
+    branches:
+      - main
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-
-
     steps:
       - name: Deploy to server
         uses: appleboy/ssh-action@v1.0.3
@@ -25,30 +23,28 @@ jobs:
             git fetch origin main
             git reset --hard origin/main
 
-            # API
+            echo "Deploying code only. No Prisma migrations will run."
 
+            # API
             cd Api
             npm ci
             npm run build
             pm2 delete eventstan-api || true
             pm2 start npm --name eventstan-api -- run start:prod
 
-            # Admin Panel (3001)
-
+            # Admin Panel
             cd ../Enentatan_Admin_Panel
-            npm install
+            npm ci
             npm run build
             PORT=3001 pm2 restart eventstan-admin --update-env || PORT=3001 pm2 start npm --name eventstan-admin -- start
 
-            # Customer Panel (3002)
-
+            # Customer Panel
             cd ../Enentstan_Customer_Panel
             npm ci
             npm run build
             PORT=3002 pm2 restart eventstan-customer --update-env || PORT=3002 pm2 start npm --name eventstan-customer -- start
 
-            # Vendor Panel (3003)
-
+            # Vendor Panel
             cd ../Enentstan_Vendor_Pannel
             npm ci
             npm run build
