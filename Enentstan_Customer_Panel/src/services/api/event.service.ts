@@ -15,12 +15,11 @@ export interface CategoryWithMetadata extends Category {
   img: string;
 }
 
-// Client-side calls go through the Next.js rewrite proxy (no CORS issue),
-// server-side calls hit the real API directly.
-const isServer = typeof window === "undefined";
-const API_BASE_URL = isServer
-  ? `${process.env.NEXT_PUBLIC_BASE_URL?.replace(/\/$/, "") ?? "https://api.eventstan.com"}/api/v1`
-  : "/api/proxy";
+const API_ROOT =
+  process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") ??
+  process.env.NEXT_PUBLIC_BASE_URL?.replace(/\/$/, "") ??
+  "https://api.eventstan.com";
+const API_BASE_URL = `${API_ROOT}/api/v1`;
 
 // Static metadata for categories
 const CATEGORY_METADATA: Record<string, { desc: string; icon: string; img: string }> = {

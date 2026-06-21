@@ -1,5 +1,9 @@
 type JsonBody = object | unknown[];
-const API_BASE_URL = '/api/proxy/api/v1';
+const API_ROOT =
+  process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, '') ??
+  process.env.NEXT_PUBLIC_BASE_URL?.replace(/\/$/, '') ??
+  'https://api.eventstan.com';
+const API_BASE_URL = `${API_ROOT}/api/v1`;
 
 function getVendorToken() {
   if (typeof window === 'undefined') return null;

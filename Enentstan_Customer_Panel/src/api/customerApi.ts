@@ -1,9 +1,10 @@
 import { Package, Review, Service } from "@/types";
 
-const isServer = typeof window === "undefined";
-const API_BASE_URL = isServer
-  ? `${process.env.NEXT_PUBLIC_BASE_URL?.replace(/\/$/, "") ?? "https://api.eventstan.com"}/api/v1`
-  : "/api/proxy";
+const API_ROOT =
+  process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") ??
+  process.env.NEXT_PUBLIC_BASE_URL?.replace(/\/$/, "") ??
+  "https://api.eventstan.com";
+const API_BASE_URL = `${API_ROOT}/api/v1`;
 
 export { API_BASE_URL };
 

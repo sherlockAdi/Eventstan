@@ -1,13 +1,10 @@
-// Use proxy in browser (avoids CORS), direct URL on server
-const isServer = typeof window === 'undefined';
+const API_ROOT =
+  process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, '') ??
+  process.env.NEXT_PUBLIC_BASE_URL?.replace(/\/$/, '') ??
+  'https://api.eventstan.com';
 
-export const BASE_URL = isServer
-  ? (process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, '') ?? process.env.NEXT_PUBLIC_BASE_URL?.replace(/\/$/, '') ?? 'https://api.eventstan.com')
-  : '';
-
-export const BASE_API_URL = isServer
-  ? `${BASE_URL}/api/v1/`
-  : '/api/proxy/';
+export const BASE_URL = API_ROOT;
+export const BASE_API_URL = `${API_ROOT}/api/v1/`;
 
 const API_URL = BASE_API_URL.replace(/\/$/, '');
 
