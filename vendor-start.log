@@ -113,4 +113,3 @@
  GET /vendor/login 200 in 274ms (next.js: 18ms, application-code: 256ms)
 ✓ Compiled in 1120ms
  GET /vendor/login 200 in 1799ms (next.js: 1109ms, application-code: 690ms)
-[?25h
