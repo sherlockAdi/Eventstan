@@ -53,7 +53,8 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
           return;
         }
 
-        if (!isVendorProfileComplete(user) && pathname !== '/vendor/profile') {
+        const supportRoute = pathname.startsWith('/vendor/support');
+        if (!isVendorProfileComplete(user) && pathname !== '/vendor/profile' && !supportRoute) {
           saveSession(token, user);
           router.replace('/vendor/profile');
           return;
