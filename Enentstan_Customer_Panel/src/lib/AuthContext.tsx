@@ -8,12 +8,18 @@ export interface AuthUser extends ApiUser {
   joinedAt: string;
 }
 
+export function canAccessRoute(user: AuthUser | null, pathname: string) {
+  if (!user?.permissions?.length) return true;
+  return user.permissions.some((permission) => permission.view && permission.routes.some((route) => pathname === route || pathname.startsWith(`${route}/`)));
+}
+
 interface AuthContextType {
   user: AuthUser | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<{ ok: boolean; error?: string; name?: string }>;
   signup: (name: string, email: string, phone: string, password: string, type: "individual" | "corporate") => Promise<{ ok: boolean; error?: string; welcomeEmailSent?: boolean }>;
   logout: () => void;
+  canAccessRoute: (pathname: string) => boolean;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -88,7 +94,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem("es_user");
   };
 
-  return <AuthContext.Provider value={{ user, loading, login, signup, logout }}>{children}</AuthContext.Provider>;
+  return <AuthContext.Provider value={{ user, loading, login, signup, logout, canAccessRoute: (pathname) => canAccessRoute(user, pathname) }}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {

@@ -7,9 +7,10 @@ import { PasswordService } from './password.service';
 import { RolesGuard } from './roles.guard';
 import { TokenService } from './token.service';
 import { MailModule } from '../mail/mail.module';
+import { RolePermissionModule } from '../role-permission/role-permission.module';
 
 @Module({
-  imports: [MailModule],
+  imports: [MailModule, RolePermissionModule],
   controllers: [AuthController],
   providers: [AuthService, PasswordService, TokenService, AuthGuard, OptionalAuthGuard, RolesGuard],
   exports: [AuthService, PasswordService, TokenService, AuthGuard, OptionalAuthGuard, RolesGuard],

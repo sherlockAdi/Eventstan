@@ -1,6 +1,7 @@
-import { PrismaClient } from '@prisma/client';
+import { Prisma, PrismaClient } from '@prisma/client';
 import { randomBytes, scrypt as nodeScrypt } from 'node:crypto';
 import { promisify } from 'node:util';
+import { DEFAULT_ROLE_PERMISSION_SEEDS } from '../src/modules/role-permission/role-permission.constants';
 
 const prisma = new PrismaClient();
 const scrypt = promisify(nodeScrypt);
@@ -511,6 +512,25 @@ async function main() {
         comment: 'EventStan made our dream wedding a reality. Finding our venue and decorator in one place saved us so much stress.',
         status: 'PUBLISHED',
         approvedAt: new Date(),
+      },
+    });
+  }
+
+  for (const roleSeed of DEFAULT_ROLE_PERMISSION_SEEDS) {
+    await prisma.rolePermission.upsert({
+      where: { role: roleSeed.role },
+      update: {
+        name: roleSeed.name,
+        description: roleSeed.description,
+        isActive: roleSeed.isActive,
+        permissions: roleSeed.permissions as unknown as Prisma.InputJsonValue,
+      },
+      create: {
+        role: roleSeed.role,
+        name: roleSeed.name,
+        description: roleSeed.description,
+        isActive: roleSeed.isActive,
+        permissions: roleSeed.permissions as unknown as Prisma.InputJsonValue,
       },
     });
   }

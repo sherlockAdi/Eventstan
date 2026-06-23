@@ -51,11 +51,24 @@ export interface AdminUser {
   name: string;
   email: string;
   role: string;
+  permissions?: RolePermission[];
 }
 
 export interface UserData {
   token: string;
   user: AdminUser;
+}
+
+export interface RolePermission {
+  key: string;
+  label: string;
+  panel: 'ADMIN' | 'VENDOR' | 'CUSTOMER';
+  routes: string[];
+  description: string;
+  view: boolean;
+  create: boolean;
+  edit: boolean;
+  delete: boolean;
 }
 
 export interface Column {

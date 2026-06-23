@@ -19,6 +19,7 @@ import { PrismaModule } from './shared/prisma/prisma.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { UsersModule } from './modules/users/users.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
+import { RolePermissionModule } from './modules/role-permission/role-permission.module';
 
 @Module({
   imports: [
@@ -29,6 +30,7 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
     DashboardModule,
     UsersModule,
     NotificationsModule,
+    RolePermissionModule,
     MasterDataModule,
     VendorsModule,
     ServicesModule,

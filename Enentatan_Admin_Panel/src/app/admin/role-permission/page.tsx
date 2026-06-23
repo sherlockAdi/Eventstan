@@ -1,286 +1,244 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { Plus, Shield, Edit, Trash2, ToggleLeft, ToggleRight } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { Plus, Shield, Edit, ToggleLeft, ToggleRight } from 'lucide-react';
 import Link from 'next/link';
-import Table from '@/components/admin/Table';
-import ConfirmModal from '@/components/admin/ConfirmModal';
 import Button from '@/components/admin/Button';
+import ConfirmModal from '@/components/admin/ConfirmModal';
 import Pagination from '@/components/admin/Pagination';
-import { Column } from '@/lib/types';
+import { adminApi } from '@/api/adminApi';
+import { canAccessPermission } from '@/lib/permissions';
+import { getUser } from '@/lib/auth';
+import type { RolePermission } from '@/lib/types';
 import toast from 'react-hot-toast';
 
-interface Permission { module: string; view: boolean; create: boolean; edit: boolean; delete: boolean; }
-interface Role { id: number; name: string; description: string; usersCount: number; status: string; permissions: Permission[]; }
-
-const modules = ['Dashboard', 'Users', 'Vendors', 'Vendor Services', 'Bookings', 'Masters', 'Coupons', 'Marketing Packages', 'Feedback', 'Notifications', 'Affiliate Links', 'Reports'];
-
-const defaultPerms = (): Permission[] => modules.map(m => ({ module: m, view: false, create: false, edit: false, delete: false }));
-
-const initialRoles: Role[] = [
-  {
-    id: 1, name: 'Super Admin', description: 'Full system access', usersCount: 2, status: 'Active',
-    permissions: modules.map(m => ({ module: m, view: true, create: true, edit: true, delete: true })),
-  },
-  {
-    id: 2, name: 'Manager', description: 'Manage vendors, bookings, users', usersCount: 5, status: 'Active',
-    permissions: modules.map(m => ({ module: m, view: true, create: m !== 'Reports', edit: m !== 'Reports', delete: false })),
-  },
-  {
-    id: 3, name: 'Support', description: 'View only access', usersCount: 8, status: 'Active',
-    permissions: modules.map(m => ({ module: m, view: true, create: false, edit: false, delete: false })),
-  },
-  {
-    id: 4, name: 'Vendor', description: 'Vendor panel access', usersCount: 12, status: 'Inactive',
-    permissions: modules.map(m => ({ module: m, view: m === 'Dashboard' || m === 'Bookings', create: m === 'Bookings', edit: false, delete: false })),
-  },
-];
+interface RolePermissionRow {
+  role: string;
+  name: string;
+  description?: string | null;
+  usersCount: number;
+  status: string;
+  permissions: RolePermission[];
+}
 
 export default function RolePermissionPage() {
-  const router = useRouter();
-  const [roles, setRoles] = useState<Role[]>(initialRoles);
-  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [roles, setRoles] = useState<RolePermissionRow[]>([]);
+  const [loading, setLoading] = useState(true);
   const [isStatusModalOpen, setIsStatusModalOpen] = useState(false);
-  const [selected, setSelected] = useState<Role | null>(null);
-  const [pendingStatus, setPendingStatus] = useState<string>('');
-
-  const ITEMS_PER_PAGE = 10;
+  const [selected, setSelected] = useState<RolePermissionRow | null>(null);
+  const [pendingStatus, setPendingStatus] = useState<'Active' | 'Inactive'>('Inactive');
   const [currentPage, setCurrentPage] = useState(1);
 
-  const openStatusModal = (role: Role) => {
+  const currentUser = getUser();
+  const permissions = currentUser?.permissions ?? [];
+
+  const fetchRoles = async () => {
+    try {
+      setLoading(true);
+      const data = await adminApi.rolePermissions.list<RolePermissionRow[]>();
+      setRoles(data);
+    } catch (cause) {
+      toast.error(cause instanceof Error ? cause.message : 'Unable to load roles');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void fetchRoles();
+  }, []);
+
+  const rows = useMemo(() => roles, [roles]);
+  const activeRoles = rows.filter((role) => role.status === 'Active').length;
+  const totalUsers = rows.reduce((sum, role) => sum + role.usersCount, 0);
+
+  const openStatusModal = (role: RolePermissionRow) => {
     setSelected(role);
-    const newStatus = role.status === 'Active' ? 'Inactive' : 'Active';
-    setPendingStatus(newStatus);
+    setPendingStatus(role.status === 'Active' ? 'Inactive' : 'Active');
     setIsStatusModalOpen(true);
   };
 
-  const confirmStatusChange = () => {
-    if (selected && pendingStatus) {
-      setRoles(roles.map(r => 
-        r.id === selected.id ? { ...r, status: pendingStatus } : r
-      ));
+  const confirmStatusChange = async () => {
+    if (!selected) return;
+    try {
+      const permissionsPayload = selected.permissions.map((permission) => ({ ...permission, view: permission.view, create: permission.create, edit: permission.edit, delete: permission.delete }));
+      await adminApi.rolePermissions.update(selected.role, {
+        name: selected.name,
+        description: selected.description ?? '',
+        isActive: pendingStatus === 'Active',
+        permissions: permissionsPayload,
+      });
       toast.success(`Role ${pendingStatus === 'Active' ? 'activated' : 'deactivated'} successfully!`);
       setIsStatusModalOpen(false);
       setSelected(null);
-      setPendingStatus('');
+      await fetchRoles();
+    } catch (cause) {
+      toast.error(cause instanceof Error ? cause.message : 'Unable to update role');
     }
   };
 
-  const openDelete = (role: Role) => {
-    if (role.name === 'Super Admin') {
-      toast.error('Cannot delete Super Admin role!');
-      return;
-    }
-    setSelected(role);
-    setIsDeleteOpen(true);
-  };
+  const totalPages = Math.max(1, Math.ceil(rows.length / 10));
+  const paginatedData = rows.slice((currentPage - 1) * 10, currentPage * 10);
 
-  const handleDelete = () => {
-    if (selected) {
-      setRoles(roles.filter(r => r.id !== selected.id));
-      toast.success('Role deleted successfully!');
-    }
-    setIsDeleteOpen(false);
-  };
-
-  const getPermissionSummary = (permissions: Permission[]) => {
-    const count = permissions.filter(p => p.view).length;
-    const modulesList = permissions.filter(p => p.view).slice(0, 3).map(p => p.module);
-    return { count, modulesList };
-  };
-
-  const columns: Column[] = [
-    { key: 'id', label: 'ID' },
-    { 
-      key: 'name', 
-      label: 'Role Name', 
-      render: (v: string, row: Role) => (
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-orange-50 flex items-center justify-center">
-            <Shield size={14} className="text-orange-500" />
-          </div>
-          <div>
-            <div className="font-medium text-gray-900">{v}</div>
-            <div className="text-xs text-gray-400">{row.usersCount} users</div>
-          </div>
-        </div>
-      )
-    },
-    { key: 'description', label: 'Description', render: (v: string) => <span className="text-gray-600 text-sm">{v}</span> },
-    { 
-      key: 'permissions', 
-      label: 'Permissions', 
-      render: (_: any, row: Role) => {
-        const { count, modulesList } = getPermissionSummary(row.permissions);
-        return (
-          <div className="flex flex-wrap gap-1">
-            {modulesList.map(module => (
-              <span key={module} className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded">
-                {module}
-              </span>
-            ))}
-            {count > 3 && (
-              <span className="text-xs bg-orange-50 text-orange-600 px-2 py-0.5 rounded">
-                +{count - 3} more
-              </span>
-            )}
-          </div>
-        );
-      }
-    },
-    { 
-      key: 'status', 
-      label: 'Status', 
-      render: (v: string, row: Role) => (
-        <div className="flex items-center gap-2">
-          <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${
-            v === 'Active' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
-          }`}>
-            {v}
-          </span>
-          {row.name !== 'Super Admin' && (
-            <button
-              onClick={() => openStatusModal(row)}
-              className="text-gray-500 hover:text-orange-600 transition-colors"
-              title={v === 'Active' ? 'Deactivate' : 'Activate'}
-            >
-              {v === 'Active' ? <ToggleRight size={20} /> : <ToggleLeft size={20} />}
-            </button>
-          )}
-        </div>
-      )
-    },
-    {
-      key: 'actions',
-      label: 'Actions',
-      render: (_: any, row: Role) => (
-        <div className="flex items-center gap-1">
-          <Link href={`/admin/role-permission/edit/${row.id}`}>
-            <button 
-              className="p-1.5 rounded-lg text-gray-400 hover:text-orange-500 hover:bg-orange-50 transition-all" 
-              title="Edit"
-            >
-              <Edit size={14} />
-            </button>
-          </Link>
-          {row.name !== 'Super Admin' && (
-            <button 
-              onClick={() => openDelete(row)} 
-              className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all" 
-              title="Delete"
-            >
-              <Trash2 size={14} />
-            </button>
-          )}
-        </div>
-      )
-    }
-  ];
-
-  const activeRoles = roles.filter(r => r.status === 'Active').length;
-  const totalUsers = roles.reduce((sum, r) => sum + r.usersCount, 0);
-  
-  const totalPages = Math.ceil(roles.length / ITEMS_PER_PAGE);
-  const paginatedData = roles.slice(
-    (currentPage - 1) * ITEMS_PER_PAGE,
-    currentPage * ITEMS_PER_PAGE
-  );
+  if (loading) {
+    return <div className="min-h-[40vh] flex items-center justify-center text-gray-500">Loading roles...</div>;
+  }
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-4">
         <div>
           <h1 className="text-xl font-bold text-gray-900">Role & Permission Management</h1>
           <p className="text-sm text-gray-500 mt-0.5">
-            {roles.length} roles · {activeRoles} active · {totalUsers} total users
+            {rows.length} roles · {activeRoles} active · {totalUsers} total users
           </p>
         </div>
-        <Link href="/admin/role-permission/add">
-          <Button>
-            <Plus size={15} />
-            Add Role
-          </Button>
-        </Link>
+        {canAccessPermission('role-permission', permissions) && (
+          <Link href="/admin/role-permission/add">
+            <Button>
+              <Plus size={15} />
+              Configure Role
+            </Button>
+          </Link>
+        )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-500">Total Roles</p>
-              <p className="text-2xl font-bold text-gray-900">{roles.length}</p>
-            </div>
-            <div className="w-10 h-10 rounded-xl bg-purple-50 flex items-center justify-center">
-              <Shield size={20} className="text-purple-500" />
-            </div>
-          </div>
-        </div>
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-500">Active Roles</p>
-              <p className="text-2xl font-bold text-green-600">{activeRoles}</p>
-            </div>
-            <div className="w-10 h-10 rounded-xl bg-green-50 flex items-center justify-center">
-              <Shield size={20} className="text-green-500" />
-            </div>
-          </div>
-        </div>
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-500">Inactive Roles</p>
-              <p className="text-2xl font-bold text-red-600">{roles.length - activeRoles}</p>
-            </div>
-            <div className="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center">
-              <Shield size={20} className="text-red-500" />
-            </div>
-          </div>
-        </div>
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-500">Total Users</p>
-              <p className="text-2xl font-bold text-orange-600">{totalUsers}</p>
-            </div>
-            <div className="w-10 h-10 rounded-xl bg-orange-50 flex items-center justify-center">
-              <Shield size={20} className="text-orange-500" />
-            </div>
-          </div>
-        </div>
+        <StatCard label="Total Roles" value={rows.length} tone="purple" icon={<Shield size={20} className="text-purple-500" />} />
+        <StatCard label="Active Roles" value={activeRoles} tone="green" valueClass="text-green-600" icon={<Shield size={20} className="text-green-500" />} />
+        <StatCard label="Inactive Roles" value={rows.length - activeRoles} tone="red" valueClass="text-red-600" icon={<Shield size={20} className="text-red-500" />} />
+        <StatCard label="Total Users" value={totalUsers} tone="orange" valueClass="text-orange-600" icon={<Shield size={20} className="text-orange-500" />} />
       </div>
 
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-x-auto">
-        <Table columns={columns} data={paginatedData} />
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-gray-50 text-xs uppercase text-gray-500">
+              <tr>
+                <th className="text-left px-4 py-3">Role</th>
+                <th className="text-left px-4 py-3">Description</th>
+                <th className="text-left px-4 py-3">Permissions</th>
+                <th className="text-left px-4 py-3">Status</th>
+                <th className="text-right px-4 py-3">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {paginatedData.map((role) => {
+                const visiblePermissions = role.permissions.filter((permission) => permission.view);
+                return (
+                  <tr key={role.role} className="hover:bg-gray-50/70">
+                    <td className="px-4 py-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-xl bg-orange-50 flex items-center justify-center">
+                          <Shield size={14} className="text-orange-500" />
+                        </div>
+                        <div>
+                          <div className="font-semibold text-gray-900">{role.name}</div>
+                          <div className="text-xs text-gray-400">{role.usersCount} users</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-4 py-4 text-gray-600">{role.description}</td>
+                    <td className="px-4 py-4">
+                      <div className="flex flex-wrap gap-1.5">
+                        {visiblePermissions.slice(0, 4).map((permission) => (
+                          <span key={permission.key} className="rounded-full bg-gray-100 px-2.5 py-1 text-[11px] font-medium text-gray-600">
+                            {permission.label}
+                          </span>
+                        ))}
+                        {visiblePermissions.length > 4 && (
+                          <span className="rounded-full bg-orange-50 px-2.5 py-1 text-[11px] font-medium text-orange-600">
+                            +{visiblePermissions.length - 4} more
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-4 py-4">
+                      <div className="flex items-center gap-2">
+                        <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${role.status === 'Active' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                          {role.status}
+                        </span>
+                        {role.role !== 'SUPER_ADMIN' && (
+                          <button
+                            onClick={() => openStatusModal(role)}
+                            className="text-gray-500 hover:text-orange-600 transition-colors"
+                            title={role.status === 'Active' ? 'Deactivate' : 'Activate'}
+                          >
+                            {role.status === 'Active' ? <ToggleRight size={20} /> : <ToggleLeft size={20} />}
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-4 py-4">
+                      <div className="flex justify-end">
+                        <Link href={`/admin/role-permission/edit/${role.role}`}>
+                          <button className="p-1.5 rounded-lg text-gray-400 hover:text-orange-500 hover:bg-orange-50 transition-all" title="Edit">
+                            <Edit size={14} />
+                          </button>
+                        </Link>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+
         <Pagination
           currentPage={currentPage}
           totalPages={totalPages}
-          totalItems={roles.length}
-          itemsPerPage={ITEMS_PER_PAGE}
+          totalItems={rows.length}
+          itemsPerPage={10}
           onPageChange={(page) => setCurrentPage(page)}
         />
       </div>
 
-      <ConfirmModal 
-        isOpen={isStatusModalOpen} 
+      <ConfirmModal
+        isOpen={isStatusModalOpen}
         onClose={() => {
           setIsStatusModalOpen(false);
           setSelected(null);
-          setPendingStatus('');
-        }} 
-        onConfirm={confirmStatusChange} 
-        title={pendingStatus === 'Active' ? 'Activate Role' : 'Deactivate Role'} 
-        message={`Are you sure you want to ${pendingStatus === 'Active' ? 'activate' : 'deactivate'} role "${selected?.name}"?`} 
+        }}
+        onConfirm={confirmStatusChange}
+        title={pendingStatus === 'Active' ? 'Activate Role' : 'Deactivate Role'}
+        message={`Are you sure you want to ${pendingStatus === 'Active' ? 'activate' : 'deactivate'} role "${selected?.name}"?`}
       />
+    </div>
+  );
+}
 
-      <ConfirmModal 
-        isOpen={isDeleteOpen} 
-        onClose={() => setIsDeleteOpen(false)} 
-        onConfirm={handleDelete} 
-        title="Delete Role" 
-        message={`Are you sure you want to delete role "${selected?.name}"? This action cannot be undone.`} 
-      />
+function StatCard({
+  label,
+  value,
+  icon,
+  tone,
+  valueClass = 'text-gray-900',
+}: {
+  label: string;
+  value: number;
+  icon: React.ReactNode;
+  tone: 'purple' | 'green' | 'red' | 'orange';
+  valueClass?: string;
+}) {
+  const toneClass: Record<'purple' | 'green' | 'red' | 'orange', string> = {
+    purple: 'bg-purple-50',
+    green: 'bg-green-50',
+    red: 'bg-red-50',
+    orange: 'bg-orange-50',
+  };
+
+  return (
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-sm text-gray-500">{label}</p>
+          <p className={`text-2xl font-bold ${valueClass}`}>{value}</p>
+        </div>
+        <div className={`w-10 h-10 rounded-xl ${toneClass[tone]} flex items-center justify-center`}>
+          {icon}
+        </div>
+      </div>
     </div>
   );
 }

@@ -30,7 +30,7 @@ const STATUS_STYLES: Record<string, string> = {
 };
 
 export default function BookingsPage() {
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, canAccessRoute } = useAuth();
   const router = useRouter();
   const [bookings, setBookings] = useState<ApiBooking[]>([]);
   const [loading, setLoading] = useState(true);
@@ -42,11 +42,15 @@ export default function BookingsPage() {
       router.replace("/auth/login?redirect=/bookings");
       return;
     }
+    if (!canAccessRoute("/bookings")) {
+      router.replace("/");
+      return;
+    }
     customerApi.bookings.list<ApiBooking[]>()
       .then(setBookings)
       .catch((cause: unknown) => setError(cause instanceof Error ? cause.message : "Unable to load bookings"))
       .finally(() => setLoading(false));
-  }, [authLoading, router, user]);
+  }, [authLoading, canAccessRoute, router, user]);
 
   if (authLoading || loading) {
     return <div className="max-w-4xl mx-auto px-4 py-20 text-center text-gray-500">Loading your bookings...</div>;

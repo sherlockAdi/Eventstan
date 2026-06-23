@@ -11,21 +11,24 @@ import { useState, useEffect, useRef } from 'react';
 import { getSession, getUser, clearSession } from '@/lib/auth';
 import { adminApi } from '@/api/adminApi';
 import { AdminUser } from '@/lib/types';
+import { canAccessPermission, canAccessRoute } from '@/lib/permissions';
 
 interface NavItem {
   href: string;
   label: string;
   icon: React.ElementType;
   badge?: number;
+  permissionKey?: string;
   children?: { href: string; label: string }[];
 }
 
 const navItems: NavItem[] = [
-  { href: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { href: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard, permissionKey: 'dashboard' },
   {
     href: '#masters',
     label: 'Masters',
     icon: Grid3X3,
+    permissionKey: 'masters',
     children: [
       { href: '/admin/masters/services', label: 'Services' },
       { href: '/admin/masters/pending-service-approvals', label: 'Pending Services' },
@@ -37,11 +40,12 @@ const navItems: NavItem[] = [
       { href: '/admin/masters/email-templates', label: 'Email Templates' },
     ],
   },
-  { href: '/admin/role-permission', label: 'Role-Permission', icon: UserCog  },
+  { href: '/admin/role-permission', label: 'Role-Permission', icon: UserCog, permissionKey: 'role-permission'  },
   {
     href: '#userManagement',
     label: 'User Management',
     icon: Users,
+    permissionKey: 'users',
     children: [
       { href: '/admin/users', label: 'User List' },
       { href: '/admin/users-lead', label: 'User Leads' },
@@ -51,27 +55,29 @@ const navItems: NavItem[] = [
     href: '#vendors',
     label: 'Vendors',
     icon: Truck,
+    permissionKey: 'vendors',
     children: [
       { href: '/admin/vendors', label: 'Vendor List' },
       { href: '/admin/lead-vendor', label: 'Lead Vendor' },
     ],
   },
-  { href: '/admin/vendor-services', label: 'Vendor Services', icon: Package },
+  { href: '/admin/vendor-services', label: 'Vendor Services', icon: Package, permissionKey: 'vendor-services' },
   {
     href: '#packages',
     label: 'Packages',
     icon: Tag,
+    permissionKey: 'packages',
     children: [
       { href: '/admin/packages/all-packages', label: 'All Packages' },
       { href: '/admin/packages/promotion-packages', label: 'Promotion Packages' },
     ],
   },
-  { href: '/admin/booking-management', label: 'Booking Management', icon: BookOpen },
-  { href: '/admin/support', label: 'Help & Support', icon: LifeBuoy },
-  { href: '/admin/feedback-testimonial', label: 'Feedback & Testimonial', icon: Star },
-  { href: '/admin/system-notifications', label: 'System Notifications', icon: Bell },
-  { href: '/admin/affiliate-links', label: 'Affiliate-Links', icon: Share2  },
-  { href: '/admin/blog', label: 'Blogs', icon: Newspaper  },
+  { href: '/admin/booking-management', label: 'Booking Management', icon: BookOpen, permissionKey: 'bookings' },
+  { href: '/admin/support', label: 'Help & Support', icon: LifeBuoy, permissionKey: 'support' },
+  { href: '/admin/feedback-testimonial', label: 'Feedback & Testimonial', icon: Star, permissionKey: 'feedback' },
+  { href: '/admin/system-notifications', label: 'System Notifications', icon: Bell, permissionKey: 'notifications' },
+  { href: '/admin/affiliate-links', label: 'Affiliate-Links', icon: Share2, permissionKey: 'affiliate-links'  },
+  { href: '/admin/blog', label: 'Blogs', icon: Newspaper, permissionKey: 'blog'  },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -88,18 +94,24 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [admin, setAdmin] = useState<AdminUser | null>(null);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const permissions = admin?.permissions ?? [];
 
   useEffect(() => {
     if (pathname !== '/admin/login' && !getSession()) {
       router.replace('/admin/login');
       return;
     }
-    setAdmin(getUser());
+    const currentUser = getUser();
+    setAdmin(currentUser);
     if (pathname.startsWith('/admin/masters')) setMastersOpen(true);
     if (pathname.startsWith('/admin/users') || pathname.startsWith('/admin/users-lead')) setUserManagementOpen(true);
     if (pathname.startsWith('/admin/vendors') || pathname.startsWith('/admin/lead-vendor')) setVendorsOpen(true);
     if (pathname.startsWith('/admin/packages')) setPackagesOpen(true);
-  }, [pathname]);
+    if (pathname !== '/admin/login' && currentUser?.permissions?.length && !canAccessRoute(pathname, currentUser.permissions)) {
+      const fallback = currentUser.permissions.find((permission) => permission.view && permission.routes.length > 0)?.routes[0] ?? '/admin/dashboard';
+      router.replace(fallback);
+    }
+  }, [pathname, router]);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -128,6 +140,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     navItems.find(n => n.href === pathname)?.label ??
     navItems.flatMap(n => n.children ?? []).find(c => c.href === pathname)?.label ??
     'Admin Panel';
+
+  const visibleNavItems = navItems.filter((item) => {
+    if (!item.permissionKey || !permissions.length) return true;
+    if (item.children?.length) {
+      return canAccessPermission(item.permissionKey, permissions) || item.children.some((child) => canAccessRoute(child.href, permissions));
+    }
+    return canAccessPermission(item.permissionKey, permissions) || canAccessRoute(item.href, permissions);
+  });
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
@@ -158,14 +178,15 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
         <nav className="flex-1 py-3 px-2.5 overflow-y-auto custom-scrollbar">
           <div className="space-y-0.5">
-            {navItems.map(({ href, label, icon: Icon, badge, children }) => {
+            {visibleNavItems.map(({ href, label, icon: Icon, badge, children, permissionKey }) => {
               const active = pathname === href;
               const isMastersActive = pathname.startsWith('/admin/masters');
               const isUserManagementActive = pathname.startsWith('/admin/users') || pathname.startsWith('/admin/users-lead');
               const isVendorsActive = pathname.startsWith('/admin/vendors') || pathname.startsWith('/admin/lead-vendor');
               const isPackagesActive = pathname.startsWith('/admin/packages');
+              const visibleChildren = children?.filter((child) => !permissions.length || canAccessRoute(child.href, permissions)) ?? [];
 
-              if (children && label === 'Masters') {
+              if (children && label === 'Masters' && visibleChildren.length) {
                 return (
                   <div key={href}>
                     <button
@@ -188,7 +209,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
                     {mastersOpen && (
                       <div className="ml-7 mt-0.5 space-y-0.5 border-l border-gray-100 pl-2.5">
-                        {children.map(child => {
+                        {visibleChildren.map(child => {
                           const isChildActive = pathname === child.href;
                           return (
                             <Link
@@ -210,7 +231,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 );
               }
 
-              if (children && label === 'User Management') {
+              if (children && label === 'User Management' && visibleChildren.length) {
                 return (
                   <div key={href}>
                     <button
@@ -233,7 +254,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
                     {userManagementOpen && (
                       <div className="ml-7 mt-0.5 space-y-0.5 border-l border-gray-100 pl-2.5">
-                        {children.map(child => {
+                        {visibleChildren.map(child => {
                           const isChildActive = pathname === child.href;
                           return (
                             <Link
@@ -255,7 +276,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 );
               }
 
-              if (children && label === 'Vendors') {
+              if (children && label === 'Vendors' && visibleChildren.length) {
                 return (
                   <div key={href}>
                     <button
@@ -278,7 +299,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
                     {vendorsOpen && (
                       <div className="ml-7 mt-0.5 space-y-0.5 border-l border-gray-100 pl-2.5">
-                        {children.map(child => {
+                        {visibleChildren.map(child => {
                           const isChildActive = pathname === child.href;
                           return (
                             <Link
@@ -300,7 +321,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 );
               }
 
-              if (children && label === 'Packages') {
+              if (children && label === 'Packages' && visibleChildren.length) {
                 return (
                   <div key={href}>
                     <button
@@ -323,7 +344,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
                     {packagesOpen && (
                       <div className="ml-7 mt-0.5 space-y-0.5 border-l border-gray-100 pl-2.5">
-                        {children.map(child => {
+                        {visibleChildren.map(child => {
                           const isChildActive = pathname === child.href;
                           return (
                             <Link
@@ -343,6 +364,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                     )}
                   </div>
                 );
+              }
+
+              if (permissionKey && permissions.length && !canAccessPermission(permissionKey, permissions) && !canAccessRoute(href, permissions)) {
+                return null;
               }
 
               return (

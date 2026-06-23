@@ -43,6 +43,7 @@ export default function LoginPage() {
               name: userData.name,
               email: userData.email,
               role: userData.role,
+              permissions: userData.permissions ?? [],
             },
           });
           

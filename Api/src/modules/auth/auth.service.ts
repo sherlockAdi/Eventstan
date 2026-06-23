@@ -8,6 +8,7 @@ import { UpdateProfileDto } from './dto/update-profile.dto';
 import { PasswordService } from './password.service';
 import { TokenService } from './token.service';
 import { MailService } from '../mail/mail.service';
+import { RolePermissionService } from '../role-permission/role-permission.service';
 
 @Injectable()
 export class AuthService {
@@ -16,6 +17,7 @@ export class AuthService {
     private readonly passwords: PasswordService,
     private readonly tokens: TokenService,
     private readonly mail: MailService,
+    private readonly rolePermissions: RolePermissionService,
   ) {}
 
   async register(dto: RegisterDto) {
@@ -33,7 +35,7 @@ export class AuthService {
       },
     });
 
-    const session = this.session(user);
+    const session = await this.session(user);
     const welcomeEmailSent = await this.sendCustomerWelcome(user.name, user.email, dto.password);
     return { ...session, welcomeEmailSent };
   }
@@ -80,7 +82,7 @@ export class AuthService {
       }
       if (!user.isActive) throw new UnauthorizedException('Account is inactive');
 
-      return this.session(user);
+      return await this.session(user);
     } catch (error) {
       const message = error instanceof Error ? error.message : '';
       if (message.includes('denied access on the database') || message.includes('PrismaClientInitializationError')) {
@@ -98,7 +100,7 @@ export class AuthService {
       include: { vendor: true },
     });
     if (!user || !user.isActive) throw new UnauthorizedException('Account is unavailable');
-    return this.publicUser(user);
+    return await this.publicUser(user);
   }
 
   async updateProfile(userId: string, dto: UpdateProfileDto) {
@@ -110,7 +112,7 @@ export class AuthService {
       },
       include: { vendor: true },
     });
-    return this.publicUser(user);
+    return await this.publicUser(user);
   }
 
   async changePassword(userId: string, dto: ChangePasswordDto) {
@@ -125,7 +127,7 @@ export class AuthService {
     return { changed: true };
   }
 
-  private session(user: {
+  private async session(user: {
     id: string;
     name: string;
     email: string;
@@ -135,11 +137,11 @@ export class AuthService {
   }) {
     return {
       ...this.tokens.issue({ id: user.id, email: user.email, role: user.role }),
-      user: this.publicUser(user),
+      user: await this.publicUser(user),
     };
   }
 
-  private publicUser(user: {
+  private async publicUser(user: {
     id: string;
     name: string;
     email: string;
@@ -147,6 +149,7 @@ export class AuthService {
     role: UserRole;
     vendor?: { id: string; status: string; companyName: string; updatedProfile: boolean } | null;
   }) {
+    const permissions = await this.rolePermissions.getForRole(user.role);
     return {
       id: user.id,
       name: user.name,
@@ -157,6 +160,7 @@ export class AuthService {
       vendorStatus: user.vendor?.status ?? null,
       companyName: user.vendor?.companyName ?? null,
       updatedProfile: user.vendor?.updatedProfile ?? null,
+      permissions,
     };
   }
 }

@@ -182,4 +182,11 @@ export const adminApi = {
     updateStatus: <T = unknown>(id: string, status: string) =>
       request<T>(`support/tickets/${id}/status`, jsonOptions('PATCH', { status })),
   },
+
+  rolePermissions: {
+    definitions: <T = unknown[]>() => request<T>('role-permission/definitions'),
+    list: <T = unknown[]>() => request<T>('role-permission'),
+    get: <T = unknown>(role: string) => request<T>(`role-permission/${role}`),
+    update: <T = unknown>(role: string, payload: JsonBody) => request<T>(`role-permission/${role}`, jsonOptions('PUT', payload)),
+  },
 };

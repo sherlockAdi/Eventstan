@@ -14,6 +14,19 @@ export interface ApiUser {
   email: string;
   phone?: string | null;
   role: string;
+  permissions?: RolePermission[];
+}
+
+export interface RolePermission {
+  key: string;
+  label: string;
+  panel: 'ADMIN' | 'VENDOR' | 'CUSTOMER';
+  routes: string[];
+  description: string;
+  view: boolean;
+  create: boolean;
+  edit: boolean;
+  delete: boolean;
 }
 
 export interface AuthResponse {

@@ -9,6 +9,19 @@ export interface VendorUser {
   companyName?: string | null;
   updatedProfile?: boolean | null;
   image?: string | null;
+  permissions?: RolePermission[];
+}
+
+export interface RolePermission {
+  key: string;
+  label: string;
+  panel: 'ADMIN' | 'VENDOR' | 'CUSTOMER';
+  routes: string[];
+  description: string;
+  view: boolean;
+  create: boolean;
+  edit: boolean;
+  delete: boolean;
 }
 
 export function isVendorProfileComplete(user: VendorUser | null | undefined) {

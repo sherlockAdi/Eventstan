@@ -9,16 +9,24 @@ import {
 import { useState, useEffect } from 'react';
 import { vendorApi } from '@/api/vendorApi';
 import { clearSession, getUser, isVendorProfileComplete, type VendorUser } from '@/lib/auth';
+import { canAccessPermission, canAccessRoute } from '@/lib/permissions';
 
 const navItems = [
-  { href: '/vendor/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/vendor/services',  label: 'Services',  icon: Briefcase },
-  { href: '/vendor/packages',  label: 'Packages',  icon: Package },
-  { href: '/vendor/bookings',  label: 'Bookings',  icon: BookOpen },
-  { href: '/vendor/calendar',  label: 'Calendar',  icon: CalendarDays },
-  { href: '/vendor/support',   label: 'Help & Support', icon: LifeBuoy },
-  { href: '/vendor/profile',   label: 'Update Profile',   icon: User },
+  { href: '/vendor/dashboard', label: 'Dashboard', icon: LayoutDashboard, permissionKey: 'dashboard-vendor' },
+  { href: '/vendor/services',  label: 'Services',  icon: Briefcase, permissionKey: 'services-vendor' },
+  { href: '/vendor/packages',  label: 'Packages',  icon: Package, permissionKey: 'packages-vendor' },
+  { href: '/vendor/bookings',  label: 'Bookings',  icon: BookOpen, permissionKey: 'bookings-vendor' },
+  { href: '/vendor/calendar',  label: 'Calendar',  icon: CalendarDays, permissionKey: 'calendar-vendor' },
+  { href: '/vendor/support',   label: 'Help & Support', icon: LifeBuoy, permissionKey: 'support-vendor' },
+  { href: '/vendor/profile',   label: 'Update Profile',   icon: User, permissionKey: 'profile-vendor' },
 ];
+
+interface NavItem {
+  href: string;
+  label: string;
+  icon: React.ElementType;
+  permissionKey?: string;
+}
 
 async function logoutVendor() {
   if (typeof window === 'undefined') return;
@@ -42,9 +50,14 @@ export default function VendorLayout({ children }: { children: React.ReactNode }
   const [showLogout,  setShowLogout]  = useState(false);
   const vendor = getUser();
   const profileComplete = isVendorProfileComplete(vendor);
-  const visibleNavItems = profileComplete
-    ? navItems
-    : navItems.filter((item) => ['/vendor/profile', '/vendor/support'].includes(item.href));
+  const permissions = vendor?.permissions ?? [];
+  const visibleNavItems = navItems.filter((item) => {
+    if (!profileComplete) {
+      return ['/vendor/profile', '/vendor/support'].includes(item.href);
+    }
+    if (!permissions.length || !item.permissionKey) return true;
+    return canAccessPermission(item.permissionKey, permissions) || canAccessRoute(item.href, permissions);
+  });
 
   useEffect(() => {
     const token = localStorage.getItem('vendor_token');
@@ -56,8 +69,14 @@ export default function VendorLayout({ children }: { children: React.ReactNode }
     const supportRoute = pathname.startsWith('/vendor/support');
     if (token && !profileComplete && pathname !== '/vendor/profile' && pathname !== '/vendor/login' && !supportRoute) {
       router.replace('/vendor/profile');
+      return;
     }
-  }, [pathname, profileComplete, router]);
+
+    if (token && profileComplete && permissions.length && pathname !== '/vendor/login' && !canAccessRoute(pathname, permissions)) {
+      const fallback = permissions.find((permission) => permission.view && permission.routes.length > 0)?.routes[0] ?? '/vendor/dashboard';
+      router.replace(fallback);
+    }
+  }, [pathname, permissions, profileComplete, router]);
 
   const initials = vendor
     ? vendor.name?.split(' ').map((part) => part.charAt(0)).slice(0, 2).join('').toUpperCase() ||
