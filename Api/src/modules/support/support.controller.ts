@@ -4,6 +4,7 @@ import { UserRole } from '@prisma/client';
 import { AuthGuard, AuthenticatedRequest } from '../auth/auth.guard';
 import { Roles } from '../auth/roles.decorator';
 import { RolesGuard } from '../auth/roles.guard';
+import { VendorOnboardingBypass } from '../auth/vendor-onboarding.decorator';
 import { CreateSupportTicketDto } from './dto/create-support-ticket.dto';
 import { ReplySupportTicketDto } from './dto/reply-support-ticket.dto';
 import { UpdateSupportTicketStatusDto } from './dto/update-support-ticket-status.dto';
@@ -12,6 +13,7 @@ import { SupportService } from './support.service';
 @ApiTags('support')
 @Controller('support')
 @UseGuards(AuthGuard, RolesGuard)
+@VendorOnboardingBypass()
 @ApiBearerAuth()
 export class SupportController {
   constructor(private readonly support: SupportService) {}
