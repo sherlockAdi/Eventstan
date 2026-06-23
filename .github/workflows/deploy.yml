@@ -27,26 +27,26 @@ jobs:
 
             # API
             cd Api
-            npm ci
+            npm install --no-audit --no-fund
             npm run build
             pm2 delete eventstan-api || true
             pm2 start npm --name eventstan-api -- run start:prod
 
             # Admin Panel
             cd ../Enentatan_Admin_Panel
-            npm ci
+            npm install --no-audit --no-fund
             npm run build
             PORT=3001 pm2 restart eventstan-admin --update-env || PORT=3001 pm2 start npm --name eventstan-admin -- start
 
             # Customer Panel
             cd ../Enentstan_Customer_Panel
-            npm ci
+            npm install --no-audit --no-fund
             npm run build
             PORT=3002 pm2 restart eventstan-customer --update-env || PORT=3002 pm2 start npm --name eventstan-customer -- start
 
             # Vendor Panel
             cd ../Enentstan_Vendor_Pannel
-            npm ci
+            npm install --no-audit --no-fund
             npm run build
             PORT=3003 pm2 restart eventstan-vendor --update-env || PORT=3003 pm2 start npm --name eventstan-vendor -- start
 
