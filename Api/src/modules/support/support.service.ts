@@ -2,7 +2,6 @@ import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/commo
 import { SupportTicketStatus, UserRole } from '@prisma/client';
 import { PrismaService } from '../../shared/prisma/prisma.service';
 import { AuthenticatedUser } from '../auth/auth.types';
-import { VendorsService } from '../vendors/vendors.service';
 import { MailService } from '../mail/mail.service';
 import { CreateSupportTicketDto } from './dto/create-support-ticket.dto';
 import { ReplySupportTicketDto } from './dto/reply-support-ticket.dto';
@@ -18,7 +17,6 @@ type SupportTicketRecord = {
 export class SupportService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly vendors: VendorsService,
     private readonly mail: MailService,
   ) {}
 
@@ -50,7 +48,7 @@ export class SupportService {
   }
 
   async createTicket(user: AuthenticatedUser, dto: CreateSupportTicketDto) {
-    const vendor = await this.vendors.findForUser(user.id);
+    const vendor = await this.findVendorForUser(user.id);
     const admins = await this.prisma.user.findMany({
       where: { role: { in: [UserRole.ADMIN, UserRole.SUPER_ADMIN] } },
       select: { id: true, name: true, email: true, role: true },
@@ -157,6 +155,15 @@ export class SupportService {
 
     if (!ticket) throw new NotFoundException('Support ticket not found');
     return ticket;
+  }
+
+  private async findVendorForUser(userId: string) {
+    const vendor = await this.prisma.vendor.findUnique({
+      where: { userId },
+      select: { id: true, companyName: true, contactPerson: true, email: true, phone: true, userId: true },
+    });
+    if (!vendor) throw new NotFoundException('Vendor profile not found');
+    return vendor;
   }
 
   private async assertCanAccess(user: AuthenticatedUser, ticketId: string) {
