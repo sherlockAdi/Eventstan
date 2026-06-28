@@ -24,6 +24,13 @@ export interface RolePermission {
   delete: boolean;
 }
 
+const SESSION_EVENT = 'vendor-session-updated';
+
+function notifySessionChanged() {
+  if (typeof window === 'undefined') return;
+  window.dispatchEvent(new Event(SESSION_EVENT));
+}
+
 export function isVendorProfileComplete(user: VendorUser | null | undefined) {
   return user?.role === 'VENDOR' && user.updatedProfile === true;
 }
@@ -35,6 +42,7 @@ export function saveSession(token: string, user: VendorUser) {
   localStorage.setItem(TOKEN_KEY, token);
   localStorage.setItem(USER_KEY, JSON.stringify({ user }));
   localStorage.setItem('user_role', user.role);
+  notifySessionChanged();
 }
 
 export function updateSessionUser(patch: Partial<VendorUser>) {
@@ -43,12 +51,14 @@ export function updateSessionUser(patch: Partial<VendorUser>) {
   if (!current) return;
   const updated = { ...current, ...patch };
   localStorage.setItem(USER_KEY, JSON.stringify({ user: updated }));
+  notifySessionChanged();
 }
 
 export function clearSession() {
   localStorage.removeItem(TOKEN_KEY);
   localStorage.removeItem(USER_KEY);
   localStorage.removeItem('user_role');
+  notifySessionChanged();
 }
 
 export function getToken() {
@@ -72,4 +82,14 @@ export function getUser(): VendorUser | null {
 
 export function isLoggedIn() {
   return Boolean(getToken());
+}
+
+export function onVendorSessionChange(listener: () => void) {
+  if (typeof window === 'undefined') return () => undefined;
+  window.addEventListener(SESSION_EVENT, listener);
+  window.addEventListener('storage', listener);
+  return () => {
+    window.removeEventListener(SESSION_EVENT, listener);
+    window.removeEventListener('storage', listener);
+  };
 }

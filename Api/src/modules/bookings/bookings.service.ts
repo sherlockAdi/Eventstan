@@ -1,5 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { BookingStatus, CartItemType, CouponType, Prisma } from '@prisma/client';
+import { BookingStatus, CartItemType, CouponType, Prisma, PromotionDiscountType } from '@prisma/client';
 import { PrismaService } from '../../shared/prisma/prisma.service';
 import { AuthenticatedUser } from '../auth/auth.types';
 import { AvailabilityService } from '../availability/availability.service';
@@ -12,6 +12,19 @@ export class BookingsService {
     private readonly prisma: PrismaService,
     private readonly availability: AvailabilityService,
   ) {}
+
+  private packageAmount(item: {
+    exactPrice: number;
+    isPromotional: boolean;
+    promotionDiscountType: PromotionDiscountType | null;
+    promotionDiscountValue: number | null;
+  }) {
+    if (!item.isPromotional || !item.promotionDiscountType || !item.promotionDiscountValue) return item.exactPrice;
+    if (item.promotionDiscountType === PromotionDiscountType.FLAT) {
+      return Math.max(0, item.exactPrice - item.promotionDiscountValue);
+    }
+    return Math.max(0, item.exactPrice - Math.round((item.exactPrice * item.promotionDiscountValue) / 100));
+  }
 
   async createFromCart(dto: CreateBookingDto & { customerId: string }) {
     return this.prisma.$transaction(
@@ -27,10 +40,10 @@ export class BookingsService {
 
         const normalizedItems = [];
         for (const cartItem of cart.items) {
-          const item =
-            cartItem.type === CartItemType.SERVICE
-              ? await tx.vendorService.findUnique({ where: { id: cartItem.itemId } })
-              : await tx.eventPackage.findUnique({ where: { id: cartItem.itemId } });
+          if (cartItem.type !== CartItemType.PACKAGE) {
+            throw new BadRequestException('Only packages can be booked');
+          }
+          const item = await tx.eventPackage.findUnique({ where: { id: cartItem.itemId } });
           if (!item) throw new NotFoundException(`Cart item not found: ${cartItem.itemId}`);
           if (item.status !== 'ACTIVE') throw new BadRequestException(`${item.title} is not available`);
 
@@ -42,7 +55,7 @@ export class BookingsService {
             title: item.title,
             eventDate: cartItem.eventDate,
             quantity: cartItem.quantity,
-            unitAmount: item.amount,
+            unitAmount: this.packageAmount(item),
             currency: item.currency,
           });
         }

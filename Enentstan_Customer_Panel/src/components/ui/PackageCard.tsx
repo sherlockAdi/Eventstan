@@ -103,6 +103,14 @@ export default function PackageCard({ pkg, service, onBook }: Props) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const p = pkg as any;
   const inCart = items.some((i) => i.id === `pkg-${p.id}`);
+  const isPromotional = Boolean(p.isPromotional || p.is_promotional);
+  const originalPrice = p.original_price ?? p.price;
+  const currentPrice = p.promotional_price ?? p.promotionalPrice ?? p.price;
+  const hasDiscount = isPromotional && originalPrice > currentPrice;
+  const discountLabel =
+    p.promotionDiscountType === "FLAT" || p.promotion_discount_type === "FLAT"
+      ? `${p.promotionDiscountValue ?? p.promotion_discount_value ?? 0} OFF`
+      : `${p.promotionDiscountValue ?? p.promotion_discount_value ?? 0}% OFF`;
 
   return (
     <>
@@ -126,6 +134,11 @@ export default function PackageCard({ pkg, service, onBook }: Props) {
           <span className="absolute top-3 left-3 bg-white/20 backdrop-blur-sm text-white text-xs font-semibold px-2.5 py-1 rounded-full border border-white/30">
             {service.category}
           </span>
+          {hasDiscount && (
+            <span className="absolute top-3 right-3 rounded-full bg-orange-500 px-2.5 py-1 text-[11px] font-bold text-white shadow-sm">
+              Promo {discountLabel}
+            </span>
+          )}
           <div className="absolute bottom-3 left-3 right-3">
             <p className="text-white font-bold text-base leading-tight">{p.name}</p>
             <p className="text-white/70 text-xs mt-0.5">{service.vendor_name}</p>
@@ -184,10 +197,16 @@ export default function PackageCard({ pkg, service, onBook }: Props) {
           <div className="mt-auto">
             <div className="mb-3">
               <span className="text-2xl font-bold text-gray-900">
-                ${p.price?.toLocaleString()}
+                ${currentPrice?.toLocaleString()}
               </span>
               {p.price_unit && (
                 <span className="text-sm text-gray-400 ml-1">/ {p.price_unit}</span>
+              )}
+              {hasDiscount && (
+                <div className="mt-1 flex items-center gap-2 text-sm">
+                  <span className="text-gray-400 line-through">${originalPrice?.toLocaleString()}</span>
+                  <span className="font-semibold text-orange-500">{discountLabel}</span>
+                </div>
               )}
             </div>
 

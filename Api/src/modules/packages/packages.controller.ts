@@ -18,7 +18,7 @@ export class PackagesController {
   @UseGuards(AuthGuard, RolesGuard)
   @Roles(UserRole.VENDOR, UserRole.ADMIN, UserRole.SUPER_ADMIN)
   @ApiBearerAuth()
-  @ApiCreatedResponse({ description: 'Vendor creates a package from multiple services.' })
+  @ApiCreatedResponse({ description: 'Vendor creates a sellable package for one service.' })
   async create(@Req() request: AuthenticatedRequest, @Body() dto: CreatePackageDto) {
     const vendorId = request.user.role === UserRole.VENDOR ? await this.packages.vendorIdForUser(request.user.id) : dto.vendorId;
     return this.packages.create({ ...dto, vendorId });

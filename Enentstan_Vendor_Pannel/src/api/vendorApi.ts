@@ -90,18 +90,17 @@ export const vendorApi = {
         cache: 'no-store',
         headers: headers(getVendorToken()),
       }),
+    checkSlug: <T = unknown>(slug: string, excludeId?: string) =>
+      request<T>(`services/slug-availability?slug=${encodeURIComponent(slug)}${excludeId ? `&excludeId=${encodeURIComponent(excludeId)}` : ''}`, {
+        cache: 'no-store',
+        headers: headers(getVendorToken()),
+      }),
     get: <T = unknown>(id: string) => request<T>(`services/${id}`, { headers: headers() }),
     create: <T = unknown>(payload: JsonBody) => request<T>('services', jsonOptions('POST', payload)),
     update: <T = unknown>(id: string, payload: JsonBody) => request<T>(`services/${id}`, jsonOptions('PUT', payload)),
     updateStatus: (id: string, status: string) =>
       request<unknown>(`services/${id}`, jsonOptions('PATCH', { status })),
     delete: (id: string) => request<void>(`services/${id}`, jsonOptions('DELETE')),
-    createSubService: (serviceId: string, payload: JsonBody) =>
-      request<unknown>(`services/${serviceId}/sub-services`, jsonOptions('POST', payload)),
-    updateSubService: (subServiceId: string, payload: JsonBody) =>
-      request<unknown>(`sub-services/${subServiceId}`, jsonOptions('PUT', payload)),
-    deleteSubService: (subServiceId: string) =>
-      request<void>(`sub-services/${subServiceId}`, jsonOptions('DELETE')),
   },
 
   packages: {

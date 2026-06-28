@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Edit, Eye, Image as ImageIcon, Search, Trash2, X, RefreshCw, MapPin, DollarSign, Building, User, Mail, Phone, Calendar, Star, CheckCircle, Home, Package, Tag } from "lucide-react";
+import { Edit, Eye, Image as ImageIcon, Search, Trash2, X, RefreshCw, MapPin, DollarSign, Building, User, Mail, Phone, Calendar, Star, CheckCircle, Home, Tag } from "lucide-react";
 import { adminApi } from "@/api/adminApi";
 import Button from "@/components/admin/Button";
 import ConfirmModal from "@/components/admin/ConfirmModal";
@@ -25,17 +25,6 @@ interface Category {
   id: string;
   name: string;
   slug: string;
-}
-
-interface SubService {
-  id: string;
-  serviceId: string;
-  title: string;
-  description: string;
-  amount: number;
-  currency: string;
-  status: string;
-  imageUrl?: string;
 }
 
 interface VendorService {
@@ -65,7 +54,16 @@ interface VendorService {
   review_count?: number;
   created_at?: string;
   updated_at?: string;
-  subServices?: SubService[];
+}
+
+interface RelatedPackage {
+  id: string;
+  title?: string;
+  name?: string;
+  status: string;
+  service_id?: string;
+  itemIds?: string[];
+  items?: Array<{ serviceId?: string; service?: { id: string; title: string } }>;
 }
 
 const emptyForm = {
@@ -93,6 +91,13 @@ const formatDate = (dateString?: string) => {
   });
 };
 
+const formatServiceRange = (service: VendorService) => {
+  const minAmount = service.price_min ?? service.price?.amount ?? 0;
+  const maxAmount = service.price_max ?? minAmount;
+  const currency = service.price?.currency ?? "AED";
+  return `${minAmount.toLocaleString()} - ${maxAmount.toLocaleString()} ${currency}`;
+};
+
 export default function ServicesPage() {
   const [services, setServices] = useState<VendorService[]>([]);
   const [vendors, setVendors] = useState<Vendor[]>([]);
@@ -110,6 +115,9 @@ export default function ServicesPage() {
     service: VendorService;
     newStatus: "ACTIVE" | "INACTIVE";
   } | null>(null);
+  const [publishPackagesModalOpen, setPublishPackagesModalOpen] = useState(false);
+  const [relatedPackages, setRelatedPackages] = useState<RelatedPackage[]>([]);
+  const [selectedPackageIds, setSelectedPackageIds] = useState<string[]>([]);
   const [pendingHomepageChange, setPendingHomepageChange] = useState<{
     service: VendorService;
     newValue: boolean;
@@ -147,7 +155,6 @@ export default function ServicesPage() {
         ...service,
         verificationStatus: "APPROVED",
         showOnHomepage: service.showOnHomepage || false,
-        subServices: service.subServices || [],
         tags: service.tags || [],
         features: service.features || [],
         gallery: service.gallery || [],
@@ -232,6 +239,26 @@ export default function ServicesPage() {
     if (pendingStatusChange) {
       const { service, newStatus } = pendingStatusChange;
       try {
+        if (newStatus === "ACTIVE") {
+          const packages = await adminApi.packages.list();
+          const servicePackages = (packages as RelatedPackage[]).filter((pkg) => {
+            const relatedServiceIds = [
+              ...(pkg.service_id ? [pkg.service_id] : []),
+              ...(pkg.itemIds ?? []),
+              ...((pkg.items ?? []).map((item) => item.serviceId || item.service?.id).filter(Boolean) as string[]),
+            ];
+            return relatedServiceIds.includes(service.id);
+          });
+
+          if (servicePackages.length > 0) {
+            setRelatedPackages(servicePackages);
+            setSelectedPackageIds(servicePackages.map((pkg) => pkg.id));
+            setPublishPackagesModalOpen(true);
+            setStatusModalOpen(false);
+            return;
+          }
+        }
+
         await adminApi.services.update(service.id, { status: newStatus });
         setServices(services.map(s => 
           s.id === service.id ? { ...s, status: newStatus } : s
@@ -242,6 +269,33 @@ export default function ServicesPage() {
       } catch (error) {
         toast.error("Failed to update status");
       }
+    }
+  };
+
+  const activateServiceWithPackages = async (packageIds: string[] = []) => {
+    if (!pendingStatusChange) return;
+
+    const { service, newStatus } = pendingStatusChange;
+    try {
+      await adminApi.services.update(service.id, { status: newStatus });
+      await Promise.all(
+        packageIds.map((packageId) => adminApi.packages.update(packageId, { status: "ACTIVE" })),
+      );
+      setServices(services.map((item) =>
+        item.id === service.id ? { ...item, status: newStatus } : item,
+      ));
+      toast.success(
+        packageIds.length > 0
+          ? `Service approved and ${packageIds.length} package(s) published`
+          : "Service approved",
+      );
+      setPublishPackagesModalOpen(false);
+      setPendingStatusChange(null);
+      setRelatedPackages([]);
+      setSelectedPackageIds([]);
+      await load(false);
+    } catch (error) {
+      toast.error("Failed to update service or packages");
     }
   };
 
@@ -297,7 +351,7 @@ export default function ServicesPage() {
       key: "price",
       label: "Price",
       render: (_: unknown, row: VendorService) =>
-        `${row.price?.amount ?? 0} ${row.price?.currency ?? "AED"}`,
+        formatServiceRange(row),
     },
     {
       key: "showOnHomepage",
@@ -663,10 +717,10 @@ export default function ServicesPage() {
               <div className="bg-gray-50 rounded-xl p-3">
                 <div className="flex items-center gap-2 mb-1">
                   <DollarSign size={14} className="text-gray-400" />
-                  <p className="text-xs font-medium text-gray-500">Price</p>
+                  <p className="text-xs font-medium text-gray-500">Service Price Range</p>
                 </div>
                 <p className="text-lg font-bold text-orange-600">
-                  {selected.price?.amount?.toLocaleString() || 0} {selected.price?.currency || "AED"}
+                  {formatServiceRange(selected)}
                 </p>
                 {selected.price_unit && (
                   <p className="text-xs text-gray-400 mt-1">Per {selected.price_unit}</p>
@@ -717,47 +771,15 @@ export default function ServicesPage() {
               </div>
             )}
 
-            {/* Features */}
+            {/* What's Included */}
             {selected.features && selected.features.length > 0 && (
               <div className="bg-gray-50 rounded-xl p-3">
-                <p className="text-xs font-medium text-gray-500 mb-2">Features</p>
+                <p className="text-xs font-medium text-gray-500 mb-2">What's Included</p>
                 <div className="flex flex-wrap gap-2">
                   {selected.features.map((feature, index) => (
                     <span key={index} className="px-2 py-1 bg-blue-50 text-blue-600 text-xs rounded-full">
                       {feature}
                     </span>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Sub Services */}
-            {selected.subServices && selected.subServices.length > 0 && (
-              <div className="bg-gray-50 rounded-xl p-3">
-                <div className="flex items-center gap-2 mb-2">
-                  <Package size={14} className="text-gray-400" />
-                  <p className="text-xs font-medium text-gray-500">Sub-Services ({selected.subServices.length})</p>
-                </div>
-                <div className="space-y-2">
-                  {selected.subServices.map((sub) => (
-                    <div key={sub.id} className="bg-white rounded-lg p-3 border border-gray-100">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <p className="font-semibold text-gray-900 text-sm">{sub.title}</p>
-                          <p className="text-xs text-gray-500 mt-1">{sub.description}</p>
-                        </div>
-                        <div className="text-right">
-                          <p className="font-bold text-orange-600 text-sm">
-                            {sub.amount?.toLocaleString()} {sub.currency}
-                          </p>
-                          <span className={`text-xs px-2 py-0.5 rounded-full mt-1 inline-block ${
-                            sub.status === "ACTIVE" ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"
-                          }`}>
-                            {sub.status}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
                   ))}
                 </div>
               </div>
@@ -1067,6 +1089,77 @@ export default function ServicesPage() {
         confirmText={pendingHomepageChange?.newValue ? "Show" : "Hide"}
         cancelText="Cancel"
       />
+
+      <Modal
+        isOpen={publishPackagesModalOpen}
+        onClose={() => {
+          setPublishPackagesModalOpen(false);
+          setPendingStatusChange(null);
+          setRelatedPackages([]);
+          setSelectedPackageIds([]);
+        }}
+        title="Publish Related Packages"
+        size="lg"
+      >
+        <div className="space-y-5">
+          <p className="text-sm text-gray-600">
+            This service already has {relatedPackages.length} package(s). Do you want to publish package(s) also while activating the service?
+          </p>
+
+          <div className="space-y-3 max-h-72 overflow-y-auto">
+            {relatedPackages.map((pkg) => {
+              const title = pkg.title || pkg.name || "Untitled Package";
+              const checked = selectedPackageIds.includes(pkg.id);
+              return (
+                <label
+                  key={pkg.id}
+                  className="flex items-center gap-3 rounded-xl border border-gray-200 px-4 py-3 cursor-pointer hover:border-orange-300"
+                >
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={(e) => {
+                      setSelectedPackageIds((current) =>
+                        e.target.checked
+                          ? [...current, pkg.id]
+                          : current.filter((id) => id !== pkg.id),
+                      );
+                    }}
+                    className="accent-orange-500"
+                  />
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-gray-900">{title}</p>
+                    <p className="text-xs text-gray-500">Current status: {pkg.status}</p>
+                  </div>
+                </label>
+              );
+            })}
+          </div>
+
+          <div className="flex flex-wrap justify-end gap-3">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => void activateServiceWithPackages([])}
+            >
+              Activate Service Only
+            </Button>
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => setSelectedPackageIds(relatedPackages.map((pkg) => pkg.id))}
+            >
+              Select All
+            </Button>
+            <Button
+              type="button"
+              onClick={() => void activateServiceWithPackages(selectedPackageIds)}
+            >
+              Activate and Publish Selected
+            </Button>
+          </div>
+        </div>
+      </Modal>
 
       {/* Delete Confirmation Modal */}
       <ConfirmModal

@@ -43,7 +43,7 @@ export const PERMISSION_DEFINITIONS: PermissionModuleDefinition[] = [
   { key: 'blog', label: 'Blogs', panel: 'ADMIN', routes: ['/admin/blog'], description: 'Blog content management', actions: ['view', 'create', 'edit', 'delete'] },
   { key: 'dashboard-vendor', label: 'Dashboard', panel: 'VENDOR', routes: ['/vendor/dashboard'], description: 'Vendor metrics and activity', actions: ['view'] },
   { key: 'services-vendor', label: 'Services', panel: 'VENDOR', routes: ['/vendor/services'], description: 'Vendor service listings', actions: ['view', 'create', 'edit', 'delete'] },
-  { key: 'packages-vendor', label: 'Packages', panel: 'VENDOR', routes: ['/vendor/packages'], description: 'Vendor packages', actions: ['view', 'create', 'edit', 'delete'] },
+  { key: 'packages-vendor', label: 'Packages', panel: 'VENDOR', routes: ['/vendor/packages', '/vendor/promotional-packages'], description: 'Vendor packages and promotional packages', actions: ['view', 'create', 'edit', 'delete'] },
   { key: 'bookings-vendor', label: 'Bookings', panel: 'VENDOR', routes: ['/vendor/bookings'], description: 'Vendor booking requests', actions: ['view', 'create', 'edit', 'delete'] },
   { key: 'calendar-vendor', label: 'Calendar', panel: 'VENDOR', routes: ['/vendor/calendar'], description: 'Vendor calendar view', actions: ['view'] },
   { key: 'profile-vendor', label: 'Update Profile', panel: 'VENDOR', routes: ['/vendor/profile'], description: 'Vendor profile management', actions: ['view', 'edit'] },

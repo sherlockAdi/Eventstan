@@ -72,7 +72,7 @@ export const customerApi = {
   },
   cart: {
     get: <T>() => request<T>("/cart"),
-    add: <T>(payload: { type: "SERVICE" | "PACKAGE"; itemId: string; eventDate: string; quantity: number }) =>
+    add: <T>(payload: { type: "PACKAGE"; itemId: string; eventDate: string; quantity: number }) =>
       request<T>("/cart/items", { method: "POST", body: JSON.stringify(payload) }),
     clear: () => request<{ cleared: boolean }>("/cart", { method: "DELETE" }),
   },

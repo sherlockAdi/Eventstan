@@ -4,29 +4,23 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
   LayoutDashboard, Briefcase, CalendarDays, Package,
-  BookOpen, User, LogOut, ChevronRight, Menu, Loader2, X, LifeBuoy,
+  BookOpen, User, LogOut, ChevronRight, Menu, Loader2, X, LifeBuoy, Megaphone,
 } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { vendorApi } from '@/api/vendorApi';
-import { clearSession, getUser, isVendorProfileComplete, type VendorUser } from '@/lib/auth';
+import { clearSession, getToken, getUser, isVendorProfileComplete, onVendorSessionChange, saveSession, type VendorUser } from '@/lib/auth';
 import { canAccessPermission, canAccessRoute } from '@/lib/permissions';
 
 const navItems = [
   { href: '/vendor/dashboard', label: 'Dashboard', icon: LayoutDashboard, permissionKey: 'dashboard-vendor' },
   { href: '/vendor/services',  label: 'Services',  icon: Briefcase, permissionKey: 'services-vendor' },
   { href: '/vendor/packages',  label: 'Packages',  icon: Package, permissionKey: 'packages-vendor' },
+  { href: '/vendor/promotional-packages',  label: 'Promotional Package',  icon: Megaphone, permissionKey: 'packages-vendor' },
   { href: '/vendor/bookings',  label: 'Bookings',  icon: BookOpen, permissionKey: 'bookings-vendor' },
   { href: '/vendor/calendar',  label: 'Calendar',  icon: CalendarDays, permissionKey: 'calendar-vendor' },
   { href: '/vendor/support',   label: 'Help & Support', icon: LifeBuoy, permissionKey: 'support-vendor' },
   { href: '/vendor/profile',   label: 'Update Profile',   icon: User, permissionKey: 'profile-vendor' },
 ];
-
-interface NavItem {
-  href: string;
-  label: string;
-  icon: React.ElementType;
-  permissionKey?: string;
-}
 
 async function logoutVendor() {
   if (typeof window === 'undefined') return;
@@ -48,9 +42,50 @@ export default function VendorLayout({ children }: { children: React.ReactNode }
   const [mobileOpen,  setMobileOpen]  = useState(false);
   const [loggingOut,  setLoggingOut]  = useState(false);
   const [showLogout,  setShowLogout]  = useState(false);
-  const vendor = getUser();
+  const [vendor, setVendor] = useState<VendorUser | null>(getUser());
+  const [sessionReady, setSessionReady] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+
+    async function syncSession() {
+      const token = getToken();
+      if (!token) {
+        setVendor(null);
+        setSessionReady(true);
+        return;
+      }
+
+      try {
+        const latest = await vendorApi.auth.me<VendorUser>();
+        if (!alive) return;
+        saveSession(token, latest);
+        setVendor(latest);
+      } catch {
+        if (!alive) return;
+        clearSession();
+        setVendor(null);
+        router.replace('/vendor/login');
+      } finally {
+        if (alive) setSessionReady(true);
+      }
+    }
+
+    void syncSession();
+
+    return () => {
+      alive = false;
+    };
+  }, [router]);
+
+  useEffect(() => {
+    return onVendorSessionChange(() => {
+      setVendor(getUser());
+    });
+  }, []);
+
   const profileComplete = isVendorProfileComplete(vendor);
-  const permissions = vendor?.permissions ?? [];
+  const permissions = useMemo(() => vendor?.permissions ?? [], [vendor?.permissions]);
   const visibleNavItems = navItems.filter((item) => {
     if (!profileComplete) {
       return ['/vendor/profile', '/vendor/support'].includes(item.href);
@@ -60,7 +95,9 @@ export default function VendorLayout({ children }: { children: React.ReactNode }
   });
 
   useEffect(() => {
-    const token = localStorage.getItem('vendor_token');
+    if (!sessionReady) return;
+
+    const token = getToken();
     if (!token && pathname !== '/vendor/login') {
       router.replace('/vendor/login');
       return;
@@ -76,7 +113,7 @@ export default function VendorLayout({ children }: { children: React.ReactNode }
       const fallback = permissions.find((permission) => permission.view && permission.routes.length > 0)?.routes[0] ?? '/vendor/dashboard';
       router.replace(fallback);
     }
-  }, [pathname, permissions, profileComplete, router]);
+  }, [pathname, permissions, profileComplete, router, sessionReady]);
 
   const initials = vendor
     ? vendor.name?.split(' ').map((part) => part.charAt(0)).slice(0, 2).join('').toUpperCase() ||
@@ -100,6 +137,14 @@ export default function VendorLayout({ children }: { children: React.ReactNode }
 
   // Don't show layout on login page
   if (pathname === '/vendor/login') return <>{children}</>;
+
+  if (!sessionReady) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <Loader2 size={28} className="animate-spin text-orange-500" />
+      </div>
+    );
+  }
 
   if (!profileComplete && pathname !== '/vendor/profile' && !pathname.startsWith('/vendor/support')) {
     return (

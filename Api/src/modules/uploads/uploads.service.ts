@@ -53,13 +53,11 @@ export class UploadsService implements OnModuleInit {
     });
   }
 
-  async onModuleInit() {
-    try {
-      await this.ensureBucket();
-    } catch (error) {
+  onModuleInit() {
+    void this.ensureBucket().catch((error) => {
       const message = error instanceof Error ? error.message : 'Unknown storage error';
       this.logger.warn(`Object storage is unavailable during startup: ${message}`);
-    }
+    });
   }
 
   async uploadImage(file: UploadedFile, folder: string) {

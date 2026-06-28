@@ -1,11 +1,24 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { CartItemType } from '@prisma/client';
+import { CartItemType, PromotionDiscountType } from '@prisma/client';
 import { PrismaService } from '../../shared/prisma/prisma.service';
 import { AddCartItemDto } from './dto/add-cart-item.dto';
 
 @Injectable()
 export class CartService {
   constructor(private readonly prisma: PrismaService) {}
+
+  private packageAmount(item: {
+    exactPrice: number;
+    isPromotional: boolean;
+    promotionDiscountType: PromotionDiscountType | null;
+    promotionDiscountValue: number | null;
+  }) {
+    if (!item.isPromotional || !item.promotionDiscountType || !item.promotionDiscountValue) return item.exactPrice;
+    if (item.promotionDiscountType === PromotionDiscountType.FLAT) {
+      return Math.max(0, item.exactPrice - item.promotionDiscountValue);
+    }
+    return Math.max(0, item.exactPrice - Math.round((item.exactPrice * item.promotionDiscountValue) / 100));
+  }
 
   async addItem(dto: AddCartItemDto & { customerId: string }) {
     await this.ensureCustomer(dto.customerId);
@@ -53,20 +66,13 @@ export class CartService {
     });
     if (!cart) return { customerId, items: [] };
 
-    const serviceIds = cart.items.filter((item) => item.type === CartItemType.SERVICE).map((item) => item.itemId);
     const packageIds = cart.items.filter((item) => item.type === CartItemType.PACKAGE).map((item) => item.itemId);
-    const [services, packages] = await Promise.all([
-      this.prisma.vendorService.findMany({ where: { id: { in: serviceIds } } }),
-      this.prisma.eventPackage.findMany({ where: { id: { in: packageIds } } }),
-    ]);
+    const packages = await this.prisma.eventPackage.findMany({ where: { id: { in: packageIds } } });
 
     type ItemDetails = { title: string; amount: number; currency: string; vendorId: string };
     const details = new Map<string, ItemDetails>();
-    for (const item of services) {
-      details.set(item.id, { title: item.title, amount: item.amount, currency: item.currency, vendorId: item.vendorId });
-    }
     for (const item of packages) {
-      details.set(item.id, { title: item.title, amount: item.amount, currency: item.currency, vendorId: item.vendorId });
+      details.set(item.id, { title: item.title, amount: this.packageAmount(item), currency: item.currency, vendorId: item.vendorId });
     }
 
     return {
@@ -92,10 +98,7 @@ export class CartService {
   }
 
   private async ensureItem(type: AddCartItemDto['type'], itemId: string) {
-    const item =
-      type === 'SERVICE'
-        ? await this.prisma.vendorService.findUnique({ where: { id: itemId } })
-        : await this.prisma.eventPackage.findUnique({ where: { id: itemId } });
+    const item = await this.prisma.eventPackage.findUnique({ where: { id: itemId } });
     if (!item) throw new NotFoundException('Cart item not found');
   }
 

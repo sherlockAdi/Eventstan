@@ -7,9 +7,9 @@ export class AddCartItemDto {
   @IsString()
   customerId?: string;
 
-  @ApiProperty({ enum: ['SERVICE', 'PACKAGE'], example: 'SERVICE' })
-  @IsIn(['SERVICE', 'PACKAGE'])
-  type!: 'SERVICE' | 'PACKAGE';
+  @ApiProperty({ enum: ['PACKAGE'], example: 'PACKAGE' })
+  @IsIn(['PACKAGE'])
+  type!: 'PACKAGE';
 
   @ApiProperty({ example: 'svc_decoration' })
   @IsString()

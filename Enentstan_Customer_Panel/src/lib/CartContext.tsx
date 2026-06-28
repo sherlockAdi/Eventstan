@@ -6,7 +6,6 @@ interface CartContextType {
   items: CartItem[];
   isOpen: boolean;
   addPackage: (pkg: Package, service?: Service) => void;
-  addService: (service: Service) => void;
   removeItem: (id: string) => void;
   clearCart: () => void;
   openCart: () => void;
@@ -41,24 +40,6 @@ export function CartProvider({ children }: { children: ReactNode }) {
     setIsOpen(true);
   };
 
-  const addService = (service: Service) => {
-    setItems((prev) => {
-      const exists = prev.find((i) => i.id === `svc-${service.id}`);
-      if (exists) return prev;
-      const newItem: CartItem = {
-        id: `svc-${service.id}`,
-        type: "service",
-        title: service.title,
-        subtitle: `${service.category} • ${service.location}`,
-        price: service.price_min,
-        image_url: service.image_url,
-        service,
-      };
-      return [...prev, newItem];
-    });
-    setIsOpen(true);
-  };
-
   const removeItem = (id: string) => {
     setItems((prev) => prev.filter((i) => i.id !== id));
   };
@@ -72,7 +53,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const count = items.length;
 
   return (
-    <CartContext.Provider value={{ items, isOpen, addPackage, addService, removeItem, clearCart, openCart, closeCart, toggleCart, total, count }}>
+    <CartContext.Provider value={{ items, isOpen, addPackage, removeItem, clearCart, openCart, closeCart, toggleCart, total, count }}>
       {children}
     </CartContext.Provider>
   );

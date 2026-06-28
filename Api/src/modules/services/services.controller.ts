@@ -5,7 +5,6 @@ import { AuthGuard, AuthenticatedRequest } from '../auth/auth.guard';
 import { OptionalAuthGuard } from '../auth/optional-auth.guard';
 import { Roles } from '../auth/roles.decorator';
 import { RolesGuard } from '../auth/roles.guard';
-import { CreateSubServiceDto } from './dto/create-sub-service.dto';
 import { CreateServiceDto } from './dto/create-service.dto';
 import { ServicesService } from './services.service';
 import type { Request } from 'express';
@@ -25,43 +24,6 @@ export class ServicesController {
     return this.services.create({ ...dto, vendorId });
   }
 
-  @Post(':id/sub-services')
-  @UseGuards(AuthGuard, RolesGuard)
-  @Roles(UserRole.VENDOR, UserRole.ADMIN, UserRole.SUPER_ADMIN)
-  @ApiBearerAuth()
-  @ApiCreatedResponse({ description: 'Vendor creates a separately stored sub-service under a service.' })
-  async createSubService(@Req() request: AuthenticatedRequest, @Param('id') id: string, @Body() dto: CreateSubServiceDto) {
-    await this.services.assertCanManage(request.user, id);
-    return this.services.createSubService(id, dto);
-  }
-
-  @Get('sub-services')
-  @UseGuards(AuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
-  @ApiBearerAuth()
-  @ApiOkResponse({ description: 'Admin lists all vendor sub-services.' })
-  findAllSubServices() {
-    return this.services.findAllSubServices();
-  }
-
-  @Put('sub-services/:id')
-  @UseGuards(AuthGuard, RolesGuard)
-  @Roles(UserRole.VENDOR, UserRole.ADMIN, UserRole.SUPER_ADMIN)
-  @ApiBearerAuth()
-  async updateSubService(@Req() request: AuthenticatedRequest, @Param('id') id: string, @Body() dto: Partial<CreateSubServiceDto> & { status?: string }) {
-    await this.services.assertCanManageSubService(request.user, id);
-    return this.services.updateSubService(id, dto);
-  }
-
-  @Delete('sub-services/:id')
-  @UseGuards(AuthGuard, RolesGuard)
-  @Roles(UserRole.VENDOR, UserRole.ADMIN, UserRole.SUPER_ADMIN)
-  @ApiBearerAuth()
-  async deleteSubService(@Req() request: AuthenticatedRequest, @Param('id') id: string) {
-    await this.services.assertCanManageSubService(request.user, id);
-    return this.services.deleteSubService(id);
-  }
-
   @Get()
   @ApiQuery({ name: 'categoryId', required: false })
   @ApiQuery({ name: 'city', required: false })
@@ -77,6 +39,11 @@ export class ServicesController {
     const canIncludeAll = request.user?.role === UserRole.ADMIN || request.user?.role === UserRole.SUPER_ADMIN || request.user?.role === UserRole.VENDOR;
     const vendorId = request.user?.role === UserRole.VENDOR ? await this.services.vendorIdForUser(request.user.id) : undefined;
     return this.services.search(categoryId, city, includeAll === 'true' && canIncludeAll, vendorId);
+  }
+
+  @Get('slug-availability')
+  async slugAvailability(@Query('slug') slug?: string, @Query('excludeId') excludeId?: string) {
+    return this.services.checkSlugAvailability(slug ?? '', excludeId);
   }
 
   @Put(':id')
@@ -111,11 +78,5 @@ export class ServicesController {
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.services.findOne(id);
-  }
-
-  @Get(':id/sub-services')
-  @ApiOkResponse({ description: 'Lists active sub-services for a service.' })
-  findSubServices(@Param('id') id: string) {
-    return this.services.findSubServices(id);
   }
 }

@@ -120,15 +120,6 @@ export const adminApi = {
     delete: (id: string) => request<void>(`services/${id}`, { method: 'DELETE' }),
   },
 
-  subServices: {
-    list: () => request<any[]>('services/sub-services'),
-    create: (serviceId: string, payload: JsonBody) =>
-      request<any>(`services/${serviceId}/sub-services`, jsonOptions('POST', payload)),
-    update: (id: string, payload: JsonBody) =>
-      request<any>(`services/sub-services/${id}`, jsonOptions('PUT', payload)),
-    delete: (id: string) => request<void>(`services/sub-services/${id}`, { method: 'DELETE' }),
-  },
-
   eventSlots: {
     list: () => request<any[]>('master-data/event-slots'),
     create: (payload: JsonBody) => request<any>('master-data/event-slots', jsonOptions('POST', payload)),

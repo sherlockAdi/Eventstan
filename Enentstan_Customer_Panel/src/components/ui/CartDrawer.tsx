@@ -72,8 +72,8 @@ export default function CartDrawer() {
       await customerApi.cart.clear().catch(() => undefined);
       for (const item of items) {
         await customerApi.cart.add({
-          type: item.type === "service" ? "SERVICE" : "PACKAGE",
-          itemId: item.type === "service" ? item.service!.id : item.pkg!.id,
+          type: "PACKAGE",
+          itemId: item.pkg!.id,
           eventDate: details.event_date,
           quantity: 1,
         });
@@ -368,7 +368,7 @@ export default function CartDrawer() {
                   </div>
                   <div>
                     <p className="text-orange-200">Items</p>
-                    <p className="font-semibold">{count} service{count > 1 ? "s" : ""}</p>
+                    <p className="font-semibold">{count} package{count > 1 ? "s" : ""}</p>
                   </div>
                   <div>
                     <p className="text-orange-200">Total Paid</p>
@@ -429,11 +429,9 @@ function CartItemRow({ item, onRemove }: { item: CartItem; onRemove: () => void 
             <p className="font-semibold text-sm text-gray-900 truncate">{item.title}</p>
             <p className="text-xs text-gray-400 truncate">{item.subtitle}</p>
             <span className={`inline-block mt-1 text-xs px-2 py-0.5 rounded-full font-medium ${
-              item.type === "package"
-                ? "bg-orange-100 text-orange-600"
-                : "bg-blue-100 text-blue-600"
+              "bg-orange-100 text-orange-600"
             }`}>
-              {item.type === "package" ? "Package" : "Service"}
+              Package
             </span>
           </div>
           <button

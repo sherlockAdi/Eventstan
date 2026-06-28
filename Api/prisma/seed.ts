@@ -336,7 +336,7 @@ async function main() {
     },
   });
 
-  const serviceByTitle = new Map<string, { id: string; title: string; amount: number; currency: string }>();
+  const serviceByTitle = new Map<string, { id: string; title: string; minPrice: number; currency: string }>();
   for (const service of services) {
     const category = categoryBySlug.get(service.categorySlug);
     if (!category) throw new Error(`Missing category: ${service.categorySlug}`);
@@ -346,8 +346,8 @@ async function main() {
         categoryId: category.id,
         description: service.description,
         city: service.city,
-        amount: service.amount,
-        maxAmount: service.maxAmount,
+        minPrice: service.amount,
+        maxPrice: service.maxAmount,
         currency: service.currency,
         priceUnit: service.priceUnit,
         imageUrl: service.imageUrl,
@@ -362,8 +362,8 @@ async function main() {
         title: service.title,
         description: service.description,
         city: service.city,
-        amount: service.amount,
-        maxAmount: service.maxAmount,
+        minPrice: service.amount,
+        maxPrice: service.maxAmount,
         currency: service.currency,
         priceUnit: service.priceUnit,
         imageUrl: service.imageUrl,
@@ -390,7 +390,7 @@ async function main() {
       where: { vendorId_title: { vendorId: vendor.id, title: eventPackage.title } },
       update: {
         description: eventPackage.description,
-        amount: eventPackage.amount,
+        exactPrice: eventPackage.amount,
         currency: 'USD',
         priceUnit: 'package',
         inclusions: eventPackage.inclusions,
@@ -404,7 +404,7 @@ async function main() {
         vendorId: vendor.id,
         title: eventPackage.title,
         description: eventPackage.description,
-        amount: eventPackage.amount,
+        exactPrice: eventPackage.amount,
         currency: 'USD',
         priceUnit: 'package',
         inclusions: eventPackage.inclusions,
@@ -462,10 +462,10 @@ async function main() {
       update: {
         status: 'COMPLETED',
         eventAddress: 'New York',
-        subtotalAmount: reviewService.amount,
-        totalAmount: reviewService.amount,
-        advanceDueAmount: Math.round(reviewService.amount / 2),
-        remainingDueAmount: Math.round(reviewService.amount / 2),
+        subtotalAmount: reviewService.minPrice,
+        totalAmount: reviewService.minPrice,
+        advanceDueAmount: Math.round(reviewService.minPrice / 2),
+        remainingDueAmount: Math.round(reviewService.minPrice / 2),
         currency: reviewService.currency,
       },
       create: {
@@ -474,10 +474,10 @@ async function main() {
         status: 'COMPLETED',
         eventAddress: 'New York',
         notes: 'Seed review booking',
-        subtotalAmount: reviewService.amount,
-        totalAmount: reviewService.amount,
-        advanceDueAmount: Math.round(reviewService.amount / 2),
-        remainingDueAmount: Math.round(reviewService.amount / 2),
+        subtotalAmount: reviewService.minPrice,
+        totalAmount: reviewService.minPrice,
+        advanceDueAmount: Math.round(reviewService.minPrice / 2),
+        remainingDueAmount: Math.round(reviewService.minPrice / 2),
         currency: reviewService.currency,
       },
     });
@@ -491,7 +491,7 @@ async function main() {
         title: reviewService.title,
         eventDate: new Date('2026-06-15'),
         quantity: 1,
-        unitAmount: reviewService.amount,
+        unitAmount: reviewService.minPrice,
         currency: reviewService.currency,
       },
     });

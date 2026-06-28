@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Eye, RefreshCw, Package, Check, X } from "lucide-react";
+import { Eye, RefreshCw, Package, Check, X, Home } from "lucide-react";
 import Button from "@/components/admin/Button";
 import Pagination from "@/components/admin/Pagination";
 import { adminApi } from "@/api/adminApi";
@@ -38,6 +38,8 @@ interface MarketingPackage {
   durationHours: number;
   inclusions: string[];
   features: string[];
+  showOnHomepage: boolean;
+  serviceIds: string[];
 }
 
 interface ApiPackage {
@@ -46,6 +48,8 @@ interface ApiPackage {
   title: string;
   description: string;
   amount: number;
+  price?: number;
+  exactPrice?: number;
   currency: string;
   priceUnit: string;
   inclusions: string[];
@@ -53,6 +57,8 @@ interface ApiPackage {
   maxGuests: number | null;
   durationHours: number | null;
   isPopular: boolean;
+  showOnHomepage?: boolean;
+  show_on_homepage?: boolean;
   status: string;
   items: Array<{
     service: {
@@ -122,7 +128,7 @@ export default function MarketingPackagesPage() {
         return {
           id: pkg.id,
           name: pkg.title,
-          price: pkg.amount,
+          price: pkg.price ?? pkg.amount ?? pkg.exactPrice ?? 0,
           currency: pkg.currency,
           duration: pkg.durationHours ? `${pkg.durationHours} hours` : "Custom",
           popular: pkg.isPopular,
@@ -135,6 +141,8 @@ export default function MarketingPackagesPage() {
           durationHours: pkg.durationHours || 0,
           inclusions: pkg.inclusions || [],
           features: pkg.features || [],
+          showOnHomepage: pkg.showOnHomepage || pkg.show_on_homepage || false,
+          serviceIds: pkg.items.map((item) => item.service.id),
         };
       });
       
@@ -155,6 +163,18 @@ export default function MarketingPackagesPage() {
 
   const handleRefresh = () => {
     fetchData(true);
+  };
+
+  const toggleHomepage = async (pkg: MarketingPackage, nextValue: boolean) => {
+    try {
+      await adminApi.packages.update(pkg.id, { showOnHomepage: nextValue });
+      setPackages((current) =>
+        current.map((item) => (item.id === pkg.id ? { ...item, showOnHomepage: nextValue } : item)),
+      );
+      toast.success(`Package ${nextValue ? "added to" : "removed from"} homepage`);
+    } catch (error) {
+      toast.error("Failed to update homepage setting");
+    }
   };
 
   const openModal = (pkg: MarketingPackage) => {
@@ -254,6 +274,7 @@ export default function MarketingPackagesPage() {
                 <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-6 py-3">Duration</th>
                 <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-6 py-3">Services</th>
                 <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-6 py-3">Max Guests</th>
+                <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-6 py-3">Home Page</th>
                 <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-6 py-3">Status</th>
                 <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-6 py-3">Actions</th>
               </tr>
@@ -307,6 +328,20 @@ export default function MarketingPackagesPage() {
                   </td>
                   <td className="px-6 py-4">
                     <span className="text-gray-600">{pkg.maxGuests > 0 ? pkg.maxGuests : "Unlimited"}</span>
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="flex items-center gap-2">
+                      <label className="relative inline-flex items-center cursor-pointer">
+                        <input
+                          type="checkbox"
+                          className="sr-only peer"
+                          checked={pkg.showOnHomepage}
+                          onChange={() => void toggleHomepage(pkg, !pkg.showOnHomepage)}
+                        />
+                        <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-orange-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-orange-500"></div>
+                      </label>
+                      <span className="text-xs text-gray-500">{pkg.showOnHomepage ? "Yes" : "No"}</span>
+                    </div>
                   </td>
                   <td className="px-6 py-4">
                     <span className={`inline-block text-xs px-2 py-1 rounded-full ${getStatusColor(pkg.status)}`}>
@@ -365,6 +400,12 @@ export default function MarketingPackagesPage() {
                       <h2 className="text-xl font-bold text-gray-900">{selectedPackage.name}</h2>
                       {selectedPackage.popular && (
                         <span className="text-xs bg-orange-100 text-orange-600 px-2 py-1 rounded-full font-medium">Popular</span>
+                      )}
+                      {selectedPackage.showOnHomepage && (
+                        <span className="text-xs bg-blue-100 text-blue-600 px-2 py-1 rounded-full font-medium flex items-center gap-1">
+                          <Home size={12} />
+                          Home Page
+                        </span>
                       )}
                     </div>
                     <div className="flex items-center gap-2 mt-1">

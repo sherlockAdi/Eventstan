@@ -1,29 +1,60 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { ListingStatus } from '@prisma/client';
 import { PrismaService } from '../../shared/prisma/prisma.service';
 import { AuthenticatedUser } from '../auth/auth.types';
-import { CreateSubServiceDto } from './dto/create-sub-service.dto';
 import { CreateServiceDto } from './dto/create-service.dto';
 
 @Injectable()
 export class ServicesService {
   constructor(private readonly prisma: PrismaService) {}
 
+  private slugify(value: string) {
+    return value
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .replace(/-{2,}/g, '-');
+  }
+
+  private async ensureUniqueSlug(rawSlug: string, excludeId?: string) {
+    const slug = this.slugify(rawSlug);
+    if (!slug) throw new BadRequestException('Service slug is required');
+    const existing = await this.prisma.vendorService.findFirst({
+      where: {
+        slug,
+        ...(excludeId ? { id: { not: excludeId } } : {}),
+      },
+    });
+    if (existing) throw new BadRequestException('Service slug is already in use');
+    return slug;
+  }
+
+  private resolveMinPrice(dto: CreateServiceDto | (Partial<CreateServiceDto> & { status?: string })) {
+    return dto.priceMin ?? dto.price?.amount ?? 0;
+  }
+
+  private resolveCurrency(dto: CreateServiceDto | (Partial<CreateServiceDto> & { status?: string })) {
+    return dto.currency ?? dto.price?.currency ?? 'AED';
+  }
+
   async create(dto: CreateServiceDto) {
     const vendor = await this.prisma.vendor.findUnique({ where: { id: dto.vendorId } });
     if (!vendor) throw new NotFoundException('Vendor not found');
     const category = await this.prisma.category.findUnique({ where: { id: dto.categoryId } });
     if (!category) throw new NotFoundException('Category not found');
+    const slug = await this.ensureUniqueSlug(dto.slug);
     const service = await this.prisma.vendorService.create({
       data: {
         vendorId: dto.vendorId,
         categoryId: dto.categoryId,
+        slug,
         title: dto.title,
         description: dto.description,
         city: dto.city,
-        amount: dto.price.amount,
-        currency: dto.price.currency,
-        maxAmount: dto.priceMax ?? dto.price.amount,
+        minPrice: this.resolveMinPrice(dto),
+        currency: this.resolveCurrency(dto),
+        maxPrice: dto.priceMax ?? this.resolveMinPrice(dto),
         priceUnit: dto.priceUnit ?? 'per event',
         imageUrl: dto.imageUrl,
         tags: dto.tags ?? [],
@@ -36,31 +67,19 @@ export class ServicesService {
     return this.toCustomerService(service);
   }
 
-  async createSubService(serviceId: string, dto: CreateSubServiceDto) {
-    await this.findOne(serviceId);
-    return this.prisma.vendorSubService.create({
-      data: {
-        serviceId,
-        title: dto.title,
-        description: dto.description,
-        amount: dto.price.amount,
-        currency: dto.price.currency,
-        imageUrl: dto.imageUrl,
-      },
-    });
-  }
-
   async update(id: string, dto: Partial<CreateServiceDto> & { status?: string }) {
+    const slug = dto.slug !== undefined ? await this.ensureUniqueSlug(dto.slug, id) : undefined;
     const service = await this.prisma.vendorService.update({
       where: { id },
       data: {
         ...(dto.vendorId ? { vendorId: dto.vendorId } : {}),
         ...(dto.categoryId ? { categoryId: dto.categoryId } : {}),
+        ...(slug !== undefined ? { slug } : {}),
         ...(dto.title ? { title: dto.title } : {}),
         ...(dto.description ? { description: dto.description } : {}),
         ...(dto.city ? { city: dto.city } : {}),
-        ...(dto.price ? { amount: dto.price.amount, currency: dto.price.currency } : {}),
-        ...(dto.priceMax !== undefined ? { maxAmount: dto.priceMax } : {}),
+        ...((dto.priceMin !== undefined || dto.price) ? { minPrice: this.resolveMinPrice(dto), currency: this.resolveCurrency(dto) } : {}),
+        ...(dto.priceMax !== undefined ? { maxPrice: dto.priceMax } : {}),
         ...(dto.priceUnit ? { priceUnit: dto.priceUnit } : {}),
         ...(dto.imageUrl !== undefined ? { imageUrl: dto.imageUrl } : {}),
         ...(dto.tags ? { tags: dto.tags } : {}),
@@ -75,49 +94,6 @@ export class ServicesService {
 
   async delete(id: string) {
     return this.prisma.vendorService.delete({ where: { id } });
-  }
-
-  async findAllSubServices() {
-    const subServices = await this.prisma.vendorSubService.findMany({
-      include: {
-        service: {
-          include: {
-            vendor: true,
-            category: true,
-          },
-        },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
-
-    return subServices.map((subService) => this.normalizeSubService(subService));
-  }
-
-  async updateSubService(id: string, dto: Partial<CreateSubServiceDto> & { status?: string }) {
-    const subService = await this.prisma.vendorSubService.update({
-      where: { id },
-      data: {
-        ...(dto.title ? { title: dto.title } : {}),
-        ...(dto.description ? { description: dto.description } : {}),
-        ...(dto.price ? { amount: dto.price.amount, currency: dto.price.currency } : {}),
-        ...(dto.imageUrl !== undefined ? { imageUrl: dto.imageUrl } : {}),
-        ...(dto.status ? { status: dto.status as ListingStatus } : {}),
-      },
-      include: {
-        service: {
-          include: {
-            vendor: true,
-            category: true,
-          },
-        },
-      },
-    });
-
-    return this.normalizeSubService(subService);
-  }
-
-  async deleteSubService(id: string) {
-    return this.prisma.vendorSubService.delete({ where: { id } });
   }
 
   async search(categoryId?: string, city?: string, includeAll = false, vendorId?: string) {
@@ -143,21 +119,26 @@ export class ServicesService {
   }
 
   async findOne(id: string) {
-    const service = await this.prisma.vendorService.findUnique({
-      where: { id },
+    const service = await this.prisma.vendorService.findFirst({
+      where: {
+        OR: [{ id }, { slug: { equals: id, mode: 'insensitive' } }],
+      },
       include: this.serviceInclude,
     });
     if (!service) throw new NotFoundException('Service not found');
     return this.toCustomerService(service);
   }
 
-  async findSubServices(serviceId: string) {
-    await this.findOne(serviceId);
-    const subServices = await this.prisma.vendorSubService.findMany({
-      where: { serviceId, status: ListingStatus.ACTIVE },
-      orderBy: { createdAt: 'desc' },
+  async checkSlugAvailability(rawSlug: string, excludeId?: string) {
+    const slug = this.slugify(rawSlug);
+    if (!slug) return { slug: '', available: false };
+    const existing = await this.prisma.vendorService.findFirst({
+      where: {
+        slug,
+        ...(excludeId ? { id: { not: excludeId } } : {}),
+      },
     });
-    return subServices.map((subService) => this.normalizeSubService(subService));
+    return { slug, available: !existing };
   }
 
   async vendorIdForUser(userId: string) {
@@ -174,43 +155,28 @@ export class ServicesService {
     }
   }
 
-  async assertCanManageSubService(user: AuthenticatedUser, subServiceId: string) {
-    if (user.role === 'ADMIN' || user.role === 'SUPER_ADMIN') return;
-    const subService = await this.prisma.vendorSubService.findUnique({
-      where: { id: subServiceId },
-      include: { service: true },
-    });
-    if (!subService || subService.service.vendorId !== (await this.vendorIdForUser(user.id))) {
-      throw new NotFoundException('Sub-service not found');
-    }
-  }
-
   private readonly serviceInclude = {
     vendor: true,
     category: true,
-    subServices: {
-      where: { status: ListingStatus.ACTIVE },
-      orderBy: { createdAt: 'desc' as const },
-    },
   };
 
   private toCustomerService(service: Awaited<ReturnType<typeof this.prisma.vendorService.findFirst>> & {
     vendor: { contactPerson: string; email: string; phone: string };
     category: { name: string };
-    subServices: Array<{ imageUrl?: string | null }>;
   }) {
     return {
       id: service.id,
       vendorId: service.vendorId,
       categoryId: service.categoryId,
+      slug: service.slug,
       title: service.title,
       category: service.category.name,
       description: service.description,
       city: service.city,
       location: service.city,
-      price: { amount: service.amount, currency: service.currency },
-      price_min: service.amount,
-      price_max: service.maxAmount ?? service.amount,
+      price: { amount: service.minPrice, currency: service.currency },
+      price_min: service.minPrice,
+      price_max: service.maxPrice ?? service.minPrice,
       price_unit: service.priceUnit,
       rating: 0,
       review_count: 0,
@@ -223,14 +189,6 @@ export class ServicesService {
       features: service.features,
       created_at: service.createdAt.toISOString(),
       status: service.status,
-      subServices: service.subServices.map((subService) => this.normalizeSubService(subService)),
-    };
-  }
-
-  private normalizeSubService<T extends { imageUrl?: string | null }>(subService: T) {
-    return {
-      ...subService,
-      imageUrl: subService.imageUrl ?? '',
     };
   }
 }

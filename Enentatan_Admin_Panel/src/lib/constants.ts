@@ -13,7 +13,6 @@ export const API_ENDPOINTS = {
   USERS: `${API_URL}/users`,
   VENDORS: `${API_URL}/vendors`,
   SERVICES: `${API_URL}/services`,
-  SUBSERVICES: `${API_URL}/subservices`,
   EVENT_SLOTS: `${API_URL}/event-slots`,
   COUPONS: `${API_URL}/coupons`,
   COUNTRIES: `${API_URL}/countries`,
