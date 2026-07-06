@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { vendorApi } from "@/api/vendorApi";
 import { getUser } from "@/lib/auth";
+import { findPriceUnit, PriceUnitMaster } from "@/lib/priceUnits";
 
 interface ApiService {
   id: string;
@@ -42,14 +43,6 @@ interface CategoryGroup {
   isRental?: boolean;
 }
 
-const PRICE_UNIT_OPTIONS = [
-  { value: "per_event", label: "per event" },
-  { value: "per_person", label: "per person" },
-  { value: "per_hour", label: "per hour" },
-  { value: "per_day", label: "per day" },
-  { value: "per_piece", label: "per piece" },
-];
-
 const DELIVERY_FEE_TYPES = [
   { value: "base", label: "Base Fee" },
   { value: "free", label: "Free Delivery" },
@@ -73,6 +66,7 @@ export default function AddPackagePage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [services, setServices] = useState<ApiService[]>([]);
   const [categories, setCategories] = useState<CategoryGroup[]>([]);
+  const [priceUnits, setPriceUnits] = useState<PriceUnitMaster[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState("");
@@ -86,7 +80,7 @@ export default function AddPackagePage() {
     description: "",
     price: "",
     currency: "AED",
-    priceUnit: "per_event",
+    priceUnit: "per event",
     serviceId: "",
     categoryId: "",
     maxGuests: "",
@@ -120,7 +114,12 @@ export default function AddPackagePage() {
   useEffect(() => {
     async function loadServices() {
       try {
-        const rows = await vendorApi.services.list<ApiService[]>();
+        const [rows, fetchedPriceUnits] = await Promise.all([
+          vendorApi.services.list<ApiService[]>(),
+          vendorApi.masterData.priceUnits<PriceUnitMaster[]>(),
+        ]);
+        const activePriceUnits = fetchedPriceUnits.filter((unit) => unit.isActive);
+        setPriceUnits(activePriceUnits);
         const activeRows = rows.filter(
           (service) => service.status === "ACTIVE",
         );
@@ -176,7 +175,11 @@ export default function AddPackagePage() {
             categoryId: firstCategory.id,
             serviceId: firstService.id,
             currency: firstService.price?.currency || current.currency,
-            priceUnit: firstService.price_unit || current.priceUnit,
+            priceUnit:
+              findPriceUnit(activePriceUnits, firstService.price_unit)?.code ||
+              current.priceUnit ||
+              activePriceUnits[0]?.code ||
+              "per event",
             isRental: firstCategory.isRental || false,
             rentalLocation: vendorAddress || "",
           }));
@@ -233,7 +236,9 @@ export default function AddPackagePage() {
       categoryId,
       serviceId: firstService?.id || "",
       currency: firstService?.price?.currency || current.currency,
-      priceUnit: firstService?.price_unit || current.priceUnit,
+      priceUnit:
+        findPriceUnit(priceUnits, firstService?.price_unit)?.code ||
+        current.priceUnit,
       isRental: isRental,
       ...(isRental
         ? {}
@@ -314,10 +319,6 @@ export default function AddPackagePage() {
       setFormError("Package title is required.");
       return;
     }
-    if (!form.serviceId) {
-      setFormError("Please choose one service for this package.");
-      return;
-    }
     if (!form.price || Number(form.price) <= 0) {
       setFormError("Valid package price is required.");
       return;
@@ -347,7 +348,7 @@ export default function AddPackagePage() {
       }
     }
 
-    if (form.priceUnit === "per_hour") {
+    if (selectedPriceUnit?.requiresHourRange) {
       if (!form.minHours || Number(form.minHours) <= 0) {
         setFormError("Minimum hours is required and must be greater than 0.");
         return;
@@ -362,7 +363,7 @@ export default function AddPackagePage() {
       }
     }
 
-    if (form.priceUnit === "per_person") {
+    if (selectedPriceUnit?.requiresPersonRange) {
       if (!form.minPersons || Number(form.minPersons) <= 0) {
         setFormError("Minimum persons is required and must be greater than 0.");
         return;
@@ -377,7 +378,7 @@ export default function AddPackagePage() {
       }
     }
 
-    if (form.priceUnit === "per_piece") {
+    if (selectedPriceUnit?.requiresPieceRange) {
       if (!form.minPieces || Number(form.minPieces) <= 0) {
         setFormError("Minimum pieces is required and must be greater than 0.");
         return;
@@ -500,13 +501,13 @@ export default function AddPackagePage() {
         }
       }
 
-      if (form.priceUnit === "per_hour") {
+      if (selectedPriceUnit?.requiresHourRange) {
         packageData.minHours = Number(form.minHours);
         packageData.maxHours = Number(form.maxHours);
-      } else if (form.priceUnit === "per_person") {
+      } else if (selectedPriceUnit?.requiresPersonRange) {
         packageData.minPersons = Number(form.minPersons);
         packageData.maxPersons = Number(form.maxPersons);
-      } else if (form.priceUnit === "per_piece") {
+      } else if (selectedPriceUnit?.requiresPieceRange) {
         packageData.minPieces = Number(form.minPieces);
         packageData.maxPieces = Number(form.maxPieces);
       }
@@ -540,9 +541,10 @@ export default function AddPackagePage() {
     );
   }
 
-  const showHourFields = form.priceUnit === "per_hour";
-  const showPersonFields = form.priceUnit === "per_person";
-  const showPieceFields = form.priceUnit === "per_piece";
+  const selectedPriceUnit = findPriceUnit(priceUnits, form.priceUnit);
+  const showHourFields = Boolean(selectedPriceUnit?.requiresHourRange);
+  const showPersonFields = Boolean(selectedPriceUnit?.requiresPersonRange);
+  const showPieceFields = Boolean(selectedPriceUnit?.requiresPieceRange);
   const showRentalFields = form.isRental;
 
   return (
@@ -628,7 +630,9 @@ export default function AddPackagePage() {
                       serviceId: e.target.value,
                       currency:
                         nextService?.price?.currency || current.currency,
-                      priceUnit: nextService?.price_unit || current.priceUnit,
+                      priceUnit:
+                        findPriceUnit(priceUnits, nextService?.price_unit)?.code ||
+                        current.priceUnit,
                     }));
                     setFormError("");
                   }}
@@ -705,8 +709,8 @@ export default function AddPackagePage() {
                   className="w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-orange-400 focus:ring-4 focus:ring-orange-100"
                 >
                   <option value="">Select unit</option>
-                  {PRICE_UNIT_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
+                  {priceUnits.map((option) => (
+                    <option key={option.id} value={option.code}>
                       {option.label}
                     </option>
                   ))}

@@ -17,9 +17,10 @@ export class CreatePackageDto {
   @IsString()
   description!: string;
 
-  @ApiProperty({ example: 'svc_decoration' })
+  @ApiPropertyOptional({ example: 'svc_decoration', description: 'Optional linked service for the package.' })
+  @IsOptional()
   @IsString()
-  serviceId!: string;
+  serviceId?: string;
 
   @ApiPropertyOptional({ example: ['svc_decoration'], deprecated: true })
   @IsOptional()
@@ -35,6 +36,11 @@ export class CreatePackageDto {
   @IsString()
   currency!: string;
 
+  @ApiPropertyOptional({ example: 'per_event' })
+  @IsOptional()
+  @IsString()
+  priceUnit?: string;
+
   @ApiPropertyOptional({ type: MoneyDto, deprecated: true, description: 'Legacy field. Use exactPrice and currency instead.' })
   @IsOptional()
   @ValidateNested()
@@ -45,6 +51,58 @@ export class CreatePackageDto {
   @IsOptional()
   @IsBoolean()
   showOnHomepage?: boolean;
+
+  @ApiPropertyOptional({ type: [String], example: ['Setup included', 'Custom floral arrangements'] })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  includedItems?: string[];
+
+  @ApiPropertyOptional({ type: [String], example: ['Indoor', 'Premium decor'] })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  features?: string[];
+
+  @ApiPropertyOptional({ example: 200 })
+  @IsOptional()
+  @IsNumber()
+  maxGuests?: number;
+
+  @ApiPropertyOptional({ example: 5 })
+  @IsOptional()
+  @IsNumber()
+  durationHours?: number;
+
+  @ApiPropertyOptional({ example: 2 })
+  @IsOptional()
+  @IsNumber()
+  minHours?: number;
+
+  @ApiPropertyOptional({ example: 8 })
+  @IsOptional()
+  @IsNumber()
+  maxHours?: number;
+
+  @ApiPropertyOptional({ example: 50 })
+  @IsOptional()
+  @IsNumber()
+  minPersons?: number;
+
+  @ApiPropertyOptional({ example: 250 })
+  @IsOptional()
+  @IsNumber()
+  maxPersons?: number;
+
+  @ApiPropertyOptional({ example: 1 })
+  @IsOptional()
+  @IsNumber()
+  minPieces?: number;
+
+  @ApiPropertyOptional({ example: 10 })
+  @IsOptional()
+  @IsNumber()
+  maxPieces?: number;
 
   @ApiPropertyOptional({ example: false })
   @IsOptional()

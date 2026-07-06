@@ -33,6 +33,7 @@ const navItems: NavItem[] = [
       { href: '/admin/masters/services', label: 'Services' },
       { href: '/admin/masters/pending-service-approvals', label: 'Pending Services' },
       { href: '/admin/masters/event-slots', label: 'Event Slots' },
+      { href: '/admin/masters/price-units', label: 'Price Units' },
       { href: '/admin/masters/coupons', label: 'Coupons' },
       { href: '/admin/masters/countries', label: 'Countries' },
       { href: '/admin/masters/states', label: 'States' },

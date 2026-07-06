@@ -297,6 +297,21 @@ model EmailTemplate {
   @@map("email_templates")
 }
 
+model PriceUnitMaster {
+  id                   String   @id @default(cuid())
+  code                 String   @unique
+  label                String
+  isActive             Boolean  @default(true)
+  sortOrder            Int      @default(0)
+  requiresHourRange    Boolean  @default(false)
+  requiresPersonRange  Boolean  @default(false)
+  requiresPieceRange   Boolean  @default(false)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  @@map("price_unit_masters")
+}
+
 model VendorService {
   id          String        @id @default(cuid())
   vendorId    String
@@ -358,6 +373,12 @@ model EventPackage {
   features    String[]
   maxGuests   Int?
   durationHours Int?
+  minHours    Int?
+  maxHours    Int?
+  minPersons  Int?
+  maxPersons  Int?
+  minPieces   Int?
+  maxPieces   Int?
   isPopular   Boolean       @default(false)
   showOnHomepage Boolean    @default(false)
   isPromotional Boolean     @default(false)

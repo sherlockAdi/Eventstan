@@ -8,6 +8,14 @@ import { CreateServiceDto } from './dto/create-service.dto';
 export class ServicesService {
   constructor(private readonly prisma: PrismaService) {}
 
+  private readonly defaultPriceUnits = [
+    { code: 'per event', label: 'Per Event', sortOrder: 1 },
+    { code: 'per day', label: 'Per Day', sortOrder: 2 },
+    { code: 'per hour', label: 'Per Hour', sortOrder: 3, requiresHourRange: true },
+    { code: 'per person', label: 'Per Person', sortOrder: 4, requiresPersonRange: true },
+    { code: 'per piece', label: 'Per Piece', sortOrder: 5, requiresPieceRange: true },
+  ];
+
   private slugify(value: string) {
     return value
       .trim()
@@ -38,12 +46,60 @@ export class ServicesService {
     return dto.currency ?? dto.price?.currency ?? 'AED';
   }
 
+  private normalizePriceUnitKey(value: string) {
+    return value
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9]+/g, '_')
+      .replace(/^_+|_+$/g, '');
+  }
+
+  private async resolveValidatedPriceUnit(priceUnit?: string) {
+    const selectedPriceUnit = priceUnit?.trim() || 'per event';
+    await this.ensureDefaultPriceUnits();
+    const allPriceUnits = await this.prisma.priceUnitMaster.findMany({
+      where: { isActive: true },
+      orderBy: [{ sortOrder: 'asc' }, { label: 'asc' }],
+    });
+    const normalizedSelected = this.normalizePriceUnitKey(selectedPriceUnit);
+    const match = allPriceUnits.find(
+      (item) =>
+        this.normalizePriceUnitKey(item.code) === normalizedSelected ||
+        this.normalizePriceUnitKey(item.label) === normalizedSelected,
+    );
+    if (!match) {
+      throw new BadRequestException('Selected price unit is not available in master data');
+    }
+    return match.code;
+  }
+
+  private async ensureDefaultPriceUnits() {
+    const existing = await this.prisma.priceUnitMaster.findMany({
+      select: { code: true },
+    });
+    if (existing.length > 0) {
+      return;
+    }
+
+    await this.prisma.priceUnitMaster.createMany({
+      data: this.defaultPriceUnits.map((unit) => ({
+        code: unit.code,
+        label: unit.label,
+        sortOrder: unit.sortOrder,
+        requiresHourRange: unit.requiresHourRange ?? false,
+        requiresPersonRange: unit.requiresPersonRange ?? false,
+        requiresPieceRange: unit.requiresPieceRange ?? false,
+      })),
+    });
+  }
+
   async create(dto: CreateServiceDto) {
     const vendor = await this.prisma.vendor.findUnique({ where: { id: dto.vendorId } });
     if (!vendor) throw new NotFoundException('Vendor not found');
     const category = await this.prisma.category.findUnique({ where: { id: dto.categoryId } });
     if (!category) throw new NotFoundException('Category not found');
     const slug = await this.ensureUniqueSlug(dto.slug);
+    const priceUnit = await this.resolveValidatedPriceUnit(dto.priceUnit);
     const service = await this.prisma.vendorService.create({
       data: {
         vendorId: dto.vendorId,
@@ -55,7 +111,7 @@ export class ServicesService {
         minPrice: this.resolveMinPrice(dto),
         currency: this.resolveCurrency(dto),
         maxPrice: dto.priceMax ?? this.resolveMinPrice(dto),
-        priceUnit: dto.priceUnit ?? 'per event',
+        priceUnit,
         imageUrl: dto.imageUrl,
         tags: dto.tags ?? [],
         gallery: dto.gallery ?? [],
@@ -69,6 +125,7 @@ export class ServicesService {
 
   async update(id: string, dto: Partial<CreateServiceDto> & { status?: string }) {
     const slug = dto.slug !== undefined ? await this.ensureUniqueSlug(dto.slug, id) : undefined;
+    const priceUnit = dto.priceUnit !== undefined ? await this.resolveValidatedPriceUnit(dto.priceUnit) : undefined;
     const service = await this.prisma.vendorService.update({
       where: { id },
       data: {
@@ -80,7 +137,7 @@ export class ServicesService {
         ...(dto.city ? { city: dto.city } : {}),
         ...((dto.priceMin !== undefined || dto.price) ? { minPrice: this.resolveMinPrice(dto), currency: this.resolveCurrency(dto) } : {}),
         ...(dto.priceMax !== undefined ? { maxPrice: dto.priceMax } : {}),
-        ...(dto.priceUnit ? { priceUnit: dto.priceUnit } : {}),
+        ...(priceUnit !== undefined ? { priceUnit } : {}),
         ...(dto.imageUrl !== undefined ? { imageUrl: dto.imageUrl } : {}),
         ...(dto.tags ? { tags: dto.tags } : {}),
         ...(dto.gallery ? { gallery: dto.gallery } : {}),

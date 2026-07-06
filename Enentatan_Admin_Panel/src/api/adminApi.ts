@@ -95,6 +95,14 @@ export const adminApi = {
     delete: (id: number) => request<void>(`master-data/countries/${id}`, { method: 'DELETE' }),
   },
 
+  priceUnits: {
+    list: () => request<any[]>('master-data/price-units'),
+    create: (payload: JsonBody) => request<any>('master-data/price-units', jsonOptions('POST', payload)),
+    update: (id: string, payload: JsonBody) =>
+      request<any>(`master-data/price-units/${id}`, jsonOptions('PUT', payload)),
+    delete: (id: string) => request<void>(`master-data/price-units/${id}`, { method: 'DELETE' }),
+  },
+
   coupons: {
     list: () => request<any[]>('coupons'),
     create: (payload: JsonBody) => request<any>('coupons', jsonOptions('POST', payload)),
