@@ -1,9 +1,5 @@
 type JsonBody = object | unknown[];
-const API_ROOT =
-  process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, '') ??
-  process.env.NEXT_PUBLIC_BASE_URL?.replace(/\/$/, '') ??
-  'https://api.eventstan.com';
-const API_BASE_URL = `${API_ROOT}/api/v1`;
+const API_BASE_URL = '/api/proxy/api/v1';
 
 function getVendorToken() {
   if (typeof window === 'undefined') return null;
@@ -90,17 +86,18 @@ export const vendorApi = {
         cache: 'no-store',
         headers: headers(getVendorToken()),
       }),
-    checkSlug: <T = unknown>(slug: string, excludeId?: string) =>
-      request<T>(`services/slug-availability?slug=${encodeURIComponent(slug)}${excludeId ? `&excludeId=${encodeURIComponent(excludeId)}` : ''}`, {
-        cache: 'no-store',
-        headers: headers(getVendorToken()),
-      }),
     get: <T = unknown>(id: string) => request<T>(`services/${id}`, { headers: headers() }),
     create: <T = unknown>(payload: JsonBody) => request<T>('services', jsonOptions('POST', payload)),
     update: <T = unknown>(id: string, payload: JsonBody) => request<T>(`services/${id}`, jsonOptions('PUT', payload)),
     updateStatus: (id: string, status: string) =>
       request<unknown>(`services/${id}`, jsonOptions('PATCH', { status })),
     delete: (id: string) => request<void>(`services/${id}`, jsonOptions('DELETE')),
+    createSubService: (serviceId: string, payload: JsonBody) =>
+      request<unknown>(`services/${serviceId}/sub-services`, jsonOptions('POST', payload)),
+    updateSubService: (subServiceId: string, payload: JsonBody) =>
+      request<unknown>(`sub-services/${subServiceId}`, jsonOptions('PUT', payload)),
+    deleteSubService: (subServiceId: string) =>
+      request<void>(`sub-services/${subServiceId}`, jsonOptions('DELETE')),
   },
 
   packages: {
@@ -116,14 +113,5 @@ export const vendorApi = {
   masterData: {
     countries: <T = unknown[]>() => request<T>('master-data/countries'),
     categories: <T = unknown[]>() => request<T>('master-data/categories'),
-  },
-
-  support: {
-    list: <T = unknown[]>() => request<T>('support/tickets', { cache: 'no-store', headers: headers() }),
-    get: <T = unknown>(id: string) => request<T>(`support/tickets/${id}`, { cache: 'no-store', headers: headers() }),
-    create: <T = unknown>(payload: JsonBody) => request<T>('support/tickets', jsonOptions('POST', payload)),
-    reply: <T = unknown>(id: string, payload: JsonBody) => request<T>(`support/tickets/${id}/replies`, jsonOptions('POST', payload)),
-    updateStatus: <T = unknown>(id: string, status: string) =>
-      request<T>(`support/tickets/${id}/status`, jsonOptions('PATCH', { status })),
   },
 };
