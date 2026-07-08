@@ -13,7 +13,6 @@ export class ServicesService {
     { code: 'per day', label: 'Per Day', sortOrder: 2 },
     { code: 'per hour', label: 'Per Hour', sortOrder: 3, requiresHourRange: true },
     { code: 'per person', label: 'Per Person', sortOrder: 4, requiresPersonRange: true },
-    { code: 'per piece', label: 'Per Piece', sortOrder: 5, requiresPieceRange: true },
   ];
 
   private slugify(value: string) {
@@ -88,7 +87,7 @@ export class ServicesService {
         sortOrder: unit.sortOrder,
         requiresHourRange: unit.requiresHourRange ?? false,
         requiresPersonRange: unit.requiresPersonRange ?? false,
-        requiresPieceRange: unit.requiresPieceRange ?? false,
+        requiresPieceRange: false,
       })),
     });
   }

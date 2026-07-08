@@ -38,7 +38,6 @@ export class MasterDataController {
     { code: 'per day', label: 'Per Day', sortOrder: 2 },
     { code: 'per hour', label: 'Per Hour', sortOrder: 3, requiresHourRange: true },
     { code: 'per person', label: 'Per Person', sortOrder: 4, requiresPersonRange: true },
-    { code: 'per piece', label: 'Per Piece', sortOrder: 5, requiresPieceRange: true },
   ];
 
   @Get('categories')
@@ -285,7 +284,7 @@ export class MasterDataController {
       sortOrder: body.sortOrder ?? 0,
       requiresHourRange: body.requiresHourRange ?? false,
       requiresPersonRange: body.requiresPersonRange ?? false,
-      requiresPieceRange: body.requiresPieceRange ?? false,
+      requiresPieceRange: false,
     };
   }
 
@@ -323,10 +322,23 @@ export class MasterDataController {
             sortOrder: unit.sortOrder ?? 0,
             requiresHourRange: unit.requiresHourRange ?? false,
             requiresPersonRange: unit.requiresPersonRange ?? false,
-            requiresPieceRange: unit.requiresPieceRange ?? false,
+            requiresPieceRange: false,
           },
         });
       }
+    }
+
+    const perPieceUnit = await this.prisma.priceUnitMaster.findMany({
+      where: {
+        OR: [{ code: 'per piece' }, { label: 'Per Piece' }],
+      },
+      select: { id: true },
+    });
+    for (const unit of perPieceUnit) {
+      await this.prisma.priceUnitMaster.update({
+        where: { id: unit.id },
+        data: { isActive: false, requiresPieceRange: false },
+      });
     }
   }
 }

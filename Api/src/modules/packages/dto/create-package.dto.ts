@@ -1,7 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { PromotionDiscountType } from '@prisma/client';
-import { IsArray, IsBoolean, IsEnum, IsNumber, IsOptional, IsString, ValidateNested } from 'class-validator';
+import { IsArray, IsBoolean, IsDateString, IsEnum, IsNumber, IsOptional, IsString, ValidateNested } from 'class-validator';
 import { MoneyDto } from '../../../common/dto/money.dto';
 
 export class CreatePackageDto {
@@ -12,6 +12,11 @@ export class CreatePackageDto {
   @ApiProperty({ example: 'Gold Wedding Package' })
   @IsString()
   title!: string;
+
+  @ApiPropertyOptional({ example: 'cat_venue', description: 'Required when the package is not linked to a service.' })
+  @IsOptional()
+  @IsString()
+  categoryId?: string;
 
   @ApiProperty({ example: 'Decoration, photography, and catering coordination.' })
   @IsString()
@@ -64,6 +69,16 @@ export class CreatePackageDto {
   @IsString({ each: true })
   features?: string[];
 
+  @ApiPropertyOptional({ example: 'https://example.com/package.jpg' })
+  @IsOptional()
+  @IsString()
+  imageUrl?: string;
+
+  @ApiPropertyOptional({ example: '+971501234567' })
+  @IsOptional()
+  @IsString()
+  vendorPhone?: string;
+
   @ApiPropertyOptional({ example: 200 })
   @IsOptional()
   @IsNumber()
@@ -94,16 +109,6 @@ export class CreatePackageDto {
   @IsNumber()
   maxPersons?: number;
 
-  @ApiPropertyOptional({ example: 1 })
-  @IsOptional()
-  @IsNumber()
-  minPieces?: number;
-
-  @ApiPropertyOptional({ example: 10 })
-  @IsOptional()
-  @IsNumber()
-  maxPieces?: number;
-
   @ApiPropertyOptional({ example: false })
   @IsOptional()
   @IsBoolean()
@@ -118,4 +123,69 @@ export class CreatePackageDto {
   @IsOptional()
   @IsNumber()
   promotionDiscountValue?: number;
+
+  @ApiPropertyOptional({ example: '2026-07-09T00:00:00.000Z' })
+  @IsOptional()
+  @IsDateString()
+  promotionStartDate?: string;
+
+  @ApiPropertyOptional({ example: '2026-07-20T00:00:00.000Z' })
+  @IsOptional()
+  @IsDateString()
+  promotionEndDate?: string;
+
+  @ApiPropertyOptional({ example: false })
+  @IsOptional()
+  @IsBoolean()
+  isRental?: boolean;
+
+  @ApiPropertyOptional({ example: 'Downtown Dubai, UAE' })
+  @IsOptional()
+  @IsString()
+  rentalLocation?: string;
+
+  @ApiPropertyOptional({ example: 'loc_001' })
+  @IsOptional()
+  @IsString()
+  rentalLocationId?: string;
+
+  @ApiPropertyOptional({ example: 'Dubai Marina, JBR, Downtown' })
+  @IsOptional()
+  @IsString()
+  serviceArea?: string;
+
+  @ApiPropertyOptional({ example: 25 })
+  @IsOptional()
+  @IsNumber()
+  deliveryRadius?: number;
+
+  @ApiPropertyOptional({ example: 'base' })
+  @IsOptional()
+  @IsString()
+  deliveryFeeType?: string;
+
+  @ApiPropertyOptional({ example: 150 })
+  @IsOptional()
+  @IsNumber()
+  deliveryFee?: number;
+
+  @ApiPropertyOptional({ example: true })
+  @IsOptional()
+  @IsBoolean()
+  pickupAvailable?: boolean;
+
+  @ApiPropertyOptional({ example: true })
+  @IsOptional()
+  @IsBoolean()
+  deliveryAvailable?: boolean;
+
+  @ApiPropertyOptional({ example: false })
+  @IsOptional()
+  @IsBoolean()
+  requiresDeposit?: boolean;
+
+  @ApiPropertyOptional({ example: 500 })
+  @IsOptional()
+  @IsNumber()
+  depositAmount?: number;
 }

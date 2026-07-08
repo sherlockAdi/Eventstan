@@ -1,5 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { ListingStatus, PriceUnitMaster, PromotionDiscountType } from '@prisma/client';
+import { ListingStatus, PriceUnitMaster, Prisma, PromotionDiscountType } from '@prisma/client';
 import { PrismaService } from '../../shared/prisma/prisma.service';
 import { AuthenticatedUser } from '../auth/auth.types';
 import { CreatePackageDto } from './dto/create-package.dto';
@@ -13,7 +13,6 @@ export class PackagesService {
     { code: 'per day', label: 'Per Day', sortOrder: 2 },
     { code: 'per hour', label: 'Per Hour', sortOrder: 3, requiresHourRange: true },
     { code: 'per person', label: 'Per Person', sortOrder: 4, requiresPersonRange: true },
-    { code: 'per piece', label: 'Per Piece', sortOrder: 5, requiresPieceRange: true },
   ];
 
   private resolveServiceId(dto: Pick<CreatePackageDto, 'serviceId' | 'itemIds'>) {
@@ -42,7 +41,7 @@ export class PackagesService {
 
   private normalizeUnitFields(
     dto: Partial<CreatePackageDto>,
-    priceUnitMaster?: Pick<PriceUnitMaster, 'requiresHourRange' | 'requiresPersonRange' | 'requiresPieceRange'>,
+    priceUnitMaster?: Pick<PriceUnitMaster, 'requiresHourRange' | 'requiresPersonRange'>,
   ) {
     const common = {
       maxGuests: dto.maxGuests ?? null,
@@ -56,8 +55,6 @@ export class PackagesService {
         maxHours: dto.maxHours ?? null,
         minPersons: null,
         maxPersons: null,
-        minPieces: null,
-        maxPieces: null,
       };
     }
 
@@ -68,20 +65,6 @@ export class PackagesService {
         maxHours: null,
         minPersons: dto.minPersons ?? null,
         maxPersons: dto.maxPersons ?? null,
-        minPieces: null,
-        maxPieces: null,
-      };
-    }
-
-    if (priceUnitMaster?.requiresPieceRange) {
-      return {
-        ...common,
-        minHours: null,
-        maxHours: null,
-        minPersons: null,
-        maxPersons: null,
-        minPieces: dto.minPieces ?? null,
-        maxPieces: dto.maxPieces ?? null,
       };
     }
 
@@ -91,8 +74,6 @@ export class PackagesService {
       maxHours: null,
       minPersons: null,
       maxPersons: null,
-      minPieces: null,
-      maxPieces: null,
     };
   }
 
@@ -138,12 +119,12 @@ export class PackagesService {
         sortOrder: unit.sortOrder,
         requiresHourRange: unit.requiresHourRange ?? false,
         requiresPersonRange: unit.requiresPersonRange ?? false,
-        requiresPieceRange: unit.requiresPieceRange ?? false,
+        requiresPieceRange: false,
       })),
     });
   }
 
-  private validateUnitFields(dto: Partial<CreatePackageDto>, priceUnitMaster: Pick<PriceUnitMaster, 'requiresHourRange' | 'requiresPersonRange' | 'requiresPieceRange'>) {
+  private validateUnitFields(dto: Partial<CreatePackageDto>, priceUnitMaster: Pick<PriceUnitMaster, 'requiresHourRange' | 'requiresPersonRange'>) {
     const ensurePositive = (value: number | undefined, label: string) => {
       if (value === undefined || value === null || value <= 0) {
         throw new BadRequestException(`${label} must be greater than 0`);
@@ -173,9 +154,92 @@ export class PackagesService {
       ensureRange(dto.minPersons, dto.maxPersons, 'Minimum persons', 'Maximum persons');
     }
 
-    if (priceUnitMaster.requiresPieceRange) {
-      ensureRange(dto.minPieces, dto.maxPieces, 'Minimum pieces', 'Maximum pieces');
+    if (dto.isPromotional) {
+      if (!dto.promotionStartDate || !dto.promotionEndDate) {
+        throw new BadRequestException('Promotion start date and end date are required');
+      }
+      if (new Date(dto.promotionStartDate) >= new Date(dto.promotionEndDate)) {
+        throw new BadRequestException('Promotion end date must be later than promotion start date');
+      }
     }
+
+    if (dto.isRental) {
+      if (!dto.rentalLocation?.trim()) {
+        throw new BadRequestException('Rental location is required for rental packages');
+      }
+      if (dto.requiresDeposit && (!dto.depositAmount || dto.depositAmount <= 0)) {
+        throw new BadRequestException('Deposit amount must be greater than 0 when deposit is required');
+      }
+    }
+  }
+
+  private normalizePromotionDates(dto: Partial<CreatePackageDto>) {
+    return {
+      promotionStartDate: dto.promotionStartDate ? new Date(dto.promotionStartDate) : null,
+      promotionEndDate: dto.promotionEndDate ? new Date(dto.promotionEndDate) : null,
+    };
+  }
+
+  private asIsoString(value?: string | Date | null) {
+    if (!value) return undefined;
+    return value instanceof Date ? value.toISOString() : value;
+  }
+
+  private normalizeRentalFields(dto: Partial<CreatePackageDto>) {
+    if (!dto.isRental) {
+      return {
+        isRental: false,
+        rentalLocation: null,
+        rentalLocationId: null,
+        serviceArea: null,
+        deliveryRadius: null,
+        deliveryFeeType: null,
+        deliveryFee: null,
+        pickupAvailable: null,
+        deliveryAvailable: null,
+        requiresDeposit: null,
+        depositAmount: null,
+      };
+    }
+
+    return {
+      isRental: true,
+      rentalLocation: dto.rentalLocation?.trim() || null,
+      rentalLocationId: dto.rentalLocationId?.trim() || null,
+      serviceArea: dto.serviceArea?.trim() || null,
+      deliveryRadius: dto.deliveryRadius ?? null,
+      deliveryFeeType: dto.deliveryFeeType?.trim() || null,
+      deliveryFee: dto.deliveryFee ?? null,
+      pickupAvailable: dto.pickupAvailable ?? true,
+      deliveryAvailable: dto.deliveryAvailable ?? true,
+      requiresDeposit: dto.requiresDeposit ?? false,
+      depositAmount: dto.requiresDeposit ? dto.depositAmount ?? null : null,
+    };
+  }
+
+  private async resolveCategoryId(dto: Pick<CreatePackageDto, 'categoryId' | 'serviceId' | 'itemIds'>, vendorId: string) {
+    const serviceId = this.resolveServiceId(dto);
+    if (serviceId) {
+      const service = await this.prisma.vendorService.findUnique({ where: { id: serviceId } });
+      if (!service) {
+        throw new NotFoundException(`Package service not found: ${serviceId}`);
+      }
+      if (service.vendorId !== vendorId) {
+        throw new NotFoundException('Package service must belong to the selected vendor');
+      }
+      return { categoryId: service.categoryId, service };
+    }
+
+    if (!dto.categoryId) {
+      throw new BadRequestException('Category is required when package is not linked to a service');
+    }
+
+    const category = await this.prisma.category.findUnique({ where: { id: dto.categoryId } });
+    if (!category) {
+      throw new NotFoundException('Category not found');
+    }
+
+    return { categoryId: category.id, service: null };
   }
 
   private normalizePromotion(dto: Partial<CreatePackageDto>) {
@@ -215,18 +279,12 @@ export class PackagesService {
   async create(dto: CreatePackageDto) {
     const priceUnitMaster = await this.resolvePriceUnitMaster(this.resolvePriceUnit(dto));
     this.validateUnitFields(dto, priceUnitMaster);
-    const serviceId = this.resolveServiceId(dto);
-    if (serviceId) {
-      const service = await this.prisma.vendorService.findUnique({ where: { id: serviceId } });
-      if (!service) throw new NotFoundException(`Package service not found: ${serviceId}`);
-      if (service.vendorId !== dto.vendorId) {
-        throw new NotFoundException('Package service must belong to the selected vendor');
-      }
-    }
     const vendorId = dto.vendorId;
-    const eventPackage = await this.prisma.eventPackage.create({
-      data: {
+    const { categoryId, service } = await this.resolveCategoryId(dto, vendorId);
+    const serviceId = service?.id ?? this.resolveServiceId(dto);
+    const createData: Prisma.EventPackageUncheckedCreateInput = {
         vendorId,
+        categoryId,
         title: dto.title,
         description: dto.description,
         exactPrice: this.resolveExactPrice(dto),
@@ -234,9 +292,13 @@ export class PackagesService {
         priceUnit: priceUnitMaster.code,
         showOnHomepage: dto.showOnHomepage ?? false,
         ...this.normalizePromotion(dto),
+        ...this.normalizePromotionDates(dto),
         inclusions: this.normalizeIncludedItems(dto),
         features: this.normalizeFeatures(dto),
+        imageUrl: dto.imageUrl ?? null,
+        vendorPhone: dto.vendorPhone ?? null,
         ...this.normalizeUnitFields(dto, priceUnitMaster),
+        ...this.normalizeRentalFields(dto),
         status: ListingStatus.DRAFT,
         ...(serviceId
           ? {
@@ -245,7 +307,9 @@ export class PackagesService {
               },
             }
           : {}),
-      },
+      } as Prisma.EventPackageUncheckedCreateInput;
+    const eventPackage = await this.prisma.eventPackage.create({
+      data: createData,
       include: this.packageInclude,
     });
     return this.toCustomerPackage(eventPackage);
@@ -282,25 +346,44 @@ export class PackagesService {
   }
 
   async update(id: string, dto: Partial<CreatePackageDto> & { status?: string }) {
-    const existingPackage = await this.prisma.eventPackage.findUnique({ where: { id } });
+    const existingPackage = (await this.prisma.eventPackage.findUnique({ where: { id } })) as (Prisma.EventPackageUncheckedCreateInput & {
+      id: string;
+      createdAt?: Date;
+      updatedAt?: Date;
+    }) | null;
     if (!existingPackage) throw new NotFoundException('Package not found');
     const priceUnitMaster = await this.resolvePriceUnitMaster(dto.priceUnit ?? existingPackage.priceUnit);
-    this.validateUnitFields(dto, priceUnitMaster);
+    this.validateUnitFields(
+      {
+        ...dto,
+        isPromotional: dto.isPromotional ?? existingPackage.isPromotional,
+        promotionStartDate: dto.promotionStartDate ?? this.asIsoString(existingPackage.promotionStartDate),
+        promotionEndDate: dto.promotionEndDate ?? this.asIsoString(existingPackage.promotionEndDate),
+        isRental: dto.isRental ?? existingPackage.isRental,
+        rentalLocation: dto.rentalLocation ?? existingPackage.rentalLocation ?? undefined,
+        requiresDeposit: dto.requiresDeposit ?? existingPackage.requiresDeposit ?? undefined,
+        depositAmount: dto.depositAmount ?? existingPackage.depositAmount ?? undefined,
+      },
+      priceUnitMaster,
+    );
     const selectedServiceId = this.resolveServiceId({
       serviceId: dto.serviceId ?? '',
       itemIds: dto.itemIds,
     });
-    if (selectedServiceId) {
-      const service = await this.prisma.vendorService.findUnique({ where: { id: selectedServiceId } });
-      if (!service) throw new NotFoundException(`Package service not found: ${selectedServiceId}`);
-      if (service.vendorId !== existingPackage.vendorId) {
-        throw new NotFoundException('Package service must belong to the package vendor');
-      }
-    }
+    const categoryResolution =
+      dto.categoryId !== undefined || dto.serviceId !== undefined || dto.itemIds !== undefined
+        ? await this.resolveCategoryId(
+            {
+              categoryId: dto.categoryId ?? existingPackage.categoryId ?? undefined,
+              serviceId: dto.serviceId ?? '',
+              itemIds: dto.itemIds,
+            },
+            existingPackage.vendorId,
+          )
+        : null;
 
-    const updated = await this.prisma.eventPackage.update({
-      where: { id },
-      data: {
+    const updateData: Prisma.EventPackageUncheckedUpdateInput = {
+        ...(categoryResolution ? { categoryId: categoryResolution.categoryId } : {}),
         ...(dto.title ? { title: dto.title } : {}),
         ...(dto.description ? { description: dto.description } : {}),
         ...((dto.exactPrice !== undefined || dto.price)
@@ -314,6 +397,8 @@ export class PackagesService {
         ...(dto.features !== undefined || dto.includedItems !== undefined
           ? { features: this.normalizeFeatures(dto) }
           : {}),
+        ...(dto.imageUrl !== undefined ? { imageUrl: dto.imageUrl || null } : {}),
+        ...(dto.vendorPhone !== undefined ? { vendorPhone: dto.vendorPhone || null } : {}),
         ...(
           dto.maxGuests !== undefined ||
           dto.durationHours !== undefined ||
@@ -321,8 +406,6 @@ export class PackagesService {
           dto.maxHours !== undefined ||
           dto.minPersons !== undefined ||
           dto.maxPersons !== undefined ||
-          dto.minPieces !== undefined ||
-          dto.maxPieces !== undefined ||
           dto.priceUnit !== undefined
             ? this.normalizeUnitFields(
                 {
@@ -332,8 +415,6 @@ export class PackagesService {
                   maxHours: dto.maxHours ?? existingPackage.maxHours ?? undefined,
                   minPersons: dto.minPersons ?? existingPackage.minPersons ?? undefined,
                   maxPersons: dto.maxPersons ?? existingPackage.maxPersons ?? undefined,
-                  minPieces: dto.minPieces ?? existingPackage.minPieces ?? undefined,
-                  maxPieces: dto.maxPieces ?? existingPackage.maxPieces ?? undefined,
                 },
                 priceUnitMaster,
               )
@@ -348,6 +429,43 @@ export class PackagesService {
                 isPromotional: dto.isPromotional ?? existingPackage.isPromotional,
                 promotionDiscountType: dto.promotionDiscountType,
                 promotionDiscountValue: dto.promotionDiscountValue,
+              })
+            : {}
+        ),
+        ...(
+          dto.promotionStartDate !== undefined ||
+          dto.promotionEndDate !== undefined ||
+          dto.isPromotional !== undefined
+            ? this.normalizePromotionDates({
+                promotionStartDate: dto.isPromotional === false ? undefined : dto.promotionStartDate ?? this.asIsoString(existingPackage.promotionStartDate),
+                promotionEndDate: dto.isPromotional === false ? undefined : dto.promotionEndDate ?? this.asIsoString(existingPackage.promotionEndDate),
+              })
+            : {}
+        ),
+        ...(
+          dto.isRental !== undefined ||
+          dto.rentalLocation !== undefined ||
+          dto.rentalLocationId !== undefined ||
+          dto.serviceArea !== undefined ||
+          dto.deliveryRadius !== undefined ||
+          dto.deliveryFeeType !== undefined ||
+          dto.deliveryFee !== undefined ||
+          dto.pickupAvailable !== undefined ||
+          dto.deliveryAvailable !== undefined ||
+          dto.requiresDeposit !== undefined ||
+          dto.depositAmount !== undefined
+            ? this.normalizeRentalFields({
+                isRental: dto.isRental ?? existingPackage.isRental,
+                rentalLocation: dto.rentalLocation ?? existingPackage.rentalLocation ?? undefined,
+                rentalLocationId: dto.rentalLocationId ?? existingPackage.rentalLocationId ?? undefined,
+                serviceArea: dto.serviceArea ?? existingPackage.serviceArea ?? undefined,
+                deliveryRadius: dto.deliveryRadius ?? existingPackage.deliveryRadius ?? undefined,
+                deliveryFeeType: dto.deliveryFeeType ?? existingPackage.deliveryFeeType ?? undefined,
+                deliveryFee: dto.deliveryFee ?? existingPackage.deliveryFee ?? undefined,
+                pickupAvailable: dto.pickupAvailable ?? existingPackage.pickupAvailable ?? undefined,
+                deliveryAvailable: dto.deliveryAvailable ?? existingPackage.deliveryAvailable ?? undefined,
+                requiresDeposit: dto.requiresDeposit ?? existingPackage.requiresDeposit ?? undefined,
+                depositAmount: dto.depositAmount ?? existingPackage.depositAmount ?? undefined,
               })
             : {}
         ),
@@ -367,7 +485,10 @@ export class PackagesService {
               },
             }
           : {}),
-      },
+      } as Prisma.EventPackageUncheckedUpdateInput;
+    const updated = await this.prisma.eventPackage.update({
+      where: { id },
+      data: updateData,
       include: this.packageInclude,
     });
 
@@ -403,49 +524,32 @@ export class PackagesService {
         },
       },
     },
+    category: true,
   };
 
-  private toCustomerPackage(eventPackage: {
-    id: string;
-    vendorId: string;
-    title: string;
-    description: string;
-    exactPrice: number;
-    currency: string;
-    priceUnit: string;
-    inclusions: string[];
-    features: string[];
-    maxGuests: number | null;
-    durationHours: number | null;
-    minHours?: number | null;
-    maxHours?: number | null;
-    minPersons?: number | null;
-    maxPersons?: number | null;
-    minPieces?: number | null;
-    maxPieces?: number | null;
-    isPopular: boolean;
-    showOnHomepage: boolean;
-    isPromotional: boolean;
-    promotionDiscountType: PromotionDiscountType | null;
-    promotionDiscountValue: number | null;
-    status: ListingStatus;
-    createdAt: Date;
-    items: Array<{ serviceId: string }>;
-  }) {
+  private toCustomerPackage(eventPackage: any) {
     const serviceId = eventPackage.items[0]?.serviceId ?? '';
     const promotionalPrice = this.promotionalPriceOf(eventPackage);
     return {
       ...eventPackage,
       service_id: serviceId,
+      category_id: eventPackage.categoryId,
+      categoryId: eventPackage.categoryId,
+      category_name: eventPackage.category?.name ?? '',
+      category_slug: eventPackage.category?.slug ?? '',
       title: eventPackage.title,
       name: eventPackage.title,
-      itemIds: eventPackage.items.map((item) => item.serviceId),
+      itemIds: eventPackage.items.map((item: { serviceId: string }) => item.serviceId),
       exact_price: eventPackage.exactPrice,
       price: promotionalPrice,
       original_price: eventPackage.exactPrice,
       money: { amount: promotionalPrice, currency: eventPackage.currency },
       inclusions: eventPackage.inclusions,
       features: eventPackage.features.length ? eventPackage.features : eventPackage.inclusions,
+      image_url: eventPackage.imageUrl ?? '',
+      imageUrl: eventPackage.imageUrl,
+      vendor_phone: eventPackage.vendorPhone ?? '',
+      vendorPhone: eventPackage.vendorPhone,
       max_guests: eventPackage.maxGuests ?? 0,
       duration_hours: eventPackage.durationHours ?? 0,
       maxGuests: eventPackage.maxGuests,
@@ -458,10 +562,6 @@ export class PackagesService {
       max_persons: eventPackage.maxPersons,
       minPersons: eventPackage.minPersons,
       maxPersons: eventPackage.maxPersons,
-      min_pieces: eventPackage.minPieces,
-      max_pieces: eventPackage.maxPieces,
-      minPieces: eventPackage.minPieces,
-      maxPieces: eventPackage.maxPieces,
       price_unit: eventPackage.priceUnit,
       priceUnit: eventPackage.priceUnit,
       is_popular: eventPackage.isPopular,
@@ -473,8 +573,34 @@ export class PackagesService {
       promotionDiscountType: eventPackage.promotionDiscountType,
       promotion_discount_value: eventPackage.promotionDiscountValue,
       promotionDiscountValue: eventPackage.promotionDiscountValue,
+      promotion_start_date: eventPackage.promotionStartDate?.toISOString() ?? null,
+      promotionStartDate: eventPackage.promotionStartDate?.toISOString() ?? null,
+      promotion_end_date: eventPackage.promotionEndDate?.toISOString() ?? null,
+      promotionEndDate: eventPackage.promotionEndDate?.toISOString() ?? null,
       promotional_price: promotionalPrice,
       promotionalPrice,
+      is_rental: eventPackage.isRental,
+      isRental: eventPackage.isRental,
+      rental_location: eventPackage.rentalLocation ?? '',
+      rentalLocation: eventPackage.rentalLocation,
+      rental_location_id: eventPackage.rentalLocationId ?? '',
+      rentalLocationId: eventPackage.rentalLocationId,
+      service_area: eventPackage.serviceArea ?? '',
+      serviceArea: eventPackage.serviceArea,
+      delivery_radius: eventPackage.deliveryRadius,
+      deliveryRadius: eventPackage.deliveryRadius,
+      delivery_fee_type: eventPackage.deliveryFeeType,
+      deliveryFeeType: eventPackage.deliveryFeeType,
+      delivery_fee: eventPackage.deliveryFee,
+      deliveryFee: eventPackage.deliveryFee,
+      pickup_available: eventPackage.pickupAvailable,
+      pickupAvailable: eventPackage.pickupAvailable,
+      delivery_available: eventPackage.deliveryAvailable,
+      deliveryAvailable: eventPackage.deliveryAvailable,
+      requires_deposit: eventPackage.requiresDeposit,
+      requiresDeposit: eventPackage.requiresDeposit,
+      deposit_amount: eventPackage.depositAmount,
+      depositAmount: eventPackage.depositAmount,
       created_at: eventPackage.createdAt.toISOString(),
     };
   }
