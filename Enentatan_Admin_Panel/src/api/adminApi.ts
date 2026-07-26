@@ -70,8 +70,20 @@ export const adminApi = {
   profile: () => request<any>('auth/me', { headers: authHeaders() }),
   logout: () => request<any>('auth/logout', jsonOptions('POST')),
 
+  changePassword: (payload: { currentPassword: string; newPassword: string }) =>
+    request<any>('auth/change-password', jsonOptions('POST', payload)),
+
+  userLeads: {
+    list: () => request<any[]>('user-leads'),
+  },
+
+  vendorLeads: {
+    list: () => request<any[]>('vendor-leads'),
+  },
+
   vendors: {
     list: () => request<any[]>('vendors'),
+    getById: (id: string) => request<any>(`vendors/${id}`),
     create: (payload: JsonBody) => request<any>('vendors', jsonOptions('POST', payload)),
     update: (id: string, payload: JsonBody) => request<any>(`vendors/${id}`, jsonOptions('PUT', payload)),
     updateStatus: (id: string, status: string) =>
@@ -95,12 +107,27 @@ export const adminApi = {
     delete: (id: number) => request<void>(`master-data/countries/${id}`, { method: 'DELETE' }),
   },
 
-  priceUnits: {
-    list: () => request<any[]>('master-data/price-units'),
-    create: (payload: JsonBody) => request<any>('master-data/price-units', jsonOptions('POST', payload)),
+  states: {
+    list: (countryId?: number) =>
+      request<any[]>(`master-data/states${countryId ? `?countryId=${countryId}` : ''}`),
+    create: (payload: JsonBody) => request<any>('master-data/states', jsonOptions('POST', payload)),
     update: (id: string, payload: JsonBody) =>
-      request<any>(`master-data/price-units/${id}`, jsonOptions('PUT', payload)),
-    delete: (id: string) => request<void>(`master-data/price-units/${id}`, { method: 'DELETE' }),
+      request<any>(`master-data/states/${id}`, jsonOptions('PUT', payload)),
+    delete: (id: string) => request<void>(`master-data/states/${id}`, { method: 'DELETE' }),
+  },
+
+  cities: {
+    list: (countryId?: number, stateId?: string) => {
+      const params = new URLSearchParams();
+      if (countryId) params.set('countryId', String(countryId));
+      if (stateId) params.set('stateId', stateId);
+      const query = params.toString();
+      return request<any[]>(`master-data/cities${query ? `?${query}` : ''}`);
+    },
+    create: (payload: JsonBody) => request<any>('master-data/cities', jsonOptions('POST', payload)),
+    update: (id: string, payload: JsonBody) =>
+      request<any>(`master-data/cities/${id}`, jsonOptions('PUT', payload)),
+    delete: (id: string) => request<void>(`master-data/cities/${id}`, { method: 'DELETE' }),
   },
 
   coupons: {
@@ -128,12 +155,37 @@ export const adminApi = {
     delete: (id: string) => request<void>(`services/${id}`, { method: 'DELETE' }),
   },
 
+  subServices: {
+    list: () => request<any[]>('services/sub-services'),
+    create: (serviceId: string, payload: JsonBody) =>
+      request<any>(`services/${serviceId}/sub-services`, jsonOptions('POST', payload)),
+    update: (id: string, payload: JsonBody) =>
+      request<any>(`services/sub-services/${id}`, jsonOptions('PUT', payload)),
+    delete: (id: string) => request<void>(`services/sub-services/${id}`, { method: 'DELETE' }),
+  },
+
   eventSlots: {
     list: () => request<any[]>('master-data/event-slots'),
     create: (payload: JsonBody) => request<any>('master-data/event-slots', jsonOptions('POST', payload)),
     update: (id: number, payload: JsonBody) =>
       request<any>(`master-data/event-slots/${id}`, jsonOptions('PUT', payload)),
     delete: (id: number) => request<void>(`master-data/event-slots/${id}`, { method: 'DELETE' }),
+  },
+
+  priceUnits: {
+    list: () => request<any[]>('master-data/price-units'),
+    create: (payload: JsonBody) => request<any>('master-data/price-units', jsonOptions('POST', payload)),
+    update: (id: string, payload: JsonBody) =>
+      request<any>(`master-data/price-units/${id}`, jsonOptions('PUT', payload)),
+    delete: (id: string) => request<void>(`master-data/price-units/${id}`, { method: 'DELETE' }),
+  },
+
+  visaTypes: {
+    list: () => request<any[]>('master-data/visa-types'),
+    create: (payload: JsonBody) => request<any>('master-data/visa-types', jsonOptions('POST', payload)),
+    update: (id: number, payload: JsonBody) =>
+      request<any>(`master-data/visa-types/${id}`, jsonOptions('PUT', payload)),
+    delete: (id: number) => request<void>(`master-data/visa-types/${id}`, { method: 'DELETE' }),
   },
 
   emailTemplates: {
@@ -167,25 +219,35 @@ export const adminApi = {
     reject: (id: string) => request<any>(`reviews/${id}/reject`, jsonOptions('PATCH')),
   },
 
-  notifications: {
-    list: (status?: string) => request<any[]>(`notifications${status ? `?status=${encodeURIComponent(status)}` : ''}`),
-    create: (payload: JsonBody) => request<any>('notifications', jsonOptions('POST', payload)),
-    markSent: (id: string) => request<any>(`notifications/${id}/sent`, jsonOptions('PATCH')),
-    delete: (id: string) => request<void>(`notifications/${id}`, jsonOptions('DELETE')),
+  rolePermissions: {
+    definitions: <T = unknown[]>() => request<T>('role-permission/definitions'),
+    list: <T = unknown[]>() => request<T>('role-permission'),
+    get: <T = unknown>(role: string) => request<T>(`role-permission/${role}`),
+    update: <T = unknown>(role: string, payload: JsonBody) =>
+      request<T>(`role-permission/${role}`, jsonOptions('PUT', payload)),
   },
 
   support: {
     list: <T = unknown[]>() => request<T>('support/tickets'),
     get: <T = unknown>(id: string) => request<T>(`support/tickets/${id}`),
-    reply: <T = unknown>(id: string, payload: JsonBody) => request<T>(`support/tickets/${id}/replies`, jsonOptions('POST', payload)),
+    reply: <T = unknown>(id: string, payload: JsonBody) =>
+      request<T>(`support/tickets/${id}/replies`, jsonOptions('POST', payload)),
     updateStatus: <T = unknown>(id: string, status: string) =>
       request<T>(`support/tickets/${id}/status`, jsonOptions('PATCH', { status })),
   },
 
-  rolePermissions: {
-    definitions: <T = unknown[]>() => request<T>('role-permission/definitions'),
-    list: <T = unknown[]>() => request<T>('role-permission'),
-    get: <T = unknown>(role: string) => request<T>(`role-permission/${role}`),
-    update: <T = unknown>(role: string, payload: JsonBody) => request<T>(`role-permission/${role}`, jsonOptions('PUT', payload)),
+  blogs: {
+    list: () => request<any[]>('blogs?includeAll=true'),
+    get: (id: string) => request<any>(`blogs/${id}`),
+    create: (payload: JsonBody) => request<any>('blogs', jsonOptions('POST', payload)),
+    update: (id: string, payload: JsonBody) => request<any>(`blogs/${id}`, jsonOptions('PATCH', payload)),
+    delete: (id: string) => request<void>(`blogs/${id}`, jsonOptions('DELETE')),
+  },
+
+  notifications: {
+    list: (status?: string) => request<any[]>(`notifications${status ? `?status=${encodeURIComponent(status)}` : ''}`),
+    create: (payload: JsonBody) => request<any>('notifications', jsonOptions('POST', payload)),
+    markSent: (id: string) => request<any>(`notifications/${id}/sent`, jsonOptions('PATCH')),
+    delete: (id: string) => request<void>(`notifications/${id}`, jsonOptions('DELETE')),
   },
 };

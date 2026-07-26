@@ -1,5 +1,5 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { ArrayNotEmpty, IsArray, IsDateString, IsEmail, IsInt, IsOptional, IsString, Max, Min, MinLength } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ArrayNotEmpty, IsArray, IsDateString, IsEmail, IsIn, IsInt, IsOptional, IsString, Max, Min, MinLength } from 'class-validator';
 
 export class CreateVendorDto {
   @ApiProperty({ example: 'TemporaryPassword123!', required: false })
@@ -64,6 +64,11 @@ export class CreateVendorDto {
   @IsString()
   specialization?: string;
 
+  @ApiProperty({ example: 'FREELANCER', required: false, enum: ['FREELANCER', 'PERMANENT'] })
+  @IsOptional()
+  @IsIn(['FREELANCER', 'PERMANENT'])
+  vendorType?: string;
+
   @ApiProperty({ example: 'Dubai', required: false })
   @IsOptional()
   @IsString()
@@ -79,9 +84,52 @@ export class CreateVendorDto {
   @IsString()
   address?: string;
 
+  @ApiProperty({
+    example: 'https://api.eventstan.com/api/v1/uploads/images/services/2026-06-29/00f51b35-8817-4597-9ecf-6e4d60feb643.webp',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  vendorProfileImage?: string;
+
   @ApiProperty({ example: 'DXB-TL-10001' })
   @IsString()
   tradeLicenseNumber!: string;
+
+  @ApiPropertyOptional({ example: '2027-06-30' })
+  @IsOptional()
+  @IsDateString()
+  tradeLicenseExpiry?: string;
+
+  @ApiPropertyOptional({ example: 'https://minio.eventstan.com/eventstan/vendor-docs/trade-license.pdf' })
+  @IsOptional()
+  @IsString()
+  tradeLicenseFileUrl?: string;
+
+  @ApiPropertyOptional({ example: 'vendor-docs/2026-07-11/trade-license.pdf' })
+  @IsOptional()
+  @IsString()
+  tradeLicenseFileKey?: string;
+
+  @ApiPropertyOptional({ example: '2028-01-15' })
+  @IsOptional()
+  @IsDateString()
+  passportExpiry?: string;
+
+  @ApiPropertyOptional({ example: 'https://minio.eventstan.com/eventstan/vendor-docs/passport.pdf' })
+  @IsOptional()
+  @IsString()
+  passportFileUrl?: string;
+
+  @ApiPropertyOptional({ example: 'vendor-docs/2026-07-11/passport.pdf' })
+  @IsOptional()
+  @IsString()
+  passportFileKey?: string;
+
+  @ApiPropertyOptional({ example: '2027-12-31' })
+  @IsOptional()
+  @IsDateString()
+  emiratesIdExpiry?: string;
 
   @ApiProperty({ example: '100000000000001', required: false })
   @IsOptional()

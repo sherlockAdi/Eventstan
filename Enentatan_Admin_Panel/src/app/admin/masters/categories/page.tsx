@@ -16,6 +16,11 @@ interface Category {
   id: string;
   name: string;
   slug: string;
+  image?: string | null;
+  showInHomePage?: boolean;
+  isActive?: boolean;
+  parentId?: string | null;
+  createdAt?: string;
 }
 
 export default function CategoriesPage() {
@@ -28,12 +33,12 @@ export default function CategoriesPage() {
   const [categoryForm, setCategoryForm] = useState<Partial<Category>>({
     name: "",
     slug: "",
+    image: "",
+    showInHomePage: false,
   });
   const [loading, setLoading] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
-
-  // Static state for homepage checkboxes (frontend only)
-  const [homepageCategories, setHomepageCategories] = useState<Set<string>>(new Set());
 
   const ITEMS_PER_PAGE = 10;
   const [currentPage, setCurrentPage] = useState(1);
@@ -96,14 +101,32 @@ export default function CategoriesPage() {
 
   const openAddCategory = () => {
     setSelectedCategory(null);
-    setCategoryForm({ name: "", slug: "" });
+    setCategoryForm({ name: "", slug: "", image: "", showInHomePage: false });
     setIsCategoryModalOpen(true);
   };
 
   const openEditCategory = (category: Category) => {
     setSelectedCategory(category);
-    setCategoryForm(category);
+    setCategoryForm({
+      ...category,
+      image: category.image || "",
+      showInHomePage: category.showInHomePage || false,
+    });
     setIsCategoryModalOpen(true);
+  };
+
+  const handleImageUpload = async (file?: File) => {
+    if (!file) return;
+    setUploadingImage(true);
+    try {
+      const result = await adminApi.uploads.image(file, "categories");
+      setCategoryForm((prev) => ({ ...prev, image: result.url }));
+    } catch (error) {
+      console.error("Error uploading image:", error);
+      toast.error("Failed to upload image");
+    } finally {
+      setUploadingImage(false);
+    }
   };
 
   const openDeleteCategory = (category: Category) => {
@@ -118,30 +141,26 @@ export default function CategoriesPage() {
   };
 
   // Actually toggle the homepage status after confirmation
-  const confirmHomepageToggle = () => {
-    if (pendingHomepageToggle) {
-      const categoryId = pendingHomepageToggle.id;
-      const categoryName = pendingHomepageToggle.name;
-      const isCurrentlySelected = homepageCategories.has(categoryId);
-      
-      setHomepageCategories(prev => {
-        const newSet = new Set(prev);
-        if (isCurrentlySelected) {
-          newSet.delete(categoryId);
-        } else {
-          newSet.add(categoryId);
-        }
-        return newSet;
-      });
-      
-      // Sirf ek baar toast message
-      if (isCurrentlySelected) {
-        toast.success(`${categoryName} removed from homepage`);
-      } else {
-        toast.success(`${categoryName} added to homepage`);
-      }
-      
-      // Clean up
+  const confirmHomepageToggle = async () => {
+    if (!pendingHomepageToggle) return;
+
+    const categoryId = pendingHomepageToggle.id;
+    const categoryName = pendingHomepageToggle.name;
+    const newValue = !pendingHomepageToggle.showInHomePage;
+
+    setLoading(true);
+    try {
+      await updateCategoryInAPI(categoryId, { showInHomePage: newValue });
+
+      setCategories(categories.map(c =>
+        c.id === categoryId ? { ...c, showInHomePage: newValue } : c
+      ));
+
+      toast.success(newValue ? `${categoryName} added to homepage` : `${categoryName} removed from homepage`);
+    } catch (error) {
+      toast.error("Failed to update homepage status");
+    } finally {
+      setLoading(false);
       setPendingHomepageToggle(null);
       setIsHomepageConfirmOpen(false);
     }
@@ -164,11 +183,13 @@ export default function CategoriesPage() {
         await updateCategoryInAPI(selectedCategory.id, {
           name: categoryForm.name,
           slug: slug,
+          image: categoryForm.image || null,
+          showInHomePage: categoryForm.showInHomePage || false,
         });
         
         setCategories(categories.map(c => 
           c.id === selectedCategory.id 
-            ? { ...c, name: categoryForm.name!, slug: slug }
+            ? { ...c, name: categoryForm.name!, slug: slug, image: categoryForm.image || null, showInHomePage: categoryForm.showInHomePage || false }
             : c
         ));
         
@@ -177,6 +198,8 @@ export default function CategoriesPage() {
         const newCategory = await addCategoryToAPI({
           name: categoryForm.name,
           slug: slug,
+          image: categoryForm.image || null,
+          showInHomePage: categoryForm.showInHomePage || false,
         });
         
         setCategories([...categories, newCategory]);
@@ -199,12 +222,6 @@ export default function CategoriesPage() {
     try {
       await deleteCategoryFromAPI(selectedCategory.id);
       setCategories(categories.filter(c => c.id !== selectedCategory.id));
-      // Remove from homepage set if deleted
-      setHomepageCategories(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(selectedCategory.id);
-        return newSet;
-      });
       toast.success("Category deleted successfully!");
       setIsCategoryDeleteOpen(false);
     } catch (error) {
@@ -245,6 +262,23 @@ export default function CategoriesPage() {
         <span className="text-gray-600 font-medium">{v}</span>
       )
     },
+    {
+      key: "image",
+      label: "Image",
+      render: (_: any, row: Category) => (
+        row.image ? (
+          <img
+            src={row.image}
+            alt={row.name}
+            className="w-10 h-10 rounded-lg object-cover border border-gray-200"
+          />
+        ) : (
+          <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center">
+            <Tag size={14} className="text-gray-300" />
+          </div>
+        )
+      )
+    },
     { 
       key: "name", 
       label: "Category Name",
@@ -271,13 +305,13 @@ export default function CategoriesPage() {
             <input
               type="checkbox"
               className="sr-only peer"
-              checked={homepageCategories.has(row.id)}
+              checked={!!row.showInHomePage}
               onChange={() => handleHomepageToggleClick(row)}
             />
             <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-orange-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-orange-500"></div>
           </label>
           <span className="text-xs text-gray-500">
-            {homepageCategories.has(row.id) ? 'Yes' : 'No'}
+            {row.showInHomePage ? 'Yes' : 'No'}
           </span>
         </div>
       )
@@ -314,7 +348,7 @@ export default function CategoriesPage() {
           <p className="text-sm text-gray-500 mt-0.5">
             {categories.length} categories total • 
             <span className="text-orange-600 ml-1">
-              {homepageCategories.size} on homepage
+              {categories.filter(c => c.showInHomePage).length} on homepage
             </span>
           </p>
         </div>
@@ -386,6 +420,50 @@ export default function CategoriesPage() {
                 Auto-generated from name if left empty
               </p>
             </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                Category Image
+              </label>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(e) => handleImageUpload(e.target.files?.[0])}
+                className="text-sm file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-orange-50 file:text-orange-700 hover:file:bg-orange-100"
+                disabled={loading || uploadingImage}
+              />
+              {uploadingImage && (
+                <p className="mt-1 text-xs text-gray-500">Uploading...</p>
+              )}
+              {categoryForm.image && (
+                <img
+                  src={categoryForm.image}
+                  alt="Preview"
+                  className="mt-2 w-20 h-20 rounded-xl object-cover border border-gray-200"
+                />
+              )}
+            </div>
+
+            <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
+              <div>
+                <label className="text-sm font-medium text-gray-700">
+                  Show on Homepage
+                </label>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  Display this category on the homepage
+                </p>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  className="sr-only peer"
+                  checked={!!categoryForm.showInHomePage}
+                  onChange={(e) => setCategoryForm({ ...categoryForm, showInHomePage: e.target.checked })}
+                  disabled={loading}
+                />
+                <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-orange-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-orange-500"></div>
+              </label>
+            </div>
           </div>
 
           <div className="flex justify-end gap-3 pt-6 mt-4">
@@ -419,9 +497,9 @@ export default function CategoriesPage() {
           setPendingHomepageToggle(null);
         }}
         onConfirm={confirmHomepageToggle}
-        title={pendingHomepageToggle && homepageCategories.has(pendingHomepageToggle.id) ? "Remove from Homepage" : "Add to Homepage"}
+        title={pendingHomepageToggle?.showInHomePage ? "Remove from Homepage" : "Add to Homepage"}
         message={
-          pendingHomepageToggle && homepageCategories.has(pendingHomepageToggle.id)
+          pendingHomepageToggle?.showInHomePage
             ? `Are you sure you want to remove "${pendingHomepageToggle?.name}" from the homepage?`
             : `Are you sure you want to add "${pendingHomepageToggle?.name}" to the homepage?`
         }

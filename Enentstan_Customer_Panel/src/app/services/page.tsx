@@ -1,10 +1,14 @@
 "use client";
-
-import { useEffect, useState, Suspense } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import { getPackages, getServices } from "@/api/customerApi";
+import { CATEGORY_FILTERS } from "@/lib/data";
+import { useMarketplace } from "@/lib/useMarketplace";
 import ServiceCard from "@/components/ui/ServiceCard";
-import { Package, Service } from "@/types";
+import { Layers, Sparkles } from "lucide-react";
+import Link from "next/link";
+import { Service } from "@/types";
+
+const CATEGORIES = ["All", "Venue", "Decor", "Catering", "Entertainment", "Rentals"];
 
 const SORT_OPTIONS = [
   { label: "Newest First", value: "newest" },
@@ -17,31 +21,24 @@ const SORT_OPTIONS = [
 const PRICE_RANGES = [
   { label: "Any Price", value: "any" },
   { label: "Under $500", value: "under_500" },
-  { label: "$500 - $1,000", value: "500_1000" },
-  { label: "$1,000 - $5,000", value: "1000_5000" },
+  { label: "$500 – $1,000", value: "500_1000" },
+  { label: "$1,000 – $5,000", value: "1000_5000" },
   { label: "$5,000+", value: "5000_plus" },
 ];
 
 function getPriceFilter(range: string): (s: Service) => boolean {
   switch (range) {
-    case "under_500":
-      return (s) => s.price_min < 500;
-    case "500_1000":
-      return (s) => s.price_min >= 500 && s.price_min <= 1000;
-    case "1000_5000":
-      return (s) => s.price_min > 1000 && s.price_min <= 5000;
-    case "5000_plus":
-      return (s) => s.price_min > 5000;
-    default:
-      return () => true;
+    case "under_500": return (s) => s.price_min < 500;
+    case "500_1000": return (s) => s.price_min >= 500 && s.price_min <= 1000;
+    case "1000_5000": return (s) => s.price_min > 1000 && s.price_min <= 5000;
+    case "5000_plus": return (s) => s.price_min > 5000;
+    default: return () => true;
   }
 }
 
 function ServicesContent() {
   const searchParams = useSearchParams();
-  const [services, setServices] = useState<Service[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const { services: SERVICES, loading, error } = useMarketplace();
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
   const [sortBy, setSortBy] = useState("newest");
@@ -50,88 +47,42 @@ function ServicesContent() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
-    const loadServices = async () => {
-      try {
-        setLoading(true);
-        setError("");
-        const [serviceRows, packageRows] = await Promise.all([getServices(), getPackages()]);
-        const homepagePackageServiceIds = new Set(
-          packageRows
-            .filter((pkg: Package) => pkg.showOnHomepage || pkg.show_on_homepage)
-            .map((pkg: Package) => pkg.service_id)
-            .filter(Boolean),
-        );
-        const visibleServices = serviceRows.filter(
-          (service) =>
-            service.showOnHomepage ||
-            service.show_on_homepage ||
-            homepagePackageServiceIds.has(service.id),
-        );
-        setServices(visibleServices);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to load services");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    void loadServices();
-  }, []);
-
-  const categories = ["All", ...Array.from(new Set(services.map((service) => service.category).filter(Boolean)))];
-
-  useEffect(() => {
     const cat = searchParams.get("category");
     const search = searchParams.get("search");
-    if (cat && categories.includes(cat)) setSelectedCategory(cat);
+    if (cat && CATEGORIES.includes(cat)) setSelectedCategory(cat);
     if (search) setSearchQuery(search);
-  }, [categories, searchParams]);
+  }, [searchParams]);
 
-  const toggleFilter = (filterValue: string) => {
+  const toggleFilter = (f: string) => {
     setSelectedFilters((prev) =>
-      prev.includes(filterValue)
-        ? prev.filter((current) => current !== filterValue)
-        : [...prev, filterValue],
+      prev.includes(f) ? prev.filter((x) => x !== f) : [...prev, f]
     );
   };
 
   const priceFilterFn = getPriceFilter(priceRange);
 
-  const currentFilters =
-    selectedCategory !== "All"
-      ? Array.from(
-          new Set(
-            services
-              .filter((service) => service.category === selectedCategory)
-              .flatMap((service) => service.tags || []),
-          ),
-        )
-      : [];
+  const filtered = SERVICES.filter((s: Service) => {
+    if (selectedCategory !== "All" && s.category !== selectedCategory) return false;
+    if (!priceFilterFn(s)) return false;
+    if (selectedFilters.length > 0 && !selectedFilters.some((f) => s.tags.includes(f))) return false;
+    if (
+      searchQuery &&
+      !s.title.toLowerCase().includes(searchQuery.toLowerCase()) &&
+      !s.description.toLowerCase().includes(searchQuery.toLowerCase())
+    )
+      return false;
+    return true;
+  }).sort((a, b) => {
+    if (sortBy === "price_asc") return a.price_min - b.price_min;
+    if (sortBy === "price_desc") return b.price_min - a.price_min;
+    if (sortBy === "rating") return b.rating - a.rating;
+    // newest / oldest: fallback to string id comparison
+    if (sortBy === "oldest") return String(a.id).localeCompare(String(b.id));
+    return String(b.id).localeCompare(String(a.id)); // newest first default
+  });
 
-  const filtered = services
-    .filter((service) => {
-      if (selectedCategory !== "All" && service.category !== selectedCategory) return false;
-      if (!priceFilterFn(service)) return false;
-      if (selectedFilters.length > 0 && !selectedFilters.some((filterValue) => service.tags.includes(filterValue))) {
-        return false;
-      }
-      if (
-        searchQuery &&
-        !service.title.toLowerCase().includes(searchQuery.toLowerCase()) &&
-        !service.description.toLowerCase().includes(searchQuery.toLowerCase()) &&
-        !service.location.toLowerCase().includes(searchQuery.toLowerCase())
-      ) {
-        return false;
-      }
-      return true;
-    })
-    .sort((a, b) => {
-      if (sortBy === "price_asc") return a.price_min - b.price_min;
-      if (sortBy === "price_desc") return b.price_min - a.price_min;
-      if (sortBy === "rating") return b.rating - a.rating;
-      if (sortBy === "oldest") return String(a.created_at).localeCompare(String(b.created_at));
-      return String(b.created_at).localeCompare(String(a.created_at));
-    });
+  const currentFilters =
+    selectedCategory !== "All" ? CATEGORY_FILTERS[selectedCategory] || [] : [];
 
   const hasActiveFilters =
     selectedFilters.length > 0 || sortBy !== "newest" || priceRange !== "any";
@@ -149,11 +100,13 @@ function ServicesContent() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
+      {/* Page Header */}
       <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-1">Browse Services</h1>
       <p className="text-gray-500 text-sm mb-5 sm:mb-6">Find the perfect vendors for your event</p>
 
+      {/* Categories — horizontally scrollable on mobile, wrapping on desktop */}
       <div className="flex gap-2 mb-5 overflow-x-auto pb-1 -mx-4 px-4 sm:mx-0 sm:px-0 sm:flex-wrap snap-x snap-mandatory scrollbar-hide">
-        {categories.map((cat) => (
+        {CATEGORIES.map((cat) => (
           <button
             key={cat}
             onClick={() => {
@@ -171,6 +124,7 @@ function ServicesContent() {
         ))}
       </div>
 
+      {/* Search bar + mobile filter button */}
       <div className="flex items-center gap-3 mb-6">
         <div className="relative flex-1 max-w-md">
           <svg
@@ -195,6 +149,7 @@ function ServicesContent() {
           />
         </div>
 
+        {/* Filter button — mobile only, inline next to search */}
         <button
           onClick={() => setSidebarOpen(true)}
           className={`lg:hidden relative flex items-center gap-2 px-4 py-3 rounded-xl border text-sm font-medium transition-all flex-shrink-0 ${
@@ -215,17 +170,21 @@ function ServicesContent() {
         </button>
       </div>
 
+      {/* ── Mobile Drawer ─────────────────────────────────── */}
       {sidebarOpen && (
         <div
           className="lg:hidden fixed inset-0 z-50 flex justify-end"
           onClick={() => setSidebarOpen(false)}
         >
+          {/* Backdrop */}
           <div className="absolute inset-0 bg-black/40" />
 
+          {/* Panel */}
           <div
             className="relative w-[85vw] max-w-xs h-full bg-white shadow-2xl flex flex-col"
             onClick={(e) => e.stopPropagation()}
           >
+            {/* Drawer header */}
             <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
               <div className="flex items-center gap-2">
                 <svg className="w-4 h-4 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -244,6 +203,7 @@ function ServicesContent() {
               </button>
             </div>
 
+            {/* Scrollable body */}
             <div className="flex-1 overflow-y-auto px-5 py-5 space-y-6">
               {currentFilters.length > 0 && (
                 <div>
@@ -251,15 +211,15 @@ function ServicesContent() {
                     Filter by Type
                   </h3>
                   <div className="space-y-2">
-                    {currentFilters.map((filterValue) => (
-                      <label key={filterValue} className="flex items-center gap-2 cursor-pointer">
+                    {currentFilters.map((f) => (
+                      <label key={f} className="flex items-center gap-2 cursor-pointer">
                         <input
                           type="checkbox"
-                          checked={selectedFilters.includes(filterValue)}
-                          onChange={() => toggleFilter(filterValue)}
+                          checked={selectedFilters.includes(f)}
+                          onChange={() => toggleFilter(f)}
                           className="accent-orange-500"
                         />
-                        <span className="text-sm text-gray-600">{filterValue}</span>
+                        <span className="text-sm text-gray-600">{f}</span>
                       </label>
                     ))}
                   </div>
@@ -301,6 +261,7 @@ function ServicesContent() {
               </div>
             </div>
 
+            {/* Footer */}
             <div className="px-5 py-4 border-t border-gray-100 space-y-2">
               {hasActiveFilters && (
                 <button
@@ -325,8 +286,10 @@ function ServicesContent() {
       )}
 
       <div className="flex gap-6">
+        {/* Sidebar — desktop only */}
         <aside className="hidden lg:block w-60 flex-shrink-0">
           <div className="bg-white rounded-2xl border border-gray-100 p-5 space-y-6 sticky top-24">
+
             <div className="flex items-center gap-2">
               <svg className="w-4 h-4 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2a1 1 0 01-.293.707L13 13.414V19a1 1 0 01-.553.894l-4 2A1 1 0 017 21v-7.586L3.293 6.707A1 1 0 013 6V4z" />
@@ -340,15 +303,15 @@ function ServicesContent() {
                   Filter by Type
                 </h3>
                 <div className="space-y-2">
-                  {currentFilters.map((filterValue) => (
-                    <label key={filterValue} className="flex items-center gap-2 cursor-pointer">
+                  {currentFilters.map((f) => (
+                    <label key={f} className="flex items-center gap-2 cursor-pointer">
                       <input
                         type="checkbox"
-                        checked={selectedFilters.includes(filterValue)}
-                        onChange={() => toggleFilter(filterValue)}
+                        checked={selectedFilters.includes(f)}
+                        onChange={() => toggleFilter(f)}
                         className="accent-orange-500"
                       />
-                      <span className="text-sm text-gray-600">{filterValue}</span>
+                      <span className="text-sm text-gray-600">{f}</span>
                     </label>
                   ))}
                 </div>
@@ -403,29 +366,78 @@ function ServicesContent() {
           </div>
         </aside>
 
-        <div className="flex-1 min-w-0">
+        {/* Results */}
+        {/* <div className="flex-1 min-w-0">
           {loading ? (
-            <div className="py-16 text-center text-gray-500">Loading services...</div>
+            <div className="text-center py-16 text-gray-400">Loading services…</div>
           ) : error ? (
-            <div className="rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700">
-              {error}
+            <div className="text-center py-16 text-red-400">Failed to load services: {error}</div>
+          ) : (
+          <>
+          <p className="text-sm text-gray-500 mb-4">{filtered.length} services found</p>
+          {filtered.length === 0 ? (
+            <div className="text-center py-16 text-gray-400">
+              <div className="text-4xl mb-3">🔍</div>
+              <p>No services match your filters.</p>
             </div>
           ) : (
-            <>
-              <p className="text-sm text-gray-500 mb-4">{filtered.length} services found</p>
-              {filtered.length === 0 ? (
-                <div className="text-center py-16 text-gray-400">
-                  <div className="text-4xl mb-3">No results</div>
-                  <p>No services match your filters.</p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-5">
-                  {filtered.map((service) => (
-                    <ServiceCard key={service.id} service={service} />
-                  ))}
-                </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-5">
+              {filtered.map((service) => (
+                <ServiceCard key={service.id} service={service} />
+              ))}
+            </div>
+          )}
+          </>
+          )}
+        </div> */}
+        <div className="flex-1 min-w-0">
+          {loading ? (
+            <div className="text-center py-16 text-gray-400">Loading services…</div>
+          ) : error ? (
+            <div className="text-center py-16 text-red-400">Failed to load services: {error}</div>
+          ) : (
+          <>
+          <p className="text-sm text-gray-500 mb-4">0 services found</p>
+          <div className="text-center py-20 px-4">
+            <div className="relative w-24 h-24 mx-auto mb-6">
+              <div className="w-24 h-24 rounded-full bg-orange-50 flex items-center justify-center">
+                <Layers className="w-9 h-9 text-orange-500" />
+              </div>
+              <div className="absolute -top-1 -right-1 w-5 h-5">
+                <span className="absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75 animate-ping" />
+                <span className="relative inline-flex rounded-full h-5 w-5 bg-orange-400" />
+              </div>
+            </div>
+
+            <h3 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-3">
+              We&apos;re Updating Our Inventory
+            </h3>
+            <p className="text-gray-500 mb-1">
+              Our team is busy curating an amazing selection of vendors for you.
+            </p>
+            <p className="text-gray-400 text-sm mb-8 flex items-center justify-center gap-1.5">
+              Check back soon — great things are coming your way!
+              <Sparkles className="w-4 h-4 text-orange-300" />
+            </p>
+
+            <div className="flex items-center justify-center gap-3">
+              {hasActiveFilters && (
+                <button
+                  onClick={clearAllFilters}
+                  className="border border-gray-200 text-gray-700 px-6 py-3 rounded-full font-semibold hover:bg-gray-50 transition-colors bg-white"
+                >
+                  Clear Filters
+                </button>
               )}
-            </>
+              <Link
+                href="/"
+                className="bg-orange-500 text-white px-6 py-3 rounded-full font-semibold hover:bg-orange-600 transition-colors"
+              >
+                Back to Home
+              </Link>
+            </div>
+          </div>
+          </>
           )}
         </div>
       </div>

@@ -1,11 +1,12 @@
 "use client";
 import { useState } from "react";
-import { PACKAGES, SERVICES } from "@/lib/data";
+import { useMarketplace } from "@/lib/useMarketplace";
 import PackageCard from "@/components/ui/PackageCard";
 import BookingModal from "@/components/ui/BookingModal";
 import { Package } from "@/types";
 
 export default function PackagesPage() {
+  const { services, packages, loading, error } = useMarketplace();
   const [selectedPkg, setSelectedPkg] = useState<Package | undefined>();
 
   return (
@@ -15,9 +16,14 @@ export default function PackagesPage() {
         <p className="text-gray-500">Pre-made vendor packages — add to cart or book directly</p>
       </div>
 
+      {loading ? (
+        <div className="text-center py-16 text-gray-400">Loading packages…</div>
+      ) : error ? (
+        <div className="text-center py-16 text-red-400">Failed to load packages: {error}</div>
+      ) : (
       <div className="space-y-10">
-        {SERVICES.map((service) => {
-          const pkgs = PACKAGES.filter((p) => p.service_id === service.id);
+        {services.map((service) => {
+          const pkgs = packages.filter((p) => p.service_id === service.id);
           if (pkgs.length === 0) return null;
           return (
             <div key={service.id}>
@@ -37,6 +43,7 @@ export default function PackagesPage() {
           );
         })}
       </div>
+      )}
 
       {selectedPkg && (
         <BookingModal pkg={selectedPkg} onClose={() => setSelectedPkg(undefined)} />

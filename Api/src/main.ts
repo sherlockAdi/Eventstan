@@ -2,11 +2,16 @@ import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import * as express from 'express';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const config = app.get(ConfigService);
+  const bodyLimit = config.get<string>('BODY_LIMIT', '25mb');
+
+  app.use(express.json({ limit: bodyLimit }));
+  app.use(express.urlencoded({ extended: true, limit: bodyLimit }));
 
   const configuredOrigins = config
     .get<string>('CORS_ORIGINS', '')
@@ -37,12 +42,15 @@ async function bootstrap() {
     .addTag('vendors')
     .addTag('services')
     .addTag('packages')
+    .addTag('blogs')
     .addTag('availability')
     .addTag('cart')
     .addTag('bookings')
     .addTag('payments')
     .addTag('coupons')
     .addTag('reviews')
+    .addTag('user-leads')
+    .addTag('vendor-leads')
     .addTag('settlements')
     .addTag('support')
     .addTag('uploads')

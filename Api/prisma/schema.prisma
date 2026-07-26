@@ -10,6 +10,7 @@ datasource db {
 enum UserRole {
   SUPER_ADMIN
   ADMIN
+  BLOG
   VENDOR
   CUSTOMER
   AFFILIATE
@@ -90,6 +91,12 @@ enum ReviewStatus {
   REJECTED
 }
 
+enum BlogStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
 enum SettlementStatus {
   PENDING_PAYOUT
   PAID
@@ -121,11 +128,26 @@ model User {
   carts        Cart[]
   bookings     Booking[]
   reviews      Review[]
+  passwordResetTokens PasswordResetToken[]
   supportTicketsCreated SupportTicket[] @relation("SupportTicketCreator")
   supportMessagesAuthored SupportMessage[] @relation("SupportMessageAuthor")
   rolePermissionsUpdated RolePermission[] @relation("RolePermissionsUpdatedBy")
 
   @@map("users")
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+  @@map("password_reset_tokens")
 }
 
 model Vendor {
@@ -144,10 +166,19 @@ model Vendor {
   telephone          String?
   primaryMobile      String?
   specialization     String?
+  vendorType         String?
   businessLocation   String?
   visaType           String?
   address            String?
+  vendorProfileImage String?
   tradeLicenseNumber String
+  tradeLicenseExpiry DateTime?
+  tradeLicenseFileUrl String?
+  tradeLicenseFileKey String?
+  passportExpiry     DateTime?
+  passportFileUrl    String?
+  passportFileKey    String?
+  emiratesIdExpiry   DateTime?
   vatNumber          String?
   updatedProfile     Boolean      @default(false)
   status             VendorStatus @default(PENDING_VERIFICATION)
@@ -246,6 +277,8 @@ model Category {
   name      String
   slug      String   @unique
   parentId  String?
+  image     String?
+  showInHomePage Boolean @default(false)
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
 
@@ -269,7 +302,55 @@ model Country {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
+  states          StateMaster[]
+  cities          CityMaster[]
+
   @@map("countries")
+}
+
+model StateMaster {
+  id        String   @id @default(cuid())
+  countryId Int
+  name      String
+  code      String?
+  status    String   @default("Active")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  country   Country   @relation(fields: [countryId], references: [id], onDelete: Cascade)
+  cities    CityMaster[]
+
+  @@unique([countryId, name])
+  @@unique([countryId, code])
+  @@index([countryId, status])
+  @@map("state_masters")
+}
+
+model VisaTypeMaster {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  status    String   @default("Active")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("visa_type_masters")
+}
+
+model CityMaster {
+  id        String   @id @default(cuid())
+  countryId Int
+  stateId   String
+  name      String
+  status    String   @default("Active")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  country   Country   @relation(fields: [countryId], references: [id], onDelete: Cascade)
+  state     StateMaster @relation(fields: [stateId], references: [id], onDelete: Cascade)
+
+  @@unique([stateId, name])
+  @@index([countryId, stateId, status])
+  @@map("city_masters")
 }
 
 model EventSlot {
@@ -330,6 +411,7 @@ model VendorService {
   gallery     String[]
   features    String[]
   status      ListingStatus @default(ACTIVE)
+  showOnPromotionalPage Boolean    @default(false) @map("showOnHomepage")
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
 
@@ -384,7 +466,7 @@ model EventPackage {
   minPieces   Int?
   maxPieces   Int?
   isPopular   Boolean       @default(false)
-  showOnHomepage Boolean    @default(false)
+  showOnPromotionalPage Boolean    @default(false) @map("showOnHomepage")
   isPromotional Boolean     @default(false)
   promotionDiscountType PromotionDiscountType?
   promotionDiscountValue Int?
@@ -632,4 +714,72 @@ model RolePermission {
   updatedBy      User?    @relation("RolePermissionsUpdatedBy", fields: [updatedByUserId], references: [id], onDelete: SetNull)
 
   @@map("role_permissions")
+}
+
+model BlogPost {
+  id                 String     @id @default(cuid())
+  title              String
+  slug               String     @unique
+  excerpt            String?
+  content            String
+  coverImage         String?
+  category           String
+  tags               String[]   @default([])
+  status             BlogStatus @default(DRAFT)
+  isFeatured         Boolean    @default(false)
+  authorName         String?
+  authorAvatar       String?
+  authorBio          String?
+  metaTitle          String?
+  metaDescription    String?
+  ogImage            String?
+  publishedAt        DateTime?
+  readTime           Int        @default(0)
+  relatedServiceIds   String[]   @default([])
+  relatedPackageIds   String[]   @default([])
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
+
+  @@index([status, category, publishedAt])
+  @@map("blog_posts")
+}
+
+model UserLead {
+  id                   String   @id @default(cuid())
+  fullName             String
+  email                String
+  phone                String
+  eventType            String
+  preferredEventDate   DateTime?
+  expectedGuestCount   Int?
+  budgetRange          Json?
+  servicesNeeded       String[] @default([])
+  additionalDetails    String?
+  status               String   @default("NEW")
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  @@index([status, createdAt])
+  @@index([email])
+  @@map("user_leads")
+}
+
+model VendorLead {
+  id                   String   @id @default(cuid())
+  businessName         String
+  yourName             String
+  email                String
+  phone                String
+  websiteSocialMedia   String[] @default([])
+  serviceCategoryId    String?
+  cityId               String?
+  yearsOfExperience    Int?
+  message              String?
+  status               String   @default("NEW")
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  @@index([status, createdAt])
+  @@index([email])
+  @@map("vendor_leads")
 }

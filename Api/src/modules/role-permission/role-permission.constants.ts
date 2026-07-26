@@ -85,6 +85,19 @@ export const DEFAULT_ROLE_PERMISSION_SEEDS: RolePermissionSeed[] = [
       create: item.key !== 'role-permission',
       edit: item.key !== 'role-permission',
       delete: item.key !== 'role-permission' && item.key !== 'support' && item.key !== 'notifications',
+      })),
+  },
+  {
+    role: UserRole.BLOG,
+    name: 'Blog Editor',
+    description: 'Limited admin access for blog content management only.',
+    isActive: true,
+    permissions: PERMISSION_DEFINITIONS.filter((item) => item.key === 'blog').map((item) => ({
+      ...item,
+      view: true,
+      create: true,
+      edit: true,
+      delete: true,
     })),
   },
   {
@@ -129,6 +142,7 @@ export function defaultPermissionsForRole(role: UserRole) {
 }
 
 export function permissionPanelForRole(role: UserRole): PermissionPanel {
+  if (role === UserRole.BLOG) return 'ADMIN';
   if (role === UserRole.VENDOR) return 'VENDOR';
   if (role === UserRole.CUSTOMER) return 'CUSTOMER';
   return 'ADMIN';

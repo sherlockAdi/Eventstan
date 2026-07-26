@@ -23,120 +23,90 @@ import { Column } from "@/lib/types";
 import toast from "react-hot-toast";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-
-interface BlogPost {
-  id: string;
-  sr_no: number;
-  title: string;
-  slug: string;
-  excerpt: string;
-  content: string;
-  cover_image: string;
-  category: string;
-  tags: string[];
-  status: "draft" | "published" | "archived";
-  is_featured: boolean;
-  author_name: string;
-  author_avatar: string;
-  author_bio: string;
-  meta_title: string;
-  meta_description: string;
-  og_image: string;
-  published_at: string;
-  read_time: number;
-  created_at: string;
-  updated_at: string;
-  related_services: string[];
-  related_packages: string[];
-}
-
-const samplePosts: BlogPost[] = [
-  {
-    id: "1",
-    sr_no: 1,
-    title: "10 Tips for Planning the Perfect Wedding",
-    slug: "10-tips-for-planning-the-perfect-wedding",
-    excerpt:
-      "Discover essential tips to make your wedding day unforgettable...",
-    content: "Lorem ipsum dolor sit amet, consectetur adipiscing elit...",
-    cover_image: "https://images.unsplash.com/photo-1519741497674-611481863552",
-    category: "Tips & Advice",
-    tags: ["Wedding", "Planning", "Tips"],
-    status: "published",
-    is_featured: true,
-    author_name: "Sarah Johnson",
-    author_avatar: "https://randomuser.me/api/portraits/women/1.jpg",
-    author_bio: "Wedding planner with 10+ years of experience",
-    meta_title: "10 Wedding Planning Tips",
-    meta_description: "Essential tips for planning your perfect wedding day",
-    og_image: "https://images.unsplash.com/photo-1519741497674-611481863552",
-    published_at: "2024-03-15T10:00:00",
-    read_time: 5,
-    created_at: "2024-03-10T08:00:00",
-    updated_at: "2024-03-15T09:00:00",
-    related_services: ["1", "2"],
-    related_packages: ["1"],
-  },
-  {
-    id: "2",
-    sr_no: 2,
-    title: "Top Wedding Venues in 2024",
-    slug: "top-wedding-venues-in-2024",
-    excerpt: "Explore the most stunning wedding venues for your special day...",
-    content: "Lorem ipsum dolor sit amet, consectetur adipiscing elit...",
-    cover_image: "https://images.unsplash.com/photo-1519741497674-611481863552",
-    category: "Venues",
-    tags: ["Venues", "Destination Wedding", "Luxury"],
-    status: "published",
-    is_featured: true,
-    author_name: "Michael Chen",
-    author_avatar: "https://randomuser.me/api/portraits/men/1.jpg",
-    author_bio: "Luxury wedding venue specialist",
-    meta_title: "Best Wedding Venues 2024",
-    meta_description: "Top wedding venues for your dream celebration",
-    og_image: "https://images.unsplash.com/photo-1464366400600-7168b6af0bc1",
-    published_at: "2024-03-20T14:30:00",
-    read_time: 7,
-    created_at: "2024-03-18T10:00:00",
-    updated_at: "2024-03-20T12:00:00",
-    related_services: ["5"],
-    related_packages: ["1", "2"],
-  },
-];
+import { adminApi } from "@/api/adminApi";
+import { BlogPost, mapBlogFromApi } from "@/lib/blog";
 
 export default function BlogPage() {
   const router = useRouter();
-  const [posts, setPosts] = useState<BlogPost[]>(samplePosts);
-  const [loading, setLoading] = useState(false);
+  const [posts, setPosts] = useState<BlogPost[]>([]);
+  const [loading, setLoading] = useState(true);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [selectedPost, setSelectedPost] = useState<BlogPost | null>(null);
+  const [pendingStatusChange, setPendingStatusChange] = useState<{ post: BlogPost; newStatus: string } | null>(null);
+  const [pendingFeaturedToggle, setPendingFeaturedToggle] = useState<BlogPost | null>(null);
 
   const ITEMS_PER_PAGE = 10;
   const [currentPage, setCurrentPage] = useState(1);
 
-  const deletePost = (postId: string) => {
-    setPosts(posts.filter((post) => post.id !== postId));
-    toast.success("Blog post deleted successfully!");
+  const loadPosts = async () => {
+    setLoading(true);
+    try {
+      const data = await adminApi.blogs.list();
+      setPosts((data ?? []).map(mapBlogFromApi));
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to load blog posts");
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const toggleFeatured = (post: BlogPost) => {
-    const updatedPosts = posts.map((p) =>
-      p.id === post.id ? { ...p, is_featured: !p.is_featured } : p,
-    );
-    setPosts(updatedPosts);
-    toast.success(
-      `${post.is_featured ? "Removed from" : "Added to"} featured posts`,
-    );
+  useEffect(() => {
+    loadPosts();
+  }, []);
+
+  const deletePost = async (postId: string) => {
+    try {
+      await adminApi.blogs.delete(postId);
+      setPosts((prev) => prev.filter((post) => post.id !== postId));
+      toast.success("Blog post deleted successfully!");
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to delete blog post");
+    }
   };
 
-  const updateStatus = (post: BlogPost, newStatus: string) => {
-    const updatedPosts = posts.map((p) =>
-      p.id === post.id
-        ? { ...p, status: newStatus as "draft" | "published" | "archived" }
-        : p,
-    );
-    setPosts(updatedPosts);
-    toast.success(`Post status updated to ${newStatus}`);
+  const requestToggleFeatured = (post: BlogPost) => {
+    setPendingFeaturedToggle(post);
+  };
+
+  const confirmToggleFeatured = async () => {
+    const post = pendingFeaturedToggle;
+    if (!post) return;
+    try {
+      await adminApi.blogs.update(post.id, { isFeatured: !post.is_featured });
+      setPosts((prev) =>
+        prev.map((p) => (p.id === post.id ? { ...p, is_featured: !p.is_featured } : p)),
+      );
+      toast.success(
+        `${post.is_featured ? "Removed from" : "Added to"} featured posts`,
+      );
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to update post");
+    } finally {
+      setPendingFeaturedToggle(null);
+    }
+  };
+
+  const requestStatusChange = (post: BlogPost, newStatus: string) => {
+    if (newStatus.toUpperCase() === post.status) return;
+    setPendingStatusChange({ post, newStatus });
+  };
+
+  const confirmStatusChange = async () => {
+    if (!pendingStatusChange) return;
+    const { post, newStatus } = pendingStatusChange;
+    try {
+      await adminApi.blogs.update(post.id, { status: newStatus.toUpperCase() });
+      setPosts((prev) =>
+        prev.map((p) =>
+          p.id === post.id ? { ...p, status: newStatus.toUpperCase() as BlogPost["status"] } : p,
+        ),
+      );
+      toast.success(`Post status updated to ${newStatus}`);
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to update status");
+    } finally {
+      setPendingStatusChange(null);
+    }
   };
 
   const openDelete = (post: BlogPost) => {
@@ -145,9 +115,9 @@ export default function BlogPage() {
   };
 
   // Stats
-  const published = posts.filter((p) => p.status === "published").length;
-  const drafts = posts.filter((p) => p.status === "draft").length;
-  const archived = posts.filter((p) => p.status === "archived").length;
+  const published = posts.filter((p) => p.status === "PUBLISHED").length;
+  const drafts = posts.filter((p) => p.status === "DRAFT").length;
+  const archived = posts.filter((p) => p.status === "ARCHIVED").length;
   const featured = posts.filter((p) => p.is_featured).length;
 
   const columns: Column[] = [
@@ -185,18 +155,18 @@ export default function BlogPage() {
       render: (v: string, row: BlogPost) => (
         <select
           value={v}
-          onChange={(e) => updateStatus(row, e.target.value)}
+          onChange={(e) => requestStatusChange(row, e.target.value)}
           className={`px-2 py-1 rounded-full text-xs font-medium border-0 cursor-pointer ${
-            v === "published"
+            v === "PUBLISHED"
               ? "bg-green-100 text-green-700"
-              : v === "draft"
+              : v === "DRAFT"
                 ? "bg-yellow-100 text-yellow-700"
                 : "bg-gray-100 text-gray-700"
           }`}
         >
-          <option value="draft">Draft</option>
-          <option value="published">Published</option>
-          <option value="archived">Archived</option>
+          <option value="DRAFT">Draft</option>
+          <option value="PUBLISHED">Published</option>
+          <option value="ARCHIVED">Archived</option>
         </select>
       ),
     },
@@ -205,7 +175,7 @@ export default function BlogPage() {
       label: "Featured",
       render: (v: boolean, row: BlogPost) => (
         <button
-          onClick={() => toggleFeatured(row)}
+          onClick={() => requestToggleFeatured(row)}
           className={`p-1.5 rounded-lg transition-all ${
             v
               ? "text-yellow-500 bg-yellow-50"
@@ -265,13 +235,9 @@ export default function BlogPage() {
     },
   ];
 
-  const refreshData = () => {
-    setLoading(true);
-    setTimeout(() => {
-      setPosts([...samplePosts]);
-      setLoading(false);
-      toast.success("Data refreshed!");
-    }, 500);
+  const refreshData = async () => {
+    await loadPosts();
+    toast.success("Data refreshed!");
   };
 
   const totalPages = Math.ceil(posts.length / ITEMS_PER_PAGE);
@@ -363,6 +329,30 @@ export default function BlogPage() {
         }}
         title="Delete Post"
         message={`Are you sure you want to delete "${selectedPost?.title}"? This action cannot be undone.`}
+      />
+
+      <ConfirmModal
+        isOpen={!!pendingStatusChange}
+        onClose={() => setPendingStatusChange(null)}
+        onConfirm={confirmStatusChange}
+        title="Change Status"
+        message={`Are you sure you want to change the status of "${pendingStatusChange?.post.title}" to ${pendingStatusChange?.newStatus}?`}
+        confirmText="Yes, Update"
+        cancelText="Cancel"
+      />
+
+      <ConfirmModal
+        isOpen={!!pendingFeaturedToggle}
+        onClose={() => setPendingFeaturedToggle(null)}
+        onConfirm={confirmToggleFeatured}
+        title={pendingFeaturedToggle?.is_featured ? "Remove from Featured" : "Add to Featured"}
+        message={
+          pendingFeaturedToggle?.is_featured
+            ? `Are you sure you want to remove "${pendingFeaturedToggle?.title}" from featured posts?`
+            : `Are you sure you want to mark "${pendingFeaturedToggle?.title}" as featured?`
+        }
+        confirmText="Yes, Update"
+        cancelText="Cancel"
       />
     </div>
   );

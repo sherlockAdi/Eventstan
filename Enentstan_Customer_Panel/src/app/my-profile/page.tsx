@@ -7,7 +7,7 @@ import toast from "react-hot-toast";
 type Tab = "personal" | "bookings";
 
 export default function ProfilePage() {
-  const { user, loading, logout, canAccessRoute } = useAuth();
+  const { user, loading, logout } = useAuth();
   const router = useRouter();
   const [tab, setTab] = useState<Tab>("personal");
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -23,8 +23,7 @@ export default function ProfilePage() {
 
   useEffect(() => {
     if (!loading && !user) router.replace("/auth/login");
-    if (!loading && user && !canAccessRoute("/my-profile")) router.replace("/");
-  }, [user, loading, router, canAccessRoute]);
+  }, [user, loading, router]);
 
   useEffect(() => {
     if (user) {

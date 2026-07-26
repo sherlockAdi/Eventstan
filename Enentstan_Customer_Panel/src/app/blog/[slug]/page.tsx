@@ -1,11 +1,12 @@
 // app/blog/[slug]/page.tsx
 "use client";
 import { use } from "react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { BLOG_POSTS, CATEGORY_COLORS } from "@/lib/blogData";
-import { SERVICES, PACKAGES } from "@/lib/data";
+import { BlogPost, CATEGORY_COLORS, mapApiBlogToPost } from "@/lib/blogData";
+import { getBlogBySlug, getServices, getPackages } from "@/api/customerApi";
+import { Service, Package } from "@/types";
 import { FaFacebook } from "react-icons/fa";
 import { FaTwitter, FaLinkedin } from "react-icons/fa";
 import { usePathname } from "next/navigation";
@@ -91,7 +92,7 @@ function ShareButtons({ title, slug }: { title: string; slug: string }) {
 }
 
 // ── Related Service Card ───────────────────────────────────────────────────────
-function RelatedServiceCard({ service }: { service: (typeof SERVICES)[0] }) {
+function RelatedServiceCard({ service }: { service: Service }) {
   return (
     <Link href={`/services/${service.id}`} className="group block">
       <div className="rounded-xl overflow-hidden aspect-[4/3] mb-3">
@@ -119,8 +120,8 @@ function RelatedServiceCard({ service }: { service: (typeof SERVICES)[0] }) {
 }
 
 // ── Related Package Card ──────────────────────────────────────────────────────
-function RelatedPackageCard({ pkg }: { pkg: (typeof PACKAGES)[0] }) {
-  const service = SERVICES.find((s) => s.id === pkg.service_id);
+function RelatedPackageCard({ pkg, services }: { pkg: Package; services: Service[] }) {
+  const service = services.find((s) => s.id === pkg.service_id);
   return (
     <Link href={`/services/${pkg.service_id}`} className="group block">
       <div className="rounded-xl overflow-hidden aspect-[4/3] mb-3">
@@ -146,27 +147,63 @@ function RelatedPackageCard({ pkg }: { pkg: (typeof PACKAGES)[0] }) {
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function BlogDetailPage({ params }: PageProps) {
   const { slug } = use(params);
-  const post = BLOG_POSTS.find((p) => p.slug === slug);
-  if (!post) return notFound();
+  const [post, setPost] = useState<BlogPost | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [notFoundFlag, setNotFoundFlag] = useState(false);
+  const [services, setServices] = useState<Service[]>([]);
+  const [packages, setPackages] = useState<Package[]>([]);
 
-  // Related posts (same category, not current)
-  const related = BLOG_POSTS.filter(
-    (p) => p.slug !== post.slug && p.category === post.category
-  ).slice(0, 2);
+  useEffect(() => {
+    (async () => {
+      setLoading(true);
+      try {
+        const [raw, servicesData, packagesData] = await Promise.all([
+          getBlogBySlug(slug),
+          getServices().catch(() => []),
+          getPackages().catch(() => []),
+        ]);
+        if (!raw) {
+          setNotFoundFlag(true);
+        } else {
+          setPost(mapApiBlogToPost(raw));
+        }
+        setServices(servicesData);
+        setPackages(packagesData);
+      } catch {
+        setNotFoundFlag(true);
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [slug]);
 
-  // Related services — map blog category to service category
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-orange-500" />
+      </div>
+    );
+  }
+
+  if (notFoundFlag || !post) return notFound();
+
+  // Related services — prefer the ones the author explicitly linked, and
+  // fall back to matching by category if none were picked.
   const categoryMap: Record<string, string> = {
     Venues: "Venue",
     Catering: "Catering",
     Decor: "Decor",
     Entertainment: "Entertainment",
   };
-  const mappedCategory = categoryMap[post.category];
-  const relatedServices = SERVICES.filter((s) =>
-    mappedCategory ? s.category === mappedCategory : true
-  ).slice(0, 3);
+  const mappedCategory = categoryMap[post.category] ?? post.category;
 
-  const featuredPackages = PACKAGES.slice(0, 3);
+  const relatedServices = post.related_services && post.related_services.length > 0
+    ? services.filter((s) => post.related_services!.includes(s.id)).slice(0, 3)
+    : services.filter((s) => s.category === mappedCategory).slice(0, 3);
+
+  const featuredPackages = post.related_packages && post.related_packages.length > 0
+    ? packages.filter((p) => post.related_packages!.includes(p.id)).slice(0, 3)
+    : packages.slice(0, 3);
 
   return (
     <div className="min-h-screen bg-white">
@@ -266,7 +303,7 @@ export default function BlogDetailPage({ params }: PageProps) {
           <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">Featured Packages</p>
           <div className="grid grid-cols-3 gap-4">
             {featuredPackages.map((pkg) => (
-              <RelatedPackageCard key={pkg.id} pkg={pkg} />
+              <RelatedPackageCard key={pkg.id} pkg={pkg} services={services} />
             ))}
           </div>
           <div className="flex gap-3 mt-5">

@@ -21,29 +21,8 @@ import {
 import Button from "@/components/admin/Button";
 import ConfirmModal from "@/components/admin/ConfirmModal";
 import toast from "react-hot-toast";
-
-interface BlogPost {
-  id: string;
-  title: string;
-  slug: string;
-  excerpt: string;
-  content: string;
-  cover_image: string;
-  category: string;
-  tags: string[];
-  hashtags?: string[];
-  status: string;
-  is_featured: boolean;
-  author_name: string;
-  author_avatar: string;
-  author_bio: string;
-  published_at: string;
-  read_time: number;
-  created_at: string;
-  updated_at: string;
-  related_services?: string[];
-  related_packages?: string[];
-}
+import { adminApi } from "@/api/adminApi";
+import { BlogPost, mapBlogFromApi } from "@/lib/blog";
 
 interface Service {
   id: string;
@@ -57,101 +36,28 @@ interface Package {
   price?: string;
 }
 
-const sampleServices: Service[] = [
-  { id: "1", name: "Wedding Photography", description: "Professional photography coverage" },
-  { id: "2", name: "Catering Services", description: "Exquisite culinary experiences" },
-  { id: "3", name: "DJ & Music", description: "Entertainment and music" },
-  { id: "4", name: "Decoration", description: "Beautiful floral and decor" },
-  { id: "5", name: "Venue", description: "Stunning locations" },
-  { id: "6", name: "Makeup & Beauty", description: "Bridal makeup and beauty services" },
-];
-
-const samplePackages: Package[] = [
-  { id: "1", name: "Basic Wedding Package", price: "$5,000" },
-  { id: "2", name: "Premium Wedding Package", price: "$10,000" },
-  { id: "3", name: "Luxury Wedding Package", price: "$20,000" },
-  { id: "4", name: "Engagement Package", price: "$2,500" },
-];
-
-const samplePosts: BlogPost[] = [
-  {
-    id: "1",
-    title: "Top 10 Wedding Venue Trends for 2025",
-    slug: "top-10-wedding-venue-trends-for-2025",
-    excerpt: "From intimate garden settings to industrial chic warehouses, discover the venue styles taking over 2025 weddings.",
-    content: `The wedding industry is constantly evolving, and 2025 is shaping up to be a year of bold choices and deeply personal spaces. Here are the top venue trends we're seeing.
-
-1. Micro-Wedding Estates
-Small is the new big. Intimate gatherings of 20–50 guests in private estates are on the rise, allowing couples to invest more in quality over quantity.
-
-2. Industrial Chic Warehouses
-Converted warehouses with exposed brick, steel beams, and dramatic lighting continue to captivate couples who want an edgy, artistic backdrop.
-
-3. Lush Garden & Botanical Venues
-Greenery-filled spaces — think conservatories, botanical gardens, and forest clearings — are perfect for couples embracing the biophilic design movement.
-
-4. Destination Vineyards
-Winery venues offer rolling landscapes, rustic charm, and in-house catering that's hard to beat.
-
-5. Rooftop Celebrations
-Skyline views provide a dramatic backdrop for evening ceremonies, and rooftop venues in urban centers are becoming more accessible.
-
-6. Cultural & Heritage Sites
-Historic buildings, museums, and cultural landmarks bring a sense of grandeur and storytelling to the big day.
-
-7. Beach & Coastal Venues
-The allure of the ocean never fades. Beachfront venues with natural light and open skies remain perennial favourites.
-
-8. Farm-to-Table Farm Venues
-Rustic barns paired with farm-fresh catering create an authentic, wholesome experience.
-
-9. Private Yachts & Boats
-For a truly unique experience, floating venues offer exclusivity and stunning water views.
-
-10. Art Galleries & Museums
-Unique artistic spaces that provide instant character and conversation starters for your guests.`,
-    cover_image: "https://images.unsplash.com/photo-1519741497674-611481863552",
-    category: "Venues",
-    tags: ["Wedding", "Venues", "Trends", "2025"],
-    hashtags: ["wedding", "venues", "trends", "2025"],
-    status: "published",
-    is_featured: true,
-    author_name: "Sarah Johnson",
-    author_avatar: "https://randomuser.me/api/portraits/women/1.jpg",
-    author_bio: "Wedding planner with 10+ years of experience",
-    published_at: "2024-03-15T10:00:00",
-    read_time: 6,
-    created_at: "2024-03-10T08:00:00",
-    updated_at: "2024-03-15T09:00:00",
-    related_services: ["1", "2", "4"],
-    related_packages: ["1", "2"],
-  },
-  {
-    id: "2",
-    title: "Top Wedding Venues in 2024",
-    slug: "top-wedding-venues-in-2024",
-    excerpt: "Explore the most stunning wedding venues for your special day...",
-    content: "## Beautiful Venues\n\n- Beachfront Resorts\n- Rustic Barns\n- Historic Mansions\n- Modern Ballrooms\n\nEach venue offers unique amenities and stunning backdrops for your special day.",
-    cover_image: "https://images.unsplash.com/photo-1464366400600-7168b6af0bc1",
-    category: "Venues",
-    tags: ["Venues", "Destination Wedding", "Luxury"],
-    hashtags: ["weddingvenues", "destinationwedding", "luxurywedding"],
-    status: "published",
-    is_featured: true,
-    author_name: "Michael Chen",
-    author_avatar: "https://randomuser.me/api/portraits/men/1.jpg",
-    author_bio: "Luxury wedding venue specialist",
-    published_at: "2024-03-20T14:30:00",
-    read_time: 7,
-    created_at: "2024-03-18T10:00:00",
-    updated_at: "2024-03-20T12:00:00",
-    related_services: ["5"],
-    related_packages: ["1", "2"],
-  },
-];
-
 const MarkdownContent = ({ content }: { content: string }) => {
   const renderContent = () => {
+    // If the content already contains HTML tags (e.g. saved from a rich text
+    // editor), render it directly instead of running it through the
+    // markdown-style regex converter below, which can mangle real HTML.
+    const looksLikeHtml = /<\/?(h[1-6]|p|ul|ol|li|strong|em|a|img|blockquote|div|span|br)[\s>]/i.test(content);
+    if (looksLikeHtml) {
+      let styledHtml = content;
+      styledHtml = styledHtml.replace(/<h1(?![^>]*class=)/gi, '<h1 class="text-3xl font-bold mt-8 mb-4 text-gray-900"');
+      styledHtml = styledHtml.replace(/<h2(?![^>]*class=)/gi, '<h2 class="text-2xl font-bold mt-8 mb-4 text-gray-800 border-b pb-2"');
+      styledHtml = styledHtml.replace(/<h3(?![^>]*class=)/gi, '<h3 class="text-lg font-semibold mt-6 mb-3 text-gray-800"');
+      styledHtml = styledHtml.replace(/<p(?![^>]*class=)/gi, '<p class="mb-4 text-gray-700 leading-relaxed"');
+      styledHtml = styledHtml.replace(/<ul(?![^>]*class=)/gi, '<ul class="my-3 space-y-1.5 list-disc pl-5 text-gray-700"');
+      styledHtml = styledHtml.replace(/<ol(?![^>]*class=)/gi, '<ol class="my-3 space-y-1.5 list-decimal pl-5 text-gray-700"');
+      styledHtml = styledHtml.replace(/<li(?![^>]*class=)/gi, '<li class="mb-1"');
+      styledHtml = styledHtml.replace(/<a(?![^>]*class=)/gi, '<a class="text-orange-500 hover:text-orange-600 underline" target="_blank" rel="noopener noreferrer"');
+      styledHtml = styledHtml.replace(/<blockquote(?![^>]*class=)/gi, '<blockquote class="border-l-4 border-orange-400 bg-orange-50 p-4 my-4 italic text-gray-700"');
+      styledHtml = styledHtml.replace(/<img(?![^>]*class=)/gi, '<img class="rounded-lg my-4 max-w-full h-auto shadow-md"');
+      styledHtml = styledHtml.replace(/<strong(?![^>]*class=)/gi, '<strong class="font-semibold text-gray-900"');
+      return <div dangerouslySetInnerHTML={{ __html: styledHtml }} />;
+    }
+
     let html = content;
     
     html = html.replace(/```(\w*)\n([\s\S]*?)```/g, '<pre class="bg-gray-900 text-gray-100 p-4 rounded-lg overflow-x-auto my-4"><code>$2</code></pre>');
@@ -227,26 +133,68 @@ export default function ViewBlogPost() {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [showShareMenu, setShowShareMenu] = useState(false);
+  const [services, setServices] = useState<Service[]>([]);
+  const [packages, setPackages] = useState<Package[]>([]);
 
   useEffect(() => {
-    const found = samplePosts.find((p) => p.id === params.id);
-    if (found) {
-      setPost(found);
-    } else {
-      toast.error("Post not found");
-      router.push("/admin/blog");
-    }
-    setLoading(false);
+    (async () => {
+      try {
+        const [servicesData, packagesData] = await Promise.all([
+          adminApi.services.list(),
+          adminApi.packages.list(),
+        ]);
+        setServices(
+          (servicesData ?? []).map((s: any) => ({
+            id: String(s.id),
+            name: s.title ?? s.name,
+            description: s.description,
+          })),
+        );
+        setPackages(
+          (packagesData ?? []).map((p: any) => ({
+            id: p.id,
+            name: p.title ?? p.name,
+            price: p.price?.amount ? `${p.price.amount} ${p.price.currency ?? ''}`.trim() : undefined,
+          })),
+        );
+      } catch (error: any) {
+        toast.error(error?.message || 'Failed to load services or packages');
+      }
+    })();
+  }, []);
+
+  useEffect(() => {
+    const fetchPost = async () => {
+      setLoading(true);
+      try {
+        const id = params.id as string;
+        const data = await adminApi.blogs.get(id);
+        setPost(mapBlogFromApi(data));
+      } catch (error: any) {
+        toast.error(error?.message || "Post not found");
+        router.push("/admin/blog");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchPost();
   }, [params.id, router]);
 
   const handleEdit = () => {
     router.push(`/admin/blog/edit/${post?.id}`);
   };
 
-  const handleDelete = () => {
-    toast.success("Post deleted successfully!");
-    setIsDeleteModalOpen(false);
-    router.push("/admin/blog");
+  const handleDelete = async () => {
+    if (!post) return;
+    try {
+      await adminApi.blogs.delete(post.id);
+      toast.success("Post deleted successfully!");
+      setIsDeleteModalOpen(false);
+      router.push("/admin/blog");
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to delete post");
+    }
   };
 
   const handleCopyLink = async () => {
@@ -275,10 +223,10 @@ export default function ViewBlogPost() {
   };
 
   const getStatusColor = (status: string) => {
-    switch (status) {
-      case "published":
+    switch (status.toUpperCase()) {
+      case "PUBLISHED":
         return "bg-green-100 text-green-700 border-green-200";
-      case "draft":
+      case "DRAFT":
         return "bg-yellow-100 text-yellow-700 border-yellow-200";
       default:
         return "bg-gray-100 text-gray-700 border-gray-200";
@@ -309,8 +257,8 @@ export default function ViewBlogPost() {
     );
   }
 
-  const relatedServicesList = sampleServices.filter(s => post.related_services?.includes(s.id));
-  const relatedPackagesList = samplePackages.filter(p => post.related_packages?.includes(p.id));
+  const relatedServicesList = services.filter(s => post.related_services?.includes(s.id));
+  const relatedPackagesList = packages.filter(p => post.related_packages?.includes(p.id));
 
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
@@ -438,25 +386,24 @@ export default function ViewBlogPost() {
             <MarkdownContent content={post.content} />
           </div>
 
-          {post.hashtags && post.hashtags.length > 0 && (
-            <div className="pt-4">
-              <div className="flex flex-wrap gap-2">
-                {post.hashtags.map((hashtag) => (
-                  <span
-                    key={hashtag}
-                    className="text-purple-600 text-sm hover:text-purple-700 cursor-pointer"
-                  >
-                    #{hashtag}
-                  </span>
-                ))}
-              </div>
+          {post.tags && post.tags.length > 0 && (
+            <div className="pt-4 flex flex-wrap items-center gap-2">
+              <Tag size={14} className="text-gray-400" />
+              {post.tags.map((tag) => (
+                <span
+                  key={tag}
+                  className="px-2.5 py-1 bg-orange-50 text-orange-700 rounded-full text-xs font-medium"
+                >
+                  {tag}
+                </span>
+              ))}
             </div>
           )}
 
           <div className="mt-8 pt-6 border-t border-gray-200">
             <h3 className="text-lg font-semibold text-gray-800 mb-4">Explore Venue Services</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-              {sampleServices.map(service => (
+              {services.slice(0, 6).map(service => (
                 <div key={service.id} className="bg-gray-50 rounded-lg p-3 hover:shadow-md transition-shadow cursor-pointer">
                   <h4 className="font-medium text-gray-800 text-sm">{service.name}</h4>
                   {service.description && (

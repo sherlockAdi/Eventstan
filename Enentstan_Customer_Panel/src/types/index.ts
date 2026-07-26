@@ -1,8 +1,6 @@
 export interface Service {
   id: string;
   slug?: string;
-  showOnHomepage?: boolean;
-  show_on_homepage?: boolean;
   title: string;
   category: "Venue" | "Decor" | "Catering" | "Entertainment";
   description: string;
@@ -26,25 +24,12 @@ export interface Package {
   id: string;
   service_id: string;
   title: string;
-  name?: string;
   description: string;
   price: number;
-  original_price?: number;
   inclusions: string[];
   max_guests: number;
   duration_hours: number;
   is_popular?: boolean;
-  showOnHomepage?: boolean;
-  show_on_homepage?: boolean;
-  isPromotional?: boolean;
-  is_promotional?: boolean;
-  promotionDiscountType?: "FLAT" | "PERCENTAGE" | null;
-  promotion_discount_type?: "FLAT" | "PERCENTAGE" | null;
-  promotionDiscountValue?: number | null;
-  promotion_discount_value?: number | null;
-  promotionalPrice?: number;
-  promotional_price?: number;
-  price_unit?: string;
 }
 
 export interface Booking {
@@ -77,7 +62,7 @@ export interface Review {
 
 export interface CartItem {
   id: string;
-  type: "package";
+  type: "package" | "service";
   title: string;
   subtitle: string;
   price: number;

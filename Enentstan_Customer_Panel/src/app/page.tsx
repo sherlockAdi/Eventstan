@@ -6,8 +6,8 @@ import { SERVICES, REVIEWS } from "@/lib/data";
 import ServiceCard from "@/components/ui/ServiceCard";
 import PreviousWorks from "@/components/PreviousWorks";
 import PartnerMarquee from "@/components/PartnerMarquee";
-import { Search, ClipboardList, PartyPopper } from "lucide-react";
 import { categoryService, CategoryWithMetadata } from "@/services/api/event.service";
+import { Search, ClipboardList, PartyPopper, Sparkles, ArrowRight } from "lucide-react";
 
 
 // ─── Avatar Colors ────────────────────────────────────────────────────────────
@@ -348,7 +348,7 @@ export default function LandingPage() {
               </svg>
             </Link>
             <Link
-              href="/vendor-dashboard"
+              href="/vendor-partners"
               className="border-2 border-gray-300 text-gray-700 px-6 sm:px-8 py-3 rounded-full font-semibold hover:bg-gray-900 hover:border-gray-900 hover:text-white transition-colors text-sm sm:text-base text-center bg-white/50"
             >
               List Your Service
@@ -444,8 +444,9 @@ export default function LandingPage() {
         )}
       </section>
 
+      {/* API DATA */}
       {/* Featured Services */}
-      <section className="py-8 px-4 max-w-7xl mx-auto">
+      {/* <section className="py-8 px-4 max-w-7xl mx-auto">
         <div className="flex items-end justify-between mb-6">
           <div>
             <h2 className="text-3xl font-bold text-gray-900">
@@ -466,6 +467,63 @@ export default function LandingPage() {
           {SERVICES.map((service) => (
             <ServiceCard key={service.id} service={service} />
           ))}
+        </div>
+      </section> */}
+      {/* API DATA */}
+
+      {/* Featured Services */}
+      <section className="py-8 px-4 max-w-7xl mx-auto">
+        <div className="flex items-end justify-between mb-6">
+          <div>
+            <h2 className="text-3xl font-bold text-gray-900">
+              Featured Services
+            </h2>
+            <p className="text-gray-500 mt-1">
+              Hand-picked vendors for your next event
+            </p>
+          </div>
+          <Link
+            href="/services"
+            className="text-orange-500 font-medium hover:text-orange-600 flex items-center gap-1"
+          >
+            View all →
+          </Link>
+        </div>
+
+        <div className="relative rounded-3xl overflow-hidden text-center py-16 px-6 bg-gradient-to-br from-orange-50 via-orange-50 to-amber-50">
+          <div className="w-16 h-16 bg-white rounded-2xl shadow-sm flex items-center justify-center mx-auto mb-5">
+            <Sparkles className="w-7 h-7 text-orange-500" />
+          </div>
+
+          <div className="inline-flex items-center gap-1.5 bg-white text-orange-600 border border-orange-100 rounded-full px-3 py-1.5 text-xs font-semibold tracking-widest uppercase mb-5">
+            <span className="w-1.5 h-1.5 rounded-full bg-orange-500" />
+            Updating Inventory
+          </div>
+
+          <h3 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-3">
+            Amazing Vendors Are Coming Soon
+          </h3>
+          <p className="text-gray-500 max-w-xl mx-auto mb-8">
+            Our team is carefully curating a world-class selection of venues,
+            decorators, caterers, and entertainers. We&apos;ll be ready shortly —
+            stay tuned!
+          </p>
+
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <Link
+              href="/services"
+              className="bg-orange-500 text-white px-6 py-3 rounded-full font-semibold hover:bg-orange-600 transition-colors flex items-center justify-center gap-2 shadow-md hover:shadow-lg"
+            >
+              Browse Services
+              <ArrowRight className="w-4 h-4" />
+            </Link>
+            <Link
+              href="/vendor-partners"
+              className="border border-gray-200 text-gray-900 px-6 py-3 rounded-full font-semibold hover:bg-gray-50 transition-colors bg-white"
+            >
+              Learn More
+            </Link>
+          </div>
         </div>
       </section>
 

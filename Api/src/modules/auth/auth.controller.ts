@@ -2,7 +2,9 @@ import { Body, Controller, Get, Patch, Post, Req, UseGuards } from '@nestjs/comm
 import { ApiBearerAuth, ApiCreatedResponse, ApiOkResponse, ApiTags } from '@nestjs/swagger';
 import { AuthGuard, AuthenticatedRequest } from './auth.guard';
 import { AuthService } from './auth.service';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { LoginDto } from './dto/login.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 import { RequestOtpDto } from './dto/request-otp.dto';
 import { RegisterDto } from './dto/register.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
@@ -23,6 +25,18 @@ export class AuthController {
   @ApiCreatedResponse({ description: 'Validates credentials and returns an access token.' })
   login(@Body() dto: LoginDto) {
     return this.auth.login(dto);
+  }
+
+  @Post('forgot-password')
+  @ApiCreatedResponse({ description: 'Sends password reset instructions if the account exists.' })
+  forgotPassword(@Body() dto: ForgotPasswordDto) {
+    return this.auth.forgotPassword(dto);
+  }
+
+  @Post('reset-password')
+  @ApiOkResponse({ description: 'Resets the password using a one-time token.' })
+  resetPassword(@Body() dto: ResetPasswordDto) {
+    return this.auth.resetPassword(dto);
   }
 
   @Get('me')

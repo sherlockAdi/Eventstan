@@ -217,6 +217,57 @@ export class PackagesService {
     };
   }
 
+  private normalizeRentalFieldsForUpdate(
+    dto: Partial<CreatePackageDto>,
+    existingPackage: {
+      isRental?: boolean | null;
+      rentalLocation?: string | null;
+      rentalLocationId?: string | null;
+      serviceArea?: string | null;
+      deliveryRadius?: number | null;
+      deliveryFeeType?: string | null;
+      deliveryFee?: number | null;
+      pickupAvailable?: boolean | null;
+      deliveryAvailable?: boolean | null;
+      requiresDeposit?: boolean | null;
+      depositAmount?: number | null;
+    },
+  ) {
+    const isRental = dto.isRental ?? existingPackage.isRental;
+    if (!isRental) {
+      return {
+        isRental: false,
+        rentalLocation: null,
+        rentalLocationId: null,
+        serviceArea: null,
+        deliveryRadius: null,
+        deliveryFeeType: null,
+        deliveryFee: null,
+        pickupAvailable: null,
+        deliveryAvailable: null,
+        requiresDeposit: null,
+        depositAmount: null,
+      };
+    }
+
+    const requiresDeposit = dto.requiresDeposit ?? existingPackage.requiresDeposit ?? false;
+    return {
+      isRental: true,
+      rentalLocation: dto.rentalLocation !== undefined ? dto.rentalLocation?.trim() || null : existingPackage.rentalLocation,
+      rentalLocationId: dto.rentalLocationId !== undefined ? dto.rentalLocationId?.trim() || null : existingPackage.rentalLocationId,
+      serviceArea: dto.serviceArea !== undefined ? dto.serviceArea?.trim() || null : existingPackage.serviceArea,
+      deliveryRadius: dto.deliveryRadius !== undefined ? dto.deliveryRadius : existingPackage.deliveryRadius,
+      deliveryFeeType: dto.deliveryFeeType !== undefined ? dto.deliveryFeeType?.trim() || null : existingPackage.deliveryFeeType,
+      deliveryFee: dto.deliveryFee !== undefined ? dto.deliveryFee : existingPackage.deliveryFee,
+      pickupAvailable: dto.pickupAvailable !== undefined ? dto.pickupAvailable : existingPackage.pickupAvailable,
+      deliveryAvailable: dto.deliveryAvailable !== undefined ? dto.deliveryAvailable : existingPackage.deliveryAvailable,
+      requiresDeposit,
+      depositAmount: requiresDeposit
+        ? (dto.depositAmount !== undefined ? dto.depositAmount : existingPackage.depositAmount)
+        : null,
+    };
+  }
+
   private async resolveCategoryId(dto: Pick<CreatePackageDto, 'categoryId' | 'serviceId' | 'itemIds'>, vendorId: string) {
     const serviceId = this.resolveServiceId(dto);
     if (serviceId) {
@@ -290,7 +341,7 @@ export class PackagesService {
         exactPrice: this.resolveExactPrice(dto),
         currency: this.resolveCurrency(dto),
         priceUnit: priceUnitMaster.code,
-        showOnHomepage: dto.showOnHomepage ?? false,
+        showOnPromotionalPage: dto.showOnPromotionalPage ?? false,
         ...this.normalizePromotion(dto),
         ...this.normalizePromotionDates(dto),
         inclusions: this.normalizeIncludedItems(dto),
@@ -299,7 +350,7 @@ export class PackagesService {
         vendorPhone: dto.vendorPhone ?? null,
         ...this.normalizeUnitFields(dto, priceUnitMaster),
         ...this.normalizeRentalFields(dto),
-        status: ListingStatus.DRAFT,
+        status: ListingStatus.ACTIVE,
         ...(serviceId
           ? {
               items: {
@@ -420,7 +471,7 @@ export class PackagesService {
               )
             : {}
         ),
-        ...(dto.showOnHomepage !== undefined ? { showOnHomepage: dto.showOnHomepage } : {}),
+        ...(dto.showOnPromotionalPage !== undefined ? { showOnPromotionalPage: dto.showOnPromotionalPage } : {}),
         ...(
           dto.isPromotional !== undefined ||
           dto.promotionDiscountType !== undefined ||
@@ -454,19 +505,7 @@ export class PackagesService {
           dto.deliveryAvailable !== undefined ||
           dto.requiresDeposit !== undefined ||
           dto.depositAmount !== undefined
-            ? this.normalizeRentalFields({
-                isRental: dto.isRental ?? existingPackage.isRental,
-                rentalLocation: dto.rentalLocation ?? existingPackage.rentalLocation ?? undefined,
-                rentalLocationId: dto.rentalLocationId ?? existingPackage.rentalLocationId ?? undefined,
-                serviceArea: dto.serviceArea ?? existingPackage.serviceArea ?? undefined,
-                deliveryRadius: dto.deliveryRadius ?? existingPackage.deliveryRadius ?? undefined,
-                deliveryFeeType: dto.deliveryFeeType ?? existingPackage.deliveryFeeType ?? undefined,
-                deliveryFee: dto.deliveryFee ?? existingPackage.deliveryFee ?? undefined,
-                pickupAvailable: dto.pickupAvailable ?? existingPackage.pickupAvailable ?? undefined,
-                deliveryAvailable: dto.deliveryAvailable ?? existingPackage.deliveryAvailable ?? undefined,
-                requiresDeposit: dto.requiresDeposit ?? existingPackage.requiresDeposit ?? undefined,
-                depositAmount: dto.depositAmount ?? existingPackage.depositAmount ?? undefined,
-              })
+            ? this.normalizeRentalFieldsForUpdate(dto, existingPackage)
             : {}
         ),
         ...(dto.status ? { status: dto.status as ListingStatus } : {}),
@@ -565,8 +604,8 @@ export class PackagesService {
       price_unit: eventPackage.priceUnit,
       priceUnit: eventPackage.priceUnit,
       is_popular: eventPackage.isPopular,
-      show_on_homepage: eventPackage.showOnHomepage,
-      showOnHomepage: eventPackage.showOnHomepage,
+      show_on_promotional_page: eventPackage.showOnPromotionalPage,
+      showOnPromotionalPage: eventPackage.showOnPromotionalPage,
       is_promotional: eventPackage.isPromotional,
       isPromotional: eventPackage.isPromotional,
       promotion_discount_type: eventPackage.promotionDiscountType,

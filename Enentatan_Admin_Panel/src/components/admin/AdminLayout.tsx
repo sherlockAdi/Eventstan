@@ -4,8 +4,8 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
   LayoutDashboard, Users, Truck, Package, BookOpen, Star,
-  Bell, Tag, Grid3X3, LogOut, Menu, Loader2, X, ChevronDown,Share2  ,UserCog, 
-  Newspaper, LifeBuoy
+  Bell, Tag, Grid3X3, LogOut, Menu, Loader2, X, ChevronDown, Share2, UserCog,
+  Newspaper, LifeBuoy, KeyRound, Eye, EyeOff
 } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { getSession, getUser, clearSession } from '@/lib/auth';
@@ -37,11 +37,13 @@ const navItems: NavItem[] = [
       { href: '/admin/masters/coupons', label: 'Coupons' },
       { href: '/admin/masters/countries', label: 'Countries' },
       { href: '/admin/masters/states', label: 'States' },
+      { href: '/admin/masters/cities', label: 'Cities' },
       { href: '/admin/masters/categories', label: 'Categories' },
+      { href: '/admin/masters/visa-type', label: 'Visa Type' },
       { href: '/admin/masters/email-templates', label: 'Email Templates' },
     ],
   },
-  { href: '/admin/role-permission', label: 'Role-Permission', icon: UserCog, permissionKey: 'role-permission'  },
+  { href: '/admin/role-permission', label: 'Role-Permission', icon: UserCog, permissionKey: 'role-permission' },
   {
     href: '#userManagement',
     label: 'User Management',
@@ -77,8 +79,8 @@ const navItems: NavItem[] = [
   { href: '/admin/support', label: 'Help & Support', icon: LifeBuoy, permissionKey: 'support' },
   { href: '/admin/feedback-testimonial', label: 'Feedback & Testimonial', icon: Star, permissionKey: 'feedback' },
   { href: '/admin/system-notifications', label: 'System Notifications', icon: Bell, permissionKey: 'notifications' },
-  { href: '/admin/affiliate-links', label: 'Affiliate-Links', icon: Share2, permissionKey: 'affiliate-links'  },
-  { href: '/admin/blog', label: 'Blogs', icon: Newspaper, permissionKey: 'blog'  },
+  { href: '/admin/affiliate-links', label: 'Affiliate-Links', icon: Share2, permissionKey: 'affiliate-links' },
+  { href: '/admin/blog', label: 'Blogs', icon: Newspaper, permissionKey: 'blog' },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -96,6 +98,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const permissions = admin?.permissions ?? [];
+
+  // Change password state
+  const [showChangePassword, setShowChangePassword] = useState(false);
+  const [passwordForm, setPasswordForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
+  const [showPasswords, setShowPasswords] = useState({ current: false, new: false, confirm: false });
+  const [passwordLoading, setPasswordLoading] = useState(false);
+  const [passwordError, setPasswordError] = useState('');
+  const [passwordSuccess, setPasswordSuccess] = useState(false);
 
   useEffect(() => {
     if (pathname !== '/admin/login' && !getSession()) {
@@ -133,6 +143,53 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     await adminApi.logout().catch(() => undefined);
     clearSession();
     router.replace('/admin/login');
+  }
+
+  function closeChangePasswordModal() {
+    setShowChangePassword(false);
+    setPasswordError('');
+    setPasswordSuccess(false);
+    setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+    setShowPasswords({ current: false, new: false, confirm: false });
+  }
+
+  async function handleChangePassword(e: React.FormEvent) {
+    e.preventDefault();
+    setPasswordError('');
+
+    if (!passwordForm.currentPassword || !passwordForm.newPassword || !passwordForm.confirmPassword) {
+      setPasswordError('All fields are required');
+      return;
+    }
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      setPasswordError('New password and confirm password do not match');
+      return;
+    }
+    if (passwordForm.newPassword.length < 6) {
+      setPasswordError('New password must be at least 6 characters');
+      return;
+    }
+    if (passwordForm.currentPassword === passwordForm.newPassword) {
+      setPasswordError('New password must be different from current password');
+      return;
+    }
+
+    setPasswordLoading(true);
+    try {
+      await adminApi.changePassword({
+        currentPassword: passwordForm.currentPassword,
+        newPassword: passwordForm.newPassword,
+      });
+      setPasswordSuccess(true);
+      setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+      setTimeout(() => {
+        closeChangePasswordModal();
+      }, 1500);
+    } catch (err: any) {
+      setPasswordError(err?.message || 'Failed to change password');
+    } finally {
+      setPasswordLoading(false);
+    }
   }
 
   if (pathname === '/admin/login') return <>{children}</>;
@@ -437,8 +494,18 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                     </div>
                   </div>
                 </div>
-                
+
                 <div className="py-2">
+                  <button
+                    onClick={() => {
+                      setDropdownOpen(false);
+                      setShowChangePassword(true);
+                    }}
+                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                  >
+                    <KeyRound size={16} />
+                    <span>Change Password</span>
+                  </button>
                   <button
                     onClick={() => {
                       setDropdownOpen(false);
@@ -490,6 +557,131 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 {loggingOut ? 'Signing out…' : 'Sign Out'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {showChangePassword && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            onClick={() => {
+              if (!passwordLoading) closeChangePasswordModal();
+            }}
+          />
+          <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-sm p-6">
+            <button
+              onClick={closeChangePasswordModal}
+              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
+              disabled={passwordLoading}
+            >
+              <X size={18} />
+            </button>
+
+            <div className="flex flex-col items-center gap-2 mb-5">
+              <div className="w-12 h-12 rounded-full bg-orange-50 flex items-center justify-center">
+                <KeyRound size={22} className="text-orange-500" />
+              </div>
+              <h2 className="text-lg font-bold text-gray-900">Change Password</h2>
+              <p className="text-sm text-gray-500 text-center">Update your account password</p>
+            </div>
+
+            {passwordSuccess ? (
+              <div className="py-6 text-center">
+                <div className="w-12 h-12 rounded-full bg-green-50 flex items-center justify-center mx-auto mb-3">
+                  <KeyRound size={20} className="text-green-500" />
+                </div>
+                <p className="text-sm font-medium text-green-600">Password changed successfully!</p>
+              </div>
+            ) : (
+              <form onSubmit={handleChangePassword} className="space-y-3">
+                {passwordError && (
+                  <div className="text-xs text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">
+                    {passwordError}
+                  </div>
+                )}
+
+                <div>
+                  <label className="text-xs font-medium text-gray-600 mb-1 block">Current Password</label>
+                  <div className="relative">
+                    <input
+                      type={showPasswords.current ? 'text' : 'password'}
+                      required
+                      value={passwordForm.currentPassword}
+                      onChange={(e) => setPasswordForm(f => ({ ...f, currentPassword: e.target.value }))}
+                      className="w-full px-3 py-2 pr-9 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400"
+                      placeholder="Enter current password"
+                      disabled={passwordLoading}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPasswords(s => ({ ...s, current: !s.current }))}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      tabIndex={-1}
+                    >
+                      {showPasswords.current ? <EyeOff size={15} /> : <Eye size={15} />}
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-xs font-medium text-gray-600 mb-1 block">New Password</label>
+                  <div className="relative">
+                    <input
+                      type={showPasswords.new ? 'text' : 'password'}
+                      required
+                      minLength={6}
+                      value={passwordForm.newPassword}
+                      onChange={(e) => setPasswordForm(f => ({ ...f, newPassword: e.target.value }))}
+                      className="w-full px-3 py-2 pr-9 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400"
+                      placeholder="Enter new password"
+                      disabled={passwordLoading}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPasswords(s => ({ ...s, new: !s.new }))}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      tabIndex={-1}
+                    >
+                      {showPasswords.new ? <EyeOff size={15} /> : <Eye size={15} />}
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-xs font-medium text-gray-600 mb-1 block">Confirm New Password</label>
+                  <div className="relative">
+                    <input
+                      type={showPasswords.confirm ? 'text' : 'password'}
+                      required
+                      minLength={6}
+                      value={passwordForm.confirmPassword}
+                      onChange={(e) => setPasswordForm(f => ({ ...f, confirmPassword: e.target.value }))}
+                      className="w-full px-3 py-2 pr-9 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400"
+                      placeholder="Re-enter new password"
+                      disabled={passwordLoading}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPasswords(s => ({ ...s, confirm: !s.confirm }))}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      tabIndex={-1}
+                    >
+                      {showPasswords.confirm ? <EyeOff size={15} /> : <Eye size={15} />}
+                    </button>
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={passwordLoading}
+                  className="w-full mt-2 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold transition disabled:opacity-60 flex items-center justify-center gap-2"
+                >
+                  {passwordLoading ? <Loader2 size={15} className="animate-spin" /> : <KeyRound size={15} />}
+                  {passwordLoading ? 'Updating…' : 'Update Password'}
+                </button>
+              </form>
+            )}
           </div>
         </div>
       )}

@@ -115,7 +115,8 @@ export class ServicesService {
         tags: dto.tags ?? [],
         gallery: dto.gallery ?? [],
         features: dto.features ?? [],
-        status: ListingStatus.DRAFT,
+        status: dto.status ?? ListingStatus.ACTIVE,
+        showOnPromotionalPage: dto.showOnPromotionalPage ?? false,
       },
       include: this.serviceInclude,
     });
@@ -142,6 +143,7 @@ export class ServicesService {
         ...(dto.gallery ? { gallery: dto.gallery } : {}),
         ...(dto.features ? { features: dto.features } : {}),
         ...(dto.status ? { status: dto.status as ListingStatus } : {}),
+        ...(dto.showOnPromotionalPage !== undefined ? { showOnPromotionalPage: dto.showOnPromotionalPage } : {}),
       },
       include: this.serviceInclude,
     });
@@ -216,10 +218,7 @@ export class ServicesService {
     category: true,
   };
 
-  private toCustomerService(service: Awaited<ReturnType<typeof this.prisma.vendorService.findFirst>> & {
-    vendor: { contactPerson: string; email: string; phone: string };
-    category: { name: string };
-  }) {
+  private toCustomerService(service: any) {
     return {
       id: service.id,
       vendorId: service.vendorId,
@@ -243,6 +242,7 @@ export class ServicesService {
       tags: service.tags,
       gallery: service.gallery,
       features: service.features,
+      showOnPromotionalPage: service.showOnPromotionalPage,
       created_at: service.createdAt.toISOString(),
       status: service.status,
     };

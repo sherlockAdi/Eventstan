@@ -2,318 +2,90 @@
 
 import { useState, useEffect } from "react";
 import {
-  Plus,
-  Edit,
-  Trash2,
+  Eye,
+  X,
   Phone,
   Mail,
-  User,
+  Globe,
   Calendar,
-  Eye,
+  Briefcase,
+  MapPin,
+  FileText,
+  Sparkles,
+  Clock,
+  UserCheck,
+  Search,
 } from "lucide-react";
 import Table from "@/components/admin/Table";
-import Modal from "@/components/admin/Modal";
-import ConfirmModal from "@/components/admin/ConfirmModal";
-import Pagination from "@/components/admin/Pagination";
 import Button from "@/components/admin/Button";
-import Input from "@/components/admin/Input";
+import Pagination from "@/components/admin/Pagination";
+import StatsCard from "@/components/admin/StatsCard";
 import { Column } from "@/lib/types";
+import { adminApi } from "@/api/adminApi";
+import toast from "react-hot-toast";
 
 interface VendorLead {
   id: string;
-  vendorName: string;
-  contactPerson: string;
-  mobileNumber: string;
+  businessName: string;
+  yourName: string;
   email: string;
-  vendorCategory: string;
-  location: string;
-  serviceArea: string;
-  leadSource: string;
-  eventType: string;
-  requirementDetails: string;
-  assignedSalesRep: string;
+  phone: string;
+  websiteSocialMedia: string[];
+  serviceCategoryId: string;
+  cityId: string;
+  yearsOfExperience: number;
+  message: string;
+  status: string;
   createdAt: string;
-  status: "new" | "contacted" | "qualified" | "lost";
+  updatedAt: string;
 }
 
-const vendorCategories = [
-  "Catering",
-  "Decor",
-  "Photography",
-  "Videography",
-  "Venue",
-  "Music & Entertainment",
-  "Florist",
-  "Makeup & Hair",
-  "Bridal Wear",
-  "Groom Wear",
-  "Invitations",
-  "Transportation",
-  "Accommodation",
-  "Others",
-];
+const statusColors: Record<string, string> = {
+  NEW: "bg-blue-100 text-blue-700",
+  CONTACTED: "bg-yellow-100 text-yellow-700",
+  QUALIFIED: "bg-green-100 text-green-700",
+  LOST: "bg-red-100 text-red-700",
+};
 
-const leadSources = [
-  "Website",
-  "App",
-  "Referral",
-  "Social Media - Instagram",
-  "Social Media - Facebook",
-  "Social Media - LinkedIn",
-  "Google Search",
-  "Email Marketing",
-  "Event Directory",
-  "Walk-in",
-  "Phone Inquiry",
-  "Others",
-];
+const getStatusColor = (status: string) =>
+  statusColors[status?.toUpperCase()] || "bg-gray-100 text-gray-700";
 
-const eventTypes = [
-  "Wedding",
-  "Corporate Event",
-  "Birthday Party",
-  "Anniversary",
-  "Engagement",
-  "Baby Shower",
-  "Bachelor/Bachelorette",
-  "Conference",
-  "Seminar",
-  "Product Launch",
-  "Team Building",
-  "Festival Celebration",
-  "Charity Event",
-  "Others",
-];
-
-const salesReps = [
-  "Rahul Sharma",
-  "Priya Patel",
-  "Amit Kumar",
-  "Neha Singh",
-  "Vikram Mehta",
-  "Unassigned",
-];
-
-const leadStatuses = [
-  { value: "new", label: "New", color: "bg-blue-100 text-blue-800" },
-  {
-    value: "contacted",
-    label: "Contacted",
-    color: "bg-yellow-100 text-yellow-800",
-  },
-  {
-    value: "qualified",
-    label: "Qualified",
-    color: "bg-green-100 text-green-800",
-  },
-  { value: "lost", label: "Lost", color: "bg-red-100 text-red-800" },
-];
+const formatDate = (v?: string) => {
+  if (!v) return "-";
+  const d = new Date(v);
+  if (isNaN(d.getTime())) return "-";
+  const dd = String(d.getDate()).padStart(2, "0");
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const yyyy = d.getFullYear();
+  return `${dd}-${mm}-${yyyy}`;
+};
 
 export default function VendorLeadsPage() {
   const [leads, setLeads] = useState<VendorLead[]>([]);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [isViewOpen, setIsViewOpen] = useState(false);
   const [selectedLead, setSelectedLead] = useState<VendorLead | null>(null);
-  const [leadForm, setLeadForm] = useState<Partial<VendorLead>>({
-    vendorName: "",
-    contactPerson: "",
-    mobileNumber: "",
-    email: "",
-    vendorCategory: "",
-    location: "",
-    serviceArea: "",
-    leadSource: "",
-    eventType: "",
-    requirementDetails: "",
-    assignedSalesRep: "Unassigned",
-    status: "new",
-  });
-  const [loading, setLoading] = useState(false);
-  const [filterStatus, setFilterStatus] = useState<string>("all");
-  const [filterCategory, setFilterCategory] = useState<string>("all");
+  const [filterStatus, setFilterStatus] = useState<string>("");
+  const [searchTerm, setSearchTerm] = useState("");
 
   const ITEMS_PER_PAGE = 10;
   const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {
-    const savedLeads = localStorage.getItem("vendorLeads");
-    if (savedLeads) {
-      setLeads(JSON.parse(savedLeads));
-    } else {
-      const sampleLeads: VendorLead[] = [
-        {
-          id: "1",
-          vendorName: "Grand Palace Banquets",
-          contactPerson: "Rajesh Khanna",
-          mobileNumber: "9876543210",
-          email: "contact@grandpalace.com",
-          vendorCategory: "Venue",
-          location: "Mumbai",
-          serviceArea: "Mumbai & Suburbs",
-          leadSource: "Website",
-          eventType: "Wedding",
-          requirementDetails:
-            "Looking for banquet hall for 500 guests with catering and decoration",
-          assignedSalesRep: "Rahul Sharma",
-          createdAt: new Date().toISOString(),
-          status: "new",
-        },
-        {
-          id: "2",
-          vendorName: "Magic Moments Photography",
-          contactPerson: "Priyanka Mehta",
-          mobileNumber: "9988776655",
-          email: "priyanka@magicmoments.com",
-          vendorCategory: "Photography",
-          location: "Delhi NCR",
-          serviceArea: "Delhi, Gurgaon, Noida",
-          leadSource: "Instagram",
-          eventType: "Wedding",
-          requirementDetails:
-            "Need pre-wedding and wedding day photography with album",
-          assignedSalesRep: "Priya Patel",
-          createdAt: new Date().toISOString(),
-          status: "contacted",
-        },
-        {
-          id: "3",
-          vendorName: "Spice Village Caterers",
-          contactPerson: "Suresh Jain",
-          mobileNumber: "9876501234",
-          email: "suresh@spicevillage.com",
-          vendorCategory: "Catering",
-          location: "Bangalore",
-          serviceArea: "Bangalore, Mysore",
-          leadSource: "Referral",
-          eventType: "Corporate Event",
-          requirementDetails:
-            "Corporate lunch for 200 people, need vegetarian and non-veg options",
-          assignedSalesRep: "Amit Kumar",
-          createdAt: new Date().toISOString(),
-          status: "qualified",
-        },
-        {
-          id: "4",
-          vendorName: "Royal Decorators",
-          contactPerson: "Meera Sharma",
-          mobileNumber: "9988223344",
-          email: "meera@royaldecor.com",
-          vendorCategory: "Decor",
-          location: "Jaipur",
-          serviceArea: "Jaipur, Udaipur, Jodhpur",
-          leadSource: "Facebook",
-          eventType: "Wedding",
-          requirementDetails:
-            "Traditional wedding decor with floral arrangements and lighting",
-          assignedSalesRep: "Neha Singh",
-          createdAt: new Date().toISOString(),
-          status: "new",
-        },
-        {
-          id: "5",
-          vendorName: "Melody Makers Entertainment",
-          contactPerson: "Vikram Singh",
-          mobileNumber: "9876549870",
-          email: "vikram@melodymakers.com",
-          vendorCategory: "Music & Entertainment",
-          location: "Pune",
-          serviceArea: "Pune, Mumbai",
-          leadSource: "Google Search",
-          eventType: "Birthday Party",
-          requirementDetails: "DJ and live band for 50th birthday celebration",
-          assignedSalesRep: "Vikram Mehta",
-          createdAt: new Date().toISOString(),
-          status: "contacted",
-        },
-        {
-          id: "6",
-          vendorName: "Elegant Bridal Studio",
-          contactPerson: "Kavita Reddy",
-          mobileNumber: "9988001122",
-          email: "kavita@elegantbridal.com",
-          vendorCategory: "Bridal Wear",
-          location: "Hyderabad",
-          serviceArea: "Hyderabad, Vijayawada",
-          leadSource: "Instagram",
-          eventType: "Wedding",
-          requirementDetails: "Bridal lehenga and wedding trousseau",
-          assignedSalesRep: "Priya Patel",
-          createdAt: new Date().toISOString(),
-          status: "qualified",
-        },
-        {
-          id: "7",
-          vendorName: "Perfect Plan Events",
-          contactPerson: "Anjali Desai",
-          mobileNumber: "9876512345",
-          email: "anjali@perfectplan.com",
-          vendorCategory: "Others",
-          location: "Ahmedabad",
-          serviceArea: "Ahmedabad, Surat, Vadodara",
-          leadSource: "Website",
-          eventType: "Conference",
-          requirementDetails:
-            "Event management for tech conference with 300 attendees",
-          assignedSalesRep: "Rahul Sharma",
-          createdAt: new Date().toISOString(),
-          status: "new",
-        },
-        {
-          id: "8",
-          vendorName: "Shutterbug Studios",
-          contactPerson: "Arjun Nair",
-          mobileNumber: "9876598765",
-          email: "arjun@shutterbug.com",
-          vendorCategory: "Videography",
-          location: "Chennai",
-          serviceArea: "Chennai, Coimbatore",
-          leadSource: "Referral",
-          eventType: "Wedding",
-          requirementDetails: "Cinematic wedding video and highlight reel",
-          assignedSalesRep: "Amit Kumar",
-          createdAt: new Date().toISOString(),
-          status: "contacted",
-        },
-      ];
-      setLeads(sampleLeads);
-      localStorage.setItem("vendorLeads", JSON.stringify(sampleLeads));
-    }
+    fetchLeads();
   }, []);
 
-  useEffect(() => {
-    if (leads.length > 0) {
-      localStorage.setItem("vendorLeads", JSON.stringify(leads));
+  const fetchLeads = async () => {
+    try {
+      setLoading(true);
+      const res: any = await adminApi.vendorLeads.list();
+      const list: VendorLead[] = Array.isArray(res) ? res : res?.data ?? [];
+      setLeads(list);
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to load vendor leads");
+    } finally {
+      setLoading(false);
     }
-  }, [leads]);
-
-  const generateId = () => {
-    return Date.now().toString() + Math.random().toString(36).substr(2, 9);
-  };
-
-  const handleAddLead = () => {
-    setSelectedLead(null);
-    setLeadForm({
-      vendorName: "",
-      contactPerson: "",
-      mobileNumber: "",
-      email: "",
-      vendorCategory: "",
-      location: "",
-      serviceArea: "",
-      leadSource: "",
-      eventType: "",
-      requirementDetails: "",
-      assignedSalesRep: "Unassigned",
-      status: "new",
-    });
-    setIsModalOpen(true);
-  };
-
-  const handleEditLead = (lead: VendorLead) => {
-    setSelectedLead(lead);
-    setLeadForm(lead);
-    setIsModalOpen(true);
   };
 
   const handleViewLead = (lead: VendorLead) => {
@@ -321,73 +93,25 @@ export default function VendorLeadsPage() {
     setIsViewOpen(true);
   };
 
-  const handleDeleteClick = (lead: VendorLead) => {
-    setSelectedLead(lead);
-    setIsDeleteOpen(true);
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (
-      !leadForm.vendorName ||
-      !leadForm.contactPerson ||
-      !leadForm.mobileNumber ||
-      !leadForm.email
-    ) {
-      alert("Please fill all required fields");
-      return;
-    }
-
-    setLoading(true);
-
-    if (selectedLead) {
-      const updatedLeads = leads.map((lead) =>
-        lead.id === selectedLead.id
-          ? { ...lead, ...leadForm, updatedAt: new Date().toISOString() }
-          : lead,
-      );
-      setLeads(updatedLeads);
-    } else {
-      const newLead: VendorLead = {
-        id: generateId(),
-        vendorName: leadForm.vendorName || "",
-        contactPerson: leadForm.contactPerson || "",
-        mobileNumber: leadForm.mobileNumber || "",
-        email: leadForm.email || "",
-        vendorCategory: leadForm.vendorCategory || "",
-        location: leadForm.location || "",
-        serviceArea: leadForm.serviceArea || "",
-        leadSource: leadForm.leadSource || "",
-        eventType: leadForm.eventType || "",
-        requirementDetails: leadForm.requirementDetails || "",
-        assignedSalesRep: leadForm.assignedSalesRep || "Unassigned",
-        status: leadForm.status || "new",
-        createdAt: new Date().toISOString(),
-      };
-      setLeads([newLead, ...leads]);
-    }
-
-    setIsModalOpen(false);
-    setLoading(false);
-  };
-
-  const handleDelete = () => {
-    if (selectedLead) {
-      const updatedLeads = leads.filter((lead) => lead.id !== selectedLead.id);
-      setLeads(updatedLeads);
-      setIsDeleteOpen(false);
-      setSelectedLead(null);
-    }
-  };
-
   const filteredLeads = leads.filter((lead) => {
     const matchesStatus =
-      filterStatus === "all" || lead.status === filterStatus;
-    const matchesCategory =
-      filterCategory === "all" || lead.vendorCategory === filterCategory;
-    return matchesStatus && matchesCategory;
+      !filterStatus || lead.status?.toUpperCase() === filterStatus.toUpperCase();
+    const term = searchTerm.toLowerCase();
+    const matchesSearch =
+      !term ||
+      lead.businessName?.toLowerCase().includes(term) ||
+      lead.yourName?.toLowerCase().includes(term) ||
+      lead.email?.toLowerCase().includes(term) ||
+      lead.phone?.includes(searchTerm);
+    return matchesStatus && matchesSearch;
   });
+
+  const statusOptions = Array.from(
+    new Set(leads.map((l) => l.status).filter(Boolean)),
+  );
+
+  const countByStatus = (s: string) =>
+    leads.filter((l) => l.status?.toUpperCase() === s).length;
 
   const leadsWithSrNo = filteredLeads.map((lead, index) => ({
     ...lead,
@@ -400,50 +124,27 @@ export default function VendorLeadsPage() {
     currentPage * ITEMS_PER_PAGE,
   );
 
-  const getStatusBadge = (status: VendorLead["status"]) => {
-    const statusInfo = leadStatuses.find((s) => s.value === status);
-    return (
-      <span
-        className={`px-2 py-1 rounded-full text-xs font-medium ${statusInfo?.color}`}
-      >
-        {statusInfo?.label}
-      </span>
-    );
-  };
-
   const columns: Column[] = [
     {
-      key: "sr_no",
-      label: "Sr. No.",
-      render: (v: number) => (
-        <span className="text-gray-600 font-medium">{v}</span>
-      ),
-    },
-    {
-      key: "vendorName",
-      label: "Vendor Name",
+      key: "businessName",
+      label: "Vendor",
       render: (v: string, row: VendorLead) => (
-        <div>
-          <div className="font-medium text-gray-900">{v}</div>
-          <div className="text-xs text-gray-500">{row.vendorCategory}</div>
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 shrink-0 rounded-full bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center text-white font-semibold text-sm">
+            {v?.charAt(0)?.toUpperCase() || "?"}
+          </div>
+          <div className="min-w-0">
+            <div className="font-medium text-gray-900 truncate">{v}</div>
+            <div className="text-xs text-gray-500 truncate">{row.yourName}</div>
+          </div>
         </div>
       ),
     },
     {
-      key: "contactPerson",
-      label: "Contact Person",
+      key: "phone",
+      label: "Phone",
       render: (v: string) => (
-        <div className="flex items-center gap-2">
-          <User size={14} className="text-gray-400" />
-          <span>{v}</span>
-        </div>
-      ),
-    },
-    {
-      key: "mobileNumber",
-      label: "Mobile",
-      render: (v: string) => (
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 text-sm text-gray-700">
           <Phone size={14} className="text-gray-400" />
           <span>{v}</span>
         </div>
@@ -455,50 +156,50 @@ export default function VendorLeadsPage() {
       render: (v: string) => (
         <div className="flex items-center gap-2">
           <Mail size={14} className="text-gray-400" />
-          <span className="text-sm">{v}</span>
+          <span className="text-sm text-gray-700">{v}</span>
         </div>
       ),
     },
     {
-      key: "eventType",
-      label: "Event Type",
+      key: "cityId",
+      label: "City",
       render: (v: string) => (
-        <div className="flex items-center gap-2">
-          <Calendar size={14} className="text-gray-400" />
-          <span>{v}</span>
+        <div className="flex items-center gap-2 text-sm text-gray-700">
+          <MapPin size={14} className="text-gray-400" />
+          <span className="capitalize">{v}</span>
         </div>
       ),
+    },
+    {
+      key: "yearsOfExperience",
+      label: "Experience",
+      render: (v: number) => <span className="text-sm text-gray-700">{v} yrs</span>,
+    },
+    {
+      key: "createdAt",
+      label: "Submitted",
+      render: (v: string) => <span className="text-sm text-gray-500">{formatDate(v)}</span>,
     },
     {
       key: "status",
       label: "Status",
-      render: (v: VendorLead["status"]) => getStatusBadge(v),
+      render: (v: string) => (
+        <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-medium ${getStatusColor(v)}`}>
+          {v}
+        </span>
+      ),
     },
     {
       key: "actions",
-      label: "Actions",
+      label: "",
       render: (_: any, row: VendorLead) => (
-        <div className="flex items-center gap-1">
+        <div className="flex items-center justify-end gap-1">
           <button
             onClick={() => handleViewLead(row)}
-            className="p-1.5 rounded-lg text-gray-400 hover:text-blue-500 hover:bg-blue-50 transition-all"
+            className="p-1.5 rounded-lg text-gray-400 hover:text-orange-500 hover:bg-orange-50 transition-all"
             title="View Details"
           >
-            <Eye size={14} />
-          </button>
-          <button
-            onClick={() => handleEditLead(row)}
-            className="p-1.5 rounded-lg text-gray-400 hover:text-orange-500 hover:bg-orange-50 transition-all"
-            title="Edit"
-          >
-            <Edit size={14} />
-          </button>
-          <button
-            onClick={() => handleDeleteClick(row)}
-            className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all"
-            title="Delete"
-          >
-            <Trash2 size={14} />
+            <Eye size={15} />
           </button>
         </div>
       ),
@@ -506,66 +207,67 @@ export default function VendorLeadsPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
-      <div className="max-w-7xl mx-auto space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">
-              Vendor Leads Management
-            </h1>
-            <p className="text-sm text-gray-500 mt-1">
-              {leads.length} total leads •
-              <span className="text-green-600 ml-1">
-                {leads.filter((l) => l.status === "qualified").length} qualified
-              </span>
-            </p>
-          </div>
-          <Button onClick={handleAddLead} className="flex items-center gap-2">
-            <Plus size={18} />
-            Add Lead
-          </Button>
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-xl font-bold text-gray-900">Vendor Leads</h1>
+        <p className="text-sm text-gray-500 mt-0.5">
+          Enquiries submitted by vendors looking to list their services
+        </p>
+      </div>
+
+      {/* Stats */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <StatsCard title="Total Leads" value={leads.length} icon={<FileText size={18} />} color="orange" />
+        <StatsCard title="New" value={countByStatus("NEW")} icon={<Sparkles size={18} />} color="blue" />
+        <StatsCard title="Contacted" value={countByStatus("CONTACTED")} icon={<Clock size={18} />} color="yellow" />
+        <StatsCard title="Qualified" value={countByStatus("QUALIFIED")} icon={<UserCheck size={18} />} color="green" />
+      </div>
+
+      <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
+        <div className="relative flex-1 max-w-sm">
+          <input
+            type="text"
+            placeholder="Search by business, name, email or phone..."
+            value={searchTerm}
+            onChange={(e) => {
+              setSearchTerm(e.target.value);
+              setCurrentPage(1);
+            }}
+            className="w-full px-4 py-2 pl-10 pr-4 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent"
+          />
+          <Search size={16} className="absolute left-3 top-2.5 text-gray-400" />
         </div>
 
-        <div className="flex gap-3">
-          <select
-            value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent text-sm bg-white text-gray-900"
-          >
-            <option value="all">All Status</option>
-            {leadStatuses.map((status) => (
-              <option key={status.value} value={status.value}>
-                {status.label}
-              </option>
-            ))}
-          </select>
+        <select
+          value={filterStatus}
+          onChange={(e) => {
+            setFilterStatus(e.target.value);
+            setCurrentPage(1);
+          }}
+          className="px-4 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white"
+        >
+          <option value="">All Status</option>
+          {statusOptions.map((status) => (
+            <option key={status} value={status}>
+              {status}
+            </option>
+          ))}
+        </select>
+      </div>
 
-          <select
-            value={filterCategory}
-            onChange={(e) => setFilterCategory(e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent text-sm bg-white text-gray-900"
-          >
-            <option value="all">All Categories</option>
-            {vendorCategories.map((cat) => (
-              <option key={cat} value={cat}>
-                {cat}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {loading && leads.length === 0 ? (
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-12">
-            <div className="text-center">
-              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500"></div>
-              <p className="mt-4 text-gray-500">Loading leads...</p>
-            </div>
+      {loading ? (
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-12">
+          <div className="text-center">
+            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500"></div>
+            <p className="mt-4 text-gray-500">Loading leads...</p>
           </div>
-        ) : (
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-            <div className="overflow-x-auto">
-              <Table columns={columns} data={paginatedData} />
-            </div>
+        </div>
+      ) : (
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+          <div className="overflow-x-auto">
+            <Table columns={columns} data={paginatedData} />
+          </div>
+          {leadsWithSrNo.length > 0 ? (
             <div className="border-t border-gray-100">
               <Pagination
                 currentPage={currentPage}
@@ -575,426 +277,136 @@ export default function VendorLeadsPage() {
                 onPageChange={(page) => setCurrentPage(page)}
               />
             </div>
-          </div>
-        )}
-      </div>
+          ) : (
+            <div className="text-center py-16">
+              <FileText size={32} className="mx-auto text-gray-300 mb-2" />
+              <p className="text-gray-500">No vendor leads found</p>
+            </div>
+          )}
+        </div>
+      )}
 
-      <Modal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        title={selectedLead ? "Edit Vendor Lead" : "Add New Vendor Lead"}
-        size="lg"
-      >
-        <form onSubmit={handleSubmit} className="flex flex-col h-full">
-          <div
-            className="flex-1 overflow-y-auto pr-2"
-            style={{ maxHeight: "calc(70vh - 80px)" }}
-          >
-            <style jsx>{`
-              div::-webkit-scrollbar {
-                width: 6px;
-              }
-              div::-webkit-scrollbar-track {
-                background: #f1f1f1;
-                border-radius: 10px;
-              }
-              div::-webkit-scrollbar-thumb {
-                background: #f97316;
-                border-radius: 10px;
-              }
-              div::-webkit-scrollbar-thumb:hover {
-                background: #ea580c;
-              }
-            `}</style>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Vendor Name / Company Name{" "}
-                  <span className="text-red-500">*</span>
-                </label>
-                <Input
-                  value={leadForm.vendorName || ""}
-                  onChange={(e) =>
-                    setLeadForm({ ...leadForm, vendorName: e.target.value })
-                  }
-                  placeholder="Enter vendor name"
-                  required
-                  disabled={loading}
-                  className="w-full"
-                />
+      {/* View Modal */}
+      {isViewOpen && selectedLead && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="relative bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col border border-gray-200">
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center text-white font-semibold text-sm">
+                  {selectedLead.businessName?.charAt(0)?.toUpperCase() || "?"}
+                </div>
+                <div>
+                  <h2 className="text-base font-semibold text-gray-900">{selectedLead.businessName}</h2>
+                  <p className="text-xs text-gray-500">{selectedLead.yourName}</p>
+                </div>
               </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Contact Person Name <span className="text-red-500">*</span>
-                </label>
-                <Input
-                  value={leadForm.contactPerson || ""}
-                  onChange={(e) =>
-                    setLeadForm({ ...leadForm, contactPerson: e.target.value })
-                  }
-                  placeholder="Enter contact person name"
-                  required
-                  disabled={loading}
-                  className="w-full"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Mobile Number <span className="text-red-500">*</span>
-                </label>
-                <Input
-                  type="tel"
-                  value={leadForm.mobileNumber || ""}
-                  onChange={(e) =>
-                    setLeadForm({ ...leadForm, mobileNumber: e.target.value })
-                  }
-                  placeholder="Enter mobile number"
-                  required
-                  disabled={loading}
-                  className="w-full"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Email Address <span className="text-red-500">*</span>
-                </label>
-                <Input
-                  type="email"
-                  value={leadForm.email || ""}
-                  onChange={(e) =>
-                    setLeadForm({ ...leadForm, email: e.target.value })
-                  }
-                  placeholder="Enter email address"
-                  required
-                  disabled={loading}
-                  className="w-full"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Vendor Category <span className="text-red-500">*</span>
-                </label>
-                <select
-                  value={leadForm.vendorCategory || ""}
-                  onChange={(e) =>
-                    setLeadForm({ ...leadForm, vendorCategory: e.target.value })
-                  }
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white text-gray-900"
-                  required
+              <div className="flex items-center gap-3">
+                <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-medium ${getStatusColor(selectedLead.status)}`}>
+                  {selectedLead.status}
+                </span>
+                <button
+                  onClick={() => setIsViewOpen(false)}
+                  className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-all"
                 >
-                  <option value="">Select Category</option>
-                  {vendorCategories.map((cat) => (
-                    <option key={cat} value={cat}>
-                      {cat}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Location
-                </label>
-                <Input
-                  value={leadForm.location || ""}
-                  onChange={(e) =>
-                    setLeadForm({ ...leadForm, location: e.target.value })
-                  }
-                  placeholder="Enter city/area"
-                  disabled={loading}
-                  className="w-full"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Service Area
-                </label>
-                <Input
-                  value={leadForm.serviceArea || ""}
-                  onChange={(e) =>
-                    setLeadForm({ ...leadForm, serviceArea: e.target.value })
-                  }
-                  placeholder="Areas they serve"
-                  disabled={loading}
-                  className="w-full"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Lead Source
-                </label>
-                <select
-                  value={leadForm.leadSource || ""}
-                  onChange={(e) =>
-                    setLeadForm({ ...leadForm, leadSource: e.target.value })
-                  }
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white text-gray-900"
-                >
-                  <option value="">Select Source</option>
-                  {leadSources.map((source) => (
-                    <option key={source} value={source}>
-                      {source}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Event Type
-                </label>
-                <select
-                  value={leadForm.eventType || ""}
-                  onChange={(e) =>
-                    setLeadForm({ ...leadForm, eventType: e.target.value })
-                  }
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white text-gray-900"
-                >
-                  <option value="">Select Event Type</option>
-                  {eventTypes.map((type) => (
-                    <option key={type} value={type}>
-                      {type}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Assigned Sales Representative
-                </label>
-                <select
-                  value={leadForm.assignedSalesRep || "Unassigned"}
-                  onChange={(e) =>
-                    setLeadForm({
-                      ...leadForm,
-                      assignedSalesRep: e.target.value,
-                    })
-                  }
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white text-gray-900"
-                >
-                  {salesReps.map((rep) => (
-                    <option key={rep} value={rep}>
-                      {rep}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Lead Status
-                </label>
-                <select
-                  value={leadForm.status || "new"}
-                  onChange={(e) =>
-                    setLeadForm({
-                      ...leadForm,
-                      status: e.target.value as VendorLead["status"],
-                    })
-                  }
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white text-gray-900"
-                >
-                  {leadStatuses.map((status) => (
-                    <option key={status.value} value={status.value}>
-                      {status.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="md:col-span-2">
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Requirement Details / Notes
-                </label>
-                <textarea
-                  value={leadForm.requirementDetails || ""}
-                  onChange={(e) =>
-                    setLeadForm({
-                      ...leadForm,
-                      requirementDetails: e.target.value,
-                    })
-                  }
-                  rows={4}
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent resize-none"
-                  placeholder="Detailed requirements, budget, timeline, special notes, etc."
-                  disabled={loading}
-                />
+                  <X size={18} />
+                </button>
               </div>
             </div>
-          </div>
 
-          <div className="flex justify-end gap-3 pt-6 mt-4 border-t border-gray-100">
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() => setIsModalOpen(false)}
-              disabled={loading}
-            >
-              Cancel
-            </Button>
-            <Button type="submit" disabled={loading}>
-              {loading ? "Saving..." : "Save Lead"}
-            </Button>
-          </div>
-        </form>
-      </Modal>
+            {/* Body */}
+            <div className="flex-1 overflow-y-auto px-6 py-5">
+              <p className="text-xs text-gray-400 flex items-center gap-1 mb-5">
+                <Clock size={12} /> Submitted on {formatDate(selectedLead.createdAt)}
+                {selectedLead.updatedAt && selectedLead.updatedAt !== selectedLead.createdAt && (
+                  <span> · Last updated on {formatDate(selectedLead.updatedAt)}</span>
+                )}
+              </p>
 
-      <Modal
-        isOpen={isViewOpen}
-        onClose={() => setIsViewOpen(false)}
-        title="Lead Details"
-        size="lg"
-      >
-        {selectedLead && (
-          <div className="flex flex-col h-full">
-            <div
-              className="flex-1 overflow-y-auto pr-2"
-              style={{ maxHeight: "calc(70vh - 80px)" }}
-            >
-              <style jsx>{`
-                div::-webkit-scrollbar {
-                  width: 6px;
-                }
-                div::-webkit-scrollbar-track {
-                  background: #f1f1f1;
-                  border-radius: 10px;
-                }
-                div::-webkit-scrollbar-thumb {
-                  background: #f97316;
-                  border-radius: 10px;
-                }
-                div::-webkit-scrollbar-thumb:hover {
-                  background: #ea580c;
-                }
-              `}</style>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                    Vendor Name
-                  </label>
-                  <p className="text-gray-900 font-medium mt-1 text-base">
-                    {selectedLead.vendorName}
-                  </p>
-                </div>
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                    Status
-                  </label>
-                  <div className="mt-1">
-                    {getStatusBadge(selectedLead.status)}
+              {/* Contact */}
+              <div className="mb-5">
+                <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Contact</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="flex items-center gap-3 bg-gray-50 rounded-lg p-3 border border-gray-100">
+                    <Mail size={15} className="text-gray-400 shrink-0" />
+                    <div className="min-w-0">
+                      <p className="text-[11px] text-gray-400">Email</p>
+                      <p className="text-sm text-gray-900 truncate">{selectedLead.email}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 bg-gray-50 rounded-lg p-3 border border-gray-100">
+                    <Phone size={15} className="text-gray-400 shrink-0" />
+                    <div className="min-w-0">
+                      <p className="text-[11px] text-gray-400">Phone</p>
+                      <p className="text-sm text-gray-900 truncate">{selectedLead.phone}</p>
+                    </div>
                   </div>
                 </div>
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                    Contact Person
-                  </label>
-                  <p className="text-gray-900 mt-1">
-                    {selectedLead.contactPerson}
-                  </p>
-                </div>
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                    Mobile Number
-                  </label>
-                  <p className="text-gray-900 mt-1">
-                    {selectedLead.mobileNumber}
-                  </p>
-                </div>
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                    Email
-                  </label>
-                  <p className="text-gray-900 mt-1 break-all">
-                    {selectedLead.email}
-                  </p>
-                </div>
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                    Vendor Category
-                  </label>
-                  <p className="text-gray-900 mt-1">
-                    {selectedLead.vendorCategory}
-                  </p>
-                </div>
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                    Location
-                  </label>
-                  <p className="text-gray-900 mt-1">
-                    {selectedLead.location || "-"}
-                  </p>
-                </div>
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                    Service Area
-                  </label>
-                  <p className="text-gray-900 mt-1">
-                    {selectedLead.serviceArea || "-"}
-                  </p>
-                </div>
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                    Lead Source
-                  </label>
-                  <p className="text-gray-900 mt-1">
-                    {selectedLead.leadSource || "-"}
-                  </p>
-                </div>
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                    Event Type
-                  </label>
-                  <p className="text-gray-900 mt-1">
-                    {selectedLead.eventType || "-"}
-                  </p>
-                </div>
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                    Assigned Sales Rep
-                  </label>
-                  <p className="text-gray-900 mt-1">
-                    {selectedLead.assignedSalesRep}
-                  </p>
-                </div>
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                    Created On
-                  </label>
-                  <p className="text-gray-900 mt-1">
-                    {new Date(selectedLead.createdAt).toLocaleDateString()}
-                  </p>
-                </div>
-                <div className="md:col-span-2 bg-gray-50 p-4 rounded-lg">
-                  <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                    Requirement Details
-                  </label>
-                  <p className="text-gray-900 mt-2 whitespace-pre-wrap leading-relaxed">
-                    {selectedLead.requirementDetails || "-"}
-                  </p>
+              </div>
+
+              {/* Vendor details */}
+              <div className="mb-5">
+                <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Vendor Details</h3>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  <div className="bg-gray-50 rounded-lg p-3 text-center border border-gray-100">
+                    <MapPin size={15} className="mx-auto text-gray-400 mb-1" />
+                    <p className="text-[11px] text-gray-400">City</p>
+                    <p className="text-sm font-medium text-gray-900 capitalize">{selectedLead.cityId || "-"}</p>
+                  </div>
+                  <div className="bg-gray-50 rounded-lg p-3 text-center border border-gray-100">
+                    <Briefcase size={15} className="mx-auto text-gray-400 mb-1" />
+                    <p className="text-[11px] text-gray-400">Experience</p>
+                    <p className="text-sm font-medium text-gray-900">{selectedLead.yearsOfExperience ?? "-"} yrs</p>
+                  </div>
+                  <div className="bg-gray-50 rounded-lg p-3 text-center border border-gray-100 col-span-2 sm:col-span-1">
+                    <Calendar size={15} className="mx-auto text-gray-400 mb-1" />
+                    <p className="text-[11px] text-gray-400">Submitted</p>
+                    <p className="text-sm font-medium text-gray-900">{formatDate(selectedLead.createdAt)}</p>
+                  </div>
                 </div>
               </div>
+
+              {/* Website / Social */}
+              {selectedLead.websiteSocialMedia?.length > 0 && (
+                <div className="mb-5">
+                  <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-1">
+                    <Globe size={12} /> Website / Social Media
+                  </h3>
+                  <div className="flex flex-wrap gap-2">
+                    {selectedLead.websiteSocialMedia.map((s) => (
+                      <span
+                        key={s}
+                        className="px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700 border border-gray-200 break-all"
+                      >
+                        {s}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Message */}
+              {selectedLead.message && (
+                <div>
+                  <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-1">
+                    <Briefcase size={12} /> Message
+                  </h3>
+                  <p className="text-sm text-gray-600 bg-gray-50 p-3 rounded-lg border border-gray-100 whitespace-pre-wrap leading-relaxed">
+                    {selectedLead.message}
+                  </p>
+                </div>
+              )}
             </div>
-            <div className="flex justify-end gap-3 pt-6 mt-4 border-t border-gray-100">
-              <Button onClick={() => setIsViewOpen(false)}>Close</Button>
+
+            {/* Footer */}
+            <div className="border-t border-gray-100 px-6 py-4 flex justify-end shrink-0 bg-white">
+              <Button variant="secondary" onClick={() => setIsViewOpen(false)}>
+                Close
+              </Button>
             </div>
           </div>
-        )}
-      </Modal>
-
-      <ConfirmModal
-        isOpen={isDeleteOpen}
-        onClose={() => setIsDeleteOpen(false)}
-        onConfirm={handleDelete}
-        title="Delete Lead"
-        message={`Are you sure you want to delete lead from "${selectedLead?.vendorName}"? This action cannot be undone.`}
-      />
+        </div>
+      )}
     </div>
   );
 }

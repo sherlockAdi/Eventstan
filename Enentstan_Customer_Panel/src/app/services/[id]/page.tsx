@@ -1,69 +1,47 @@
 "use client";
-
-import { useEffect, useState } from "react";
-import { useParams, notFound } from "next/navigation";
-import { getPackages, getService } from "@/api/customerApi";
+import { use, useState } from "react";
+import { useMarketplace } from "@/lib/useMarketplace";
 import BookingModal from "@/components/ui/BookingModal";
 import PackageCard from "@/components/ui/PackageCard";
-import { Package, Service } from "@/types";
+import { Package } from "@/types";
+import { useCart } from "@/lib/CartContext";
 
-export default function ServiceDetailPage() {
-  const params = useParams<{ id: string }>();
-  const id = params?.id;
-  const [service, setService] = useState<Service | null>(null);
-  const [packages, setPackages] = useState<Package[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+export default function ServiceDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params);
+  const { services, packages: allPackages, loading, error } = useMarketplace();
+  const service = services.find((s) => s.slug === id || s.id === id);
   const [showBooking, setShowBooking] = useState(false);
   const [selectedPkg, setSelectedPkg] = useState<Package | undefined>();
+  const { addService, items } = useCart();
   const [galleryIndex, setGalleryIndex] = useState(0);
 
-  useEffect(() => {
-    const load = async () => {
-      if (!id) return;
-      try {
-        setLoading(true);
-        setError("");
-        const [serviceRow, packageRows] = await Promise.all([getService(id), getPackages()]);
-        setService(serviceRow);
-        setPackages(packageRows.filter((pkg) => pkg.service_id === serviceRow.id));
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to load service");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    void load();
-  }, [id]);
-
-  if (!loading && !service) {
-    notFound();
+  if (loading) {
+    return <div className="max-w-6xl mx-auto px-4 py-16 text-center text-gray-400">Loading service…</div>;
   }
-
-  if (loading || !service) {
-    return (
-      <div className="max-w-6xl mx-auto px-4 py-10 text-center text-gray-500">
-        Loading service...
-      </div>
-    );
-  }
-
   if (error) {
+    return <div className="max-w-6xl mx-auto px-4 py-16 text-center text-red-400">Failed to load service: {error}</div>;
+  }
+  if (!service) {
     return (
-      <div className="max-w-6xl mx-auto px-4 py-10">
-        <div className="rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700">
-          {error}
-        </div>
+      <div className="max-w-6xl mx-auto px-4 py-16 text-center text-gray-400">
+        <p className="mb-4">Service not found.</p>
+        <a href="/services" className="text-orange-500 font-semibold hover:underline">Back to Services</a>
       </div>
     );
   }
 
-  const gallery = service.gallery?.length ? service.gallery : [service.image_url];
-  const serviceRange = `$${service.price_min.toLocaleString()} - $${service.price_max.toLocaleString()}`;
+  const packages = allPackages.filter((p) => p.service_id === service.id);
+  const inCart = items.some((i) => i.id === `svc-${service.id}`);
+  const gallery = service.gallery || [service.image_url];
 
-  const nextSlide = () => setGalleryIndex((prev) => (prev + 1) % gallery.length);
-  const prevSlide = () => setGalleryIndex((prev) => (prev - 1 + gallery.length) % gallery.length);
+  const nextSlide = () => {
+    setGalleryIndex((prev) => (prev + 1) % gallery.length);
+  };
+
+  const prevSlide = () => {
+    setGalleryIndex((prev) => (prev - 1 + gallery.length) % gallery.length);
+  };
+
   const handleBookPkg = (pkg: Package) => {
     setSelectedPkg(pkg);
     setShowBooking(true);
@@ -71,6 +49,7 @@ export default function ServiceDetailPage() {
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
+      {/* Back link */}
       <a href="/services" className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 mb-6 transition-colors">
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -79,7 +58,9 @@ export default function ServiceDetailPage() {
       </a>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* ── Main Content (left 2/3) ── */}
         <div className="lg:col-span-2 space-y-8">
+          {/* Hero Image Slider */}
           <div className="relative rounded-2xl overflow-hidden aspect-[16/9] shadow-sm group">
             <img
               src={gallery[galleryIndex]}
@@ -91,6 +72,7 @@ export default function ServiceDetailPage() {
               {service.category}
             </span>
 
+            {/* Slider Navigation Buttons */}
             {gallery.length > 1 && (
               <>
                 <button
@@ -112,13 +94,16 @@ export default function ServiceDetailPage() {
                   </svg>
                 </button>
 
+                {/* Dots Indicator */}
                 <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 z-10">
                   {gallery.map((_, idx) => (
                     <button
                       key={idx}
                       onClick={() => setGalleryIndex(idx)}
                       className={`transition-all duration-300 rounded-full ${
-                        idx === galleryIndex ? "w-6 h-2 bg-orange-500" : "w-2 h-2 bg-white/60 hover:bg-white/90"
+                        idx === galleryIndex
+                          ? "w-6 h-2 bg-orange-500"
+                          : "w-2 h-2 bg-white/60 hover:bg-white/90"
                       }`}
                       aria-label={`Go to image ${idx + 1}`}
                     />
@@ -126,18 +111,28 @@ export default function ServiceDetailPage() {
                 </div>
               </>
             )}
+
+            {/* Image Counter */}
+            {gallery.length > 1 && (
+              <div className="absolute bottom-4 right-4 bg-black/60 text-white text-xs px-2 py-1 rounded-md backdrop-blur-sm">
+                {galleryIndex + 1} / {gallery.length}
+              </div>
+            )}
           </div>
 
+          {/* Title & Meta */}
           <div>
-            {service.rating > 0 && (
-              <span className="flex items-center gap-1 bg-orange-50 px-3 w-28 py-1.5 rounded-full">
-                <svg className="w-4 h-4 text-orange-500" fill="currentColor" viewBox="0 0 20 20">
-                  <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                </svg>
-                <span className="font-bold text-gray-900 text-sm">{service.rating}</span>
-                <span className="text-gray-400 text-xs">({service.review_count})</span>
-              </span>
-            )}
+            <span>
+               {service.rating > 0 && (
+                <span className="flex items-center gap-1 bg-orange-50 px-3 w-28 py-1.5 rounded-full">
+                  <svg className="w-4 h-4 text-orange-500" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                  </svg>
+                  <span className="font-bold text-gray-900 text-sm">{service.rating}</span>
+                  <span className="text-gray-400 text-xs">({service.review_count})</span>
+                </span>
+              )}
+            </span>
             <div className="flex items-start justify-between mb-3 flex-wrap gap-3">
               <div>
                 <h1 className="text-3xl font-bold text-gray-900 mb-1">{service.title}</h1>
@@ -152,11 +147,12 @@ export default function ServiceDetailPage() {
             <p className="text-gray-600 leading-relaxed">{service.description}</p>
           </div>
 
+          {/* Available Packages */}
           {packages.length > 0 && (
-            <div id="service-packages">
+            <div>
               <h2 className="text-2xl font-bold text-gray-900 mb-1">Available Packages</h2>
               <p className="text-gray-500 text-sm mb-5">
-                Book a ready-made package from this vendor - fixed price, no surprises
+                Book a ready-made package from this vendor — fixed price, no surprises
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                 {packages.map((pkg) => (
@@ -166,18 +162,19 @@ export default function ServiceDetailPage() {
             </div>
           )}
 
+          {/* What's Included */}
           {service.features?.length > 0 && (
             <div>
-              <h2 className="text-lg font-bold text-gray-900 mb-3">What's Included</h2>
+              <h2 className="text-lg font-bold text-gray-900 mb-3">What&apos;s Included</h2>
               <div className="grid grid-cols-2 gap-2">
-                {service.features.map((feature: string, index: number) => (
-                  <div key={index} className="flex items-center gap-2 text-sm text-gray-600">
+                {service.features.map((f: string, i: number) => (
+                  <div key={i} className="flex items-center gap-2 text-sm text-gray-600">
                     <div className="w-5 h-5 bg-orange-100 rounded-full flex items-center justify-center flex-shrink-0">
                       <svg className="w-3 h-3 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                       </svg>
                     </div>
-                    {feature}
+                    {f}
                   </div>
                 ))}
               </div>
@@ -185,27 +182,34 @@ export default function ServiceDetailPage() {
           )}
         </div>
 
+        {/* ── Sidebar (right 1/3) ── */}
         <div className="lg:col-span-1">
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 sticky top-24">
+            {/* Pricing */}
             <div className="mb-5">
-              <p className="text-xs text-gray-400 uppercase tracking-wider font-medium mb-1">Service price range</p>
+              <p className="text-xs text-gray-400 uppercase tracking-wider font-medium mb-1">Starting from</p>
               <div className="flex items-baseline gap-1">
-                <span className="text-3xl font-bold text-gray-900">{serviceRange}</span>
+                <span className="text-3xl font-bold text-gray-900">
+                  ${service.price_min?.toLocaleString()}
+                </span>
+                {service.price_max && (
+                  <span className="text-gray-400 text-base"> – ${service.price_max?.toLocaleString()}</span>
+                )}
               </div>
-              <span className="text-sm text-gray-400">/ {service.price_unit}</span>
-              {packages.length > 0 && (
-                <p className="text-xs text-orange-500 mt-2">Packages below show exact fixed prices.</p>
+              {service.price_unit && (
+                <span className="text-sm text-gray-400">{service.price_unit}</span>
               )}
             </div>
 
+            {/* Request Booking */}
             <button
-              onClick={() => document.getElementById("service-packages")?.scrollIntoView({ behavior: "smooth", block: "start" })}
-              disabled={packages.length === 0}
-              className="w-full bg-orange-500 text-white py-3 rounded-xl font-semibold hover:bg-orange-600 transition-colors mb-5 disabled:opacity-50 disabled:cursor-not-allowed"
+              onClick={() => { setSelectedPkg(undefined); setShowBooking(true); }}
+              className="w-full bg-orange-500 text-white py-3 rounded-xl font-semibold hover:bg-orange-600 transition-colors mb-5"
             >
-              {packages.length > 0 ? "Choose a Package" : "Packages Coming Soon"}
+              Request Booking
             </button>
 
+            {/* Vendor Info */}
             <div className="border-t border-gray-100 pt-5 space-y-3 text-sm">
               <h4 className="font-semibold text-gray-900 text-sm">Vendor Info</h4>
 
@@ -217,7 +221,10 @@ export default function ServiceDetailPage() {
               </div>
 
               {service.vendor_phone && (
-                <a href={`tel:${service.vendor_phone}`} className="flex items-center gap-2 text-gray-500 hover:text-gray-800 transition-colors">
+                <a
+                  href={`tel:${service.vendor_phone}`}
+                  className="flex items-center gap-2 text-gray-500 hover:text-gray-800 transition-colors"
+                >
                   <svg className="w-4 h-4 text-orange-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
                   </svg>
@@ -226,7 +233,10 @@ export default function ServiceDetailPage() {
               )}
 
               {service.vendor_email && (
-                <a href={`mailto:${service.vendor_email}`} className="flex items-center gap-2 text-gray-500 hover:text-gray-800 transition-colors">
+                <a
+                  href={`mailto:${service.vendor_email}`}
+                  className="flex items-center gap-2 text-gray-500 hover:text-gray-800 transition-colors"
+                >
                   <svg className="w-4 h-4 text-orange-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                   </svg>
@@ -238,10 +248,10 @@ export default function ServiceDetailPage() {
         </div>
       </div>
 
-      {showBooking && selectedPkg && (
+      {showBooking && (
         <BookingModal
           pkg={selectedPkg}
-          service={service}
+          service={selectedPkg ? undefined : service}
           onClose={() => setShowBooking(false)}
         />
       )}

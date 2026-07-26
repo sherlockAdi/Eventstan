@@ -15,6 +15,7 @@ export interface SendEmailInput {
 export class MailService {
   private readonly transporter: Transporter;
   private readonly from: string;
+  private readonly cc: string[];
 
   constructor(
     config: ConfigService,
@@ -30,6 +31,11 @@ export class MailService {
     const port = Number(config.get<string>('SMTP_PORT', '465'));
     const secure = config.get<string>('SMTP_SECURE', 'true') === 'true';
     this.from = config.get<string>('SMTP_FROM', user);
+    this.cc = config
+      .get<string>('SMTP_CC', 'sneha.s@neuralinfo.in')
+      .split(',')
+      .map((entry) => entry.trim())
+      .filter(Boolean);
     this.transporter = nodemailer.createTransport({
       host,
       port,
@@ -52,6 +58,7 @@ export class MailService {
       const result = await this.transporter.sendMail({
         from: this.from,
         to: input.to,
+        cc: this.cc.length ? this.cc : undefined,
         subject: input.subject,
         text: input.text,
         html: input.html,

@@ -1,8 +1,12 @@
 import { ConflictException, Injectable, ServiceUnavailableException, UnauthorizedException } from '@nestjs/common';
-import { UserRole } from '@prisma/client';
+import { ConfigService } from '@nestjs/config';
+import { PrismaClient, UserRole } from '@prisma/client';
+import { createHash, randomBytes } from 'node:crypto';
 import { PrismaService } from '../../shared/prisma/prisma.service';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { PasswordService } from './password.service';
@@ -13,12 +17,17 @@ import { RolePermissionService } from '../role-permission/role-permission.servic
 @Injectable()
 export class AuthService {
   constructor(
+    private readonly config: ConfigService,
     private readonly prisma: PrismaService,
     private readonly passwords: PasswordService,
     private readonly tokens: TokenService,
     private readonly mail: MailService,
     private readonly rolePermissions: RolePermissionService,
   ) {}
+
+  private get prismaClient() {
+    return this.prisma as PrismaClient;
+  }
 
   async register(dto: RegisterDto) {
     const email = dto.email.trim().toLowerCase();
@@ -42,6 +51,7 @@ export class AuthService {
 
   private async sendCustomerWelcome(name: string, email: string, password: string) {
     try {
+      const loginUrl = this.customerAppUrl('/auth/login');
       await this.mail.sendTemplate(
         'CUSTOMER_WELCOME',
         email,
@@ -49,7 +59,7 @@ export class AuthService {
           name,
           email,
           password,
-          login_url: 'https://eventstan.com/auth/login',
+          login_url: loginUrl,
         },
         {
           subject: 'Welcome to EventStan, {{name}}',
@@ -94,6 +104,90 @@ export class AuthService {
     }
   }
 
+  async forgotPassword(dto: ForgotPasswordDto) {
+    const email = dto.email.trim().toLowerCase();
+    const user = await this.prisma.user.findUnique({ where: { email } });
+    if (!user || !user.passwordHash || !user.isActive) {
+      return this.genericPasswordResetResponse();
+    }
+
+    const token = randomBytes(32).toString('hex');
+    const tokenHash = this.hashResetToken(token);
+    const expiresInMinutes = Number(this.config.get<string>('PASSWORD_RESET_TTL_MINUTES', '60'));
+    const expiresAt = new Date(Date.now() + expiresInMinutes * 60 * 1000);
+
+    await this.prismaClient.passwordResetToken.deleteMany({
+      where: {
+        userId: user.id,
+        OR: [{ usedAt: null }, { expiresAt: { lt: new Date() } }],
+      },
+    });
+
+    await this.prismaClient.passwordResetToken.create({
+      data: {
+        userId: user.id,
+        tokenHash,
+        expiresAt,
+      },
+    });
+
+    const resetUrl = this.buildResetUrl(token);
+
+    try {
+      await this.mail.send({
+        to: user.email,
+        subject: 'Reset your EventStan password',
+        html: `
+          <h2>Password Reset Request</h2>
+          <p>Hello ${this.escapeHtml(user.name)},</p>
+          <p>We received a request to reset your password. Use the link below to continue:</p>
+          <p><a href="${resetUrl}">${resetUrl}</a></p>
+          <p>This link expires in ${expiresInMinutes} minutes.</p>
+          <p>If you did not request a reset, you can safely ignore this email.</p>
+        `,
+        text: [
+          `Hello ${user.name},`,
+          '',
+          'We received a request to reset your password.',
+          `Open this link to continue: ${resetUrl}`,
+          '',
+          `This link expires in ${expiresInMinutes} minutes.`,
+          'If you did not request a reset, you can safely ignore this email.',
+        ].join('\n'),
+      });
+    } catch (error) {
+      await this.prismaClient.passwordResetToken.deleteMany({ where: { tokenHash } });
+      throw new ServiceUnavailableException('Password reset email could not be sent');
+    }
+
+    return this.genericPasswordResetResponse();
+  }
+
+  async resetPassword(dto: ResetPasswordDto) {
+    const tokenHash = this.hashResetToken(dto.token.trim());
+    const record = await this.prismaClient.passwordResetToken.findUnique({
+      where: { tokenHash },
+      include: { user: true },
+    });
+
+    if (!record || record.usedAt || record.expiresAt < new Date() || !record.user.isActive) {
+      throw new UnauthorizedException('Reset token is invalid or has expired');
+    }
+
+    await this.prisma.$transaction([
+      this.prisma.user.update({
+        where: { id: record.userId },
+        data: { passwordHash: await this.passwords.hash(dto.password) },
+      }),
+      this.prismaClient.passwordResetToken.update({
+        where: { tokenHash },
+        data: { usedAt: new Date() },
+      }),
+    ]);
+
+    return { reset: true };
+  }
+
   async profile(userId: string) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
@@ -133,7 +227,7 @@ export class AuthService {
     email: string;
     phone: string | null;
     role: UserRole;
-    vendor?: { id: string; status: string; companyName: string; updatedProfile: boolean } | null;
+    vendor?: { id: string; status: string; companyName: string; updatedProfile: boolean; vendorProfileImage: string | null; vendorType: string | null } | null;
   }) {
     return {
       ...this.tokens.issue({ id: user.id, email: user.email, role: user.role }),
@@ -147,7 +241,7 @@ export class AuthService {
     email: string;
     phone: string | null;
     role: UserRole;
-    vendor?: { id: string; status: string; companyName: string; updatedProfile: boolean } | null;
+    vendor?: { id: string; status: string; companyName: string; updatedProfile: boolean; vendorProfileImage: string | null; vendorType: string | null } | null;
   }) {
     const permissions = await this.rolePermissions.getForRole(user.role);
     return {
@@ -160,7 +254,47 @@ export class AuthService {
       vendorStatus: user.vendor?.status ?? null,
       companyName: user.vendor?.companyName ?? null,
       updatedProfile: user.vendor?.updatedProfile ?? null,
+      vendorProfileImage: user.vendor?.vendorProfileImage ?? null,
+      vendorType: user.vendor?.vendorType ?? null,
       permissions,
     };
+  }
+
+  private hashResetToken(token: string) {
+    return createHash('sha256').update(token).digest('hex');
+  }
+
+  private customerAppUrl(path: string) {
+    const baseUrl = this.config.get<string>('CUSTOMER_APP_URL', 'https://eventstan.com').replace(/\/$/, '');
+    return `${baseUrl}${path.startsWith('/') ? path : `/${path}`}`;
+  }
+
+  private buildResetUrl(token: string) {
+    const configured = this.config.get<string>('PASSWORD_RESET_URL');
+    if (configured) {
+      if (configured.includes('{{token}}')) {
+        return configured.replace('{{token}}', encodeURIComponent(token));
+      }
+      const separator = configured.includes('?') ? '&' : '?';
+      return `${configured}${separator}token=${encodeURIComponent(token)}`;
+    }
+
+    const baseUrl = this.customerAppUrl('/auth/reset-password');
+    return `${baseUrl}?token=${encodeURIComponent(token)}`;
+  }
+
+  private genericPasswordResetResponse() {
+    return {
+      message: 'If an account exists, password reset instructions have been sent.',
+    };
+  }
+
+  private escapeHtml(value: string) {
+    return value
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
   }
 }

@@ -149,7 +149,9 @@ function LoginForm() {
             <div>
               <div className="flex items-center justify-between mb-1.5">
                 <label className="text-xs font-semibold text-gray-600 uppercase tracking-wider">Password</label>
-                <button type="button" className="text-xs text-orange-500 hover:text-orange-600 font-medium">Forgot password?</button>
+                <Link href="/auth/forgot-password" className="text-xs text-orange-500 hover:text-orange-600 font-medium">
+                  Forgot password?
+                </Link>
               </div>
               <div className={`relative flex items-center bg-white border rounded-xl transition-all ${focused === "pass" ? "border-orange-400 ring-2 ring-orange-100" : "border-gray-200"}`}>
                 <svg className="absolute left-3.5 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">

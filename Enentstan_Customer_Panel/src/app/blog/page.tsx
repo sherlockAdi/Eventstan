@@ -1,8 +1,9 @@
 // app/blog/page.tsx
 "use client";
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
-import { BLOG_POSTS, BLOG_CATEGORIES, CATEGORY_COLORS, BlogCategory } from "@/lib/blogData";
+import { BlogPost, BlogCategory, CATEGORY_COLORS, mapApiBlogToPost } from "@/lib/blogData";
+import { getBlogs } from "@/api/customerApi";
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 function timeAgo(dateStr: string) {
@@ -48,7 +49,7 @@ function CategoryBadge({ category }: { category: string }) {
   );
 }
 
-function FeaturedHero({ post }: { post: (typeof BLOG_POSTS)[0] }) {
+function FeaturedHero({ post }: { post: BlogPost }) {
   return (
     <Link href={`/blog/${post.slug}`} className="block group relative rounded-2xl overflow-hidden h-[340px] md:h-[420px] shadow-sm">
       <img
@@ -92,7 +93,7 @@ function FeaturedHero({ post }: { post: (typeof BLOG_POSTS)[0] }) {
   );
 }
 
-function TrendingCard({ post }: { post: (typeof BLOG_POSTS)[0] }) {
+function TrendingCard({ post }: { post: BlogPost }) {
   return (
     <Link
       href={`/blog/${post.slug}`}
@@ -124,7 +125,7 @@ function TrendingCard({ post }: { post: (typeof BLOG_POSTS)[0] }) {
   );
 }
 
-function ArticleCard({ post }: { post: (typeof BLOG_POSTS)[0] }) {
+function ArticleCard({ post }: { post: BlogPost }) {
   return (
     <Link
       href={`/blog/${post.slug}`}
@@ -167,18 +168,66 @@ function ArticleCard({ post }: { post: (typeof BLOG_POSTS)[0] }) {
 export default function BlogPage() {
   const [activeCategory, setActiveCategory] = useState<BlogCategory>("All");
   const [search, setSearch] = useState("");
+  const [posts, setPosts] = useState<BlogPost[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const featured = BLOG_POSTS.find((p) => p.is_featured)!;
-  const trending = BLOG_POSTS.filter((p) => !p.is_featured).slice(0, 3);
+  useEffect(() => {
+    (async () => {
+      try {
+        const data = await getBlogs();
+        setPosts((data ?? []).map(mapApiBlogToPost));
+      } catch (err: any) {
+        setError(err?.message || "Failed to load blog posts");
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
 
-  const filtered = BLOG_POSTS.filter((p) => {
+  const categories = useMemo(
+    () => ["All", ...Array.from(new Set(posts.map((p) => p.category))).sort()],
+    [posts],
+  );
+
+  const featured = posts.find((p) => p.is_featured) ?? posts[0];
+  const trending = posts.filter((p) => p.slug !== featured?.slug).slice(0, 3);
+
+  const filtered = posts.filter((p) => {
     const matchCat = activeCategory === "All" || p.category === activeCategory;
     const matchSearch =
       !search ||
       p.title.toLowerCase().includes(search.toLowerCase()) ||
       p.excerpt.toLowerCase().includes(search.toLowerCase());
-    return matchCat && matchSearch && !p.is_featured;
+    return matchCat && matchSearch && p.slug !== featured?.slug;
   });
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-orange-500 mx-auto" />
+          <p className="text-gray-400 mt-4 text-sm">Loading articles...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <p className="text-gray-400 text-sm">{error}</p>
+      </div>
+    );
+  }
+
+  if (posts.length === 0) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <p className="text-gray-400 text-sm">No articles published yet. Check back soon!</p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-white">
@@ -187,7 +236,7 @@ export default function BlogPage() {
         <div className="max-w-7xl mx-auto px-4 flex items-center justify-between h-12">
           {/* Category pills */}
           <div className="flex items-center gap-1 overflow-x-auto scrollbar-hide">
-            {BLOG_CATEGORIES.map((cat) => (
+            {categories.map((cat) => (
               <CategoryPill
                 key={cat}
                 label={cat}

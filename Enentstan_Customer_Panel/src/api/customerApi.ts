@@ -1,10 +1,9 @@
 import { Package, Review, Service } from "@/types";
 
-const API_ROOT =
-  process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") ??
-  process.env.NEXT_PUBLIC_BASE_URL?.replace(/\/$/, "") ??
-  "https://api.eventstan.com";
-const API_BASE_URL = `${API_ROOT}/api/v1`;
+const isServer = typeof window === "undefined";
+const API_BASE_URL = isServer
+  ? `${process.env.NEXT_PUBLIC_BASE_URL?.replace(/\/$/, "") ?? "https://api.eventstan.com"}/api/v1`
+  : "/api/proxy";
 
 export { API_BASE_URL };
 
@@ -14,19 +13,6 @@ export interface ApiUser {
   email: string;
   phone?: string | null;
   role: string;
-  permissions?: RolePermission[];
-}
-
-export interface RolePermission {
-  key: string;
-  label: string;
-  panel: 'ADMIN' | 'VENDOR' | 'CUSTOMER';
-  routes: string[];
-  description: string;
-  view: boolean;
-  create: boolean;
-  edit: boolean;
-  delete: boolean;
 }
 
 export interface AuthResponse {
@@ -35,6 +21,10 @@ export interface AuthResponse {
   expiresIn: number;
   user: ApiUser;
   welcomeEmailSent?: boolean;
+}
+
+export interface ForgotPasswordResponse {
+  message: string;
 }
 
 function token() {
@@ -61,18 +51,111 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   return response.json() as Promise<T>;
 }
 
+export interface BudgetRangeInput {
+  min: number;
+  max: number;
+  currency: string;
+}
+
+export interface UserLeadInput {
+  fullName: string;
+  email: string;
+  phone: string;
+  eventType: string;
+  preferredEventDate?: string;
+  expectedGuestCount?: number;
+  budgetRange?: BudgetRangeInput;
+  servicesNeeded?: string[];
+  additionalDetails?: string;
+}
+
+export interface VendorLeadInput {
+  businessName: string;
+  yourName: string;
+  email: string;
+  phone?: string;
+  websiteSocialMedia?: string[];
+  serviceCategoryId: string;
+  cityId: string;
+  yearsOfExperience?: number;
+  message?: string;
+}
+
+export interface Country {
+  id: number;
+  code: string;
+  name: string;
+  defaultCurrency: string;
+  flag: string;
+  currencySymbol: string;
+  phoneCode: string;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface City {
+  id: string;
+  name: string;
+  countryId?: number;
+  stateId?: string;
+  status?: string;
+}
+
+export interface State {
+  id: string;
+  name: string;
+  countryId: number;
+  code?: string | null;
+  status?: string;
+}
+
+// Fallback used if /master-data/countries fails, so phone country-code
+// selection still works (matches the API's current sample data).
+const FALLBACK_COUNTRIES: Country[] = [
+  {
+    id: 1,
+    code: "AE",
+    name: "United Arab Emirates (UAE)",
+    defaultCurrency: "UAE DIRHAM",
+    flag: "🇦🇪",
+    currencySymbol: "AED",
+    phoneCode: "+971",
+    status: "Active",
+    createdAt: "",
+    updatedAt: "",
+  },
+];
+
+// Fallback used if /master-data/cities fails (or doesn't exist yet), so
+// the City/Area dropdown still works with UAE's main cities.
+const FALLBACK_CITIES: City[] = [
+  { id: "dubai", name: "Dubai" },
+  { id: "abu-dhabi", name: "Abu Dhabi" },
+  { id: "sharjah", name: "Sharjah" },
+  { id: "ajman", name: "Ajman" },
+  { id: "ras-al-khaimah", name: "Ras Al Khaimah" },
+  { id: "fujairah", name: "Fujairah" },
+  { id: "umm-al-quwain", name: "Umm Al Quwain" },
+  { id: "al-ain", name: "Al Ain" },
+];
+
 export const customerApi = {
   auth: {
     login: (email: string, password: string) =>
       request<AuthResponse>("/auth/login", { method: "POST", body: JSON.stringify({ email, password }) }),
     register: (name: string, email: string, phone: string, password: string) =>
       request<AuthResponse>("/auth/register", { method: "POST", body: JSON.stringify({ name, email, phone, password }) }),
+    forgotPassword: (email: string) =>
+      request<ForgotPasswordResponse>("/auth/forgot-password", { method: "POST", body: JSON.stringify({ email }) }),
+    resetPassword: (token: string, password: string) =>
+      request<{ reset: boolean }>("/auth/reset-password", { method: "POST", body: JSON.stringify({ token, password }) }),
     me: () => request<ApiUser>("/auth/me"),
     logout: () => request<{ loggedOut: boolean }>("/auth/logout", { method: "POST" }),
   },
   cart: {
     get: <T>() => request<T>("/cart"),
-    add: <T>(payload: { type: "PACKAGE"; itemId: string; eventDate: string; quantity: number }) =>
+    add: <T>(payload: { type: "SERVICE" | "PACKAGE"; itemId: string; eventDate: string; quantity: number }) =>
       request<T>("/cart/items", { method: "POST", body: JSON.stringify(payload) }),
     clear: () => request<{ cleared: boolean }>("/cart", { method: "DELETE" }),
   },
@@ -82,6 +165,51 @@ export const customerApi = {
       request<T>("/bookings/checkout", { method: "POST", body: JSON.stringify(payload) }),
     cancel: <T>(id: string, reason: string) =>
       request<T>(`/bookings/${id}/cancel`, { method: "PATCH", body: JSON.stringify({ reason }) }),
+  },
+  leads: {
+    // Contact page — "Request a Callback" form
+    submitUserLead: <T = unknown>(payload: UserLeadInput) =>
+      request<T>("/user-leads", { method: "POST", body: JSON.stringify(payload) }),
+    // Vendor Partners page — "List Your Service" form
+    submitVendorLead: <T = unknown>(payload: VendorLeadInput) =>
+      request<T>("/vendor-leads", { method: "POST", body: JSON.stringify(payload) }),
+  },
+  masterData: {
+    getCountries: async (): Promise<Country[]> => {
+      try {
+        const countries = await request<Country[]>("/master-data/countries");
+        return countries.filter((c) => c.status === "Active");
+      } catch (err) {
+        console.error("Error fetching countries:", err);
+        return FALLBACK_COUNTRIES;
+      }
+    },
+    // NOTE: /master-data/cities returns 404 — confirmed not live yet on the
+    // API (unlike /master-data/countries and /master-data/categories, which
+    // both work). Using the static UAE city list directly for now instead of
+    // hitting a known-dead endpoint. Once a real cities endpoint exists,
+    // swap the body of this function back to a `request()` call like
+    // getCountries above.
+    getStates: async (countryId?: number): Promise<State[]> => {
+      try {
+        const suffix = countryId ? `?countryId=${encodeURIComponent(String(countryId))}` : "";
+        const states = await request<State[]>(`/master-data/states${suffix}`);
+        return states.filter((state) => state.status === "Active");
+      } catch (err) {
+        console.error("Error fetching states:", err);
+        return [];
+      }
+    },
+    getCities: async (stateId?: string): Promise<City[]> => {
+      try {
+        const suffix = stateId ? `?stateId=${encodeURIComponent(stateId)}` : "";
+        const cities = await request<City[]>(`/master-data/cities${suffix}`);
+        return cities.filter((city) => city.status === "Active");
+      } catch (err) {
+        console.error("Error fetching cities:", err);
+        return FALLBACK_CITIES;
+      }
+    },
   },
 };
 
@@ -98,6 +226,37 @@ export const getServices = () => request<Service[]>("/services");
 export const getService = (id: string) => request<Service>(`/services/${encodeURIComponent(id)}`);
 export const getPackages = () => request<Package[]>("/packages");
 export const getReviews = () => request<Review[]>("/reviews");
+
+export interface ApiBlogPost {
+  id: string;
+  title: string;
+  slug: string;
+  excerpt: string;
+  content: string;
+  coverImage: string;
+  category: string;
+  tags: string[];
+  status: string;
+  isFeatured: boolean;
+  authorName: string;
+  authorAvatar?: string;
+  authorBio?: string;
+  publishedAt: string;
+  readTime: number;
+  createdAt?: string;
+  updatedAt?: string;
+  relatedServiceIds?: string[];
+  relatedPackageIds?: string[];
+}
+
+// The public endpoint only returns PUBLISHED posts, which is what the
+// customer-facing blog should show.
+export const getBlogs = () => request<ApiBlogPost[]>("/blogs");
+
+export const getBlogBySlug = async (slug: string) => {
+  const posts = await getBlogs();
+  return posts.find((p) => p.slug === slug) ?? null;
+};
 
 export async function getMarketplaceData() {
   const [services, packages, reviews] = await Promise.all([getServices(), getPackages(), getReviews()]);

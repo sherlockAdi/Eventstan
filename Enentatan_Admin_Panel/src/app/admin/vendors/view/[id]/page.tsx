@@ -1,42 +1,66 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect } from 'react';
+import { useRouter, useParams } from 'next/navigation';
 import { ArrowLeft, Edit, Trash2, Mail, Phone, MapPin, Building, Calendar, CreditCard, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
 import Button from '@/components/admin/Button';
 import toast from 'react-hot-toast';
 import ConfirmModal from '@/components/admin/ConfirmModal';
+import { adminApi } from '@/api/adminApi';
+
+interface Vendor {
+  id: string;
+  companyName?: string;
+  contactPerson?: string;
+  email?: string;
+  primaryEmail?: string;
+  phone?: string;
+  primaryMobile?: string;
+  status?: string;
+  vendorType?: string; // FREELANCER or PERMANENT
+  tradeLicenseNumber?: string;
+  vatNumber?: string;
+  specialization?: string;
+  businessLocation?: string;
+  location?: string;
+  address?: string;
+  cities?: string[];
+  capacityPerDay?: number;
+  commissionPercent?: number;
+  bankName?: string;
+  accountFullName?: string;
+  ibanNo?: string;
+  accountNumber?: string;
+  swift?: string;
+  branchAddress?: string;
+}
 
 export default function ViewVendorPage() {
   const router = useRouter();
-  
+  const params = useParams();
+
+  const [vendor, setVendor] = useState<Vendor | null>(null);
+  const [fetching, setFetching] = useState(true);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [isStatusModalOpen, setIsStatusModalOpen] = useState(false);
   const [pendingStatus, setPendingStatus] = useState<string>('');
 
-  // Static vendor data
-  const vendor = {
-    id: '1',
-    companyName: 'Test Company LLC',
-    contactPerson: 'John Doe',
-    email: 'john@testcompany.com',
-    phone: '501234567',
-    status: 'APPROVED',
-    tradeLicenseNumber: 'LIC123456789',
-    vatNumber: 'VAT1234567',
-    specialization: 'Event Management',
-    location: 'Dubai, UAE',
-    address: 'Business Bay, Dubai, UAE',
-    cities: ['Dubai', 'Abu Dhabi', 'Sharjah'],
-    capacityPerDay: 100,
-    commissionPercent: 15,
-    bankName: 'Emirates NBD',
-    accountFullName: 'Test Company LLC',
-    ibanNo: 'AE123456789012345678901',
-    accountNumber: '123456789',
-    swift: 'EBILAEAD',
-    branchAddress: 'Downtown Dubai Branch'
-  };
+  useEffect(() => {
+    const id = params.id as string;
+    if (!id) return;
+
+    (async () => {
+      try {
+        setFetching(true);
+        const data = await adminApi.vendors.getById(id);
+        setVendor(data);
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : 'Failed to load vendor');
+      } finally {
+        setFetching(false);
+      }
+    })();
+  }, [params.id]);
 
   const statusColors: Record<string, { bg: string; text: string; icon: any }> = {
     APPROVED: { bg: 'bg-green-100', text: 'text-green-700', icon: CheckCircle },
@@ -44,31 +68,62 @@ export default function ViewVendorPage() {
     REJECTED: { bg: 'bg-red-100', text: 'text-red-700', icon: XCircle },
   };
 
-  const StatusIcon = statusColors[vendor.status]?.icon || AlertCircle;
-
   const openStatusModal = () => {
+    if (!vendor) return;
     const newStatus = vendor.status === 'APPROVED' ? 'REJECTED' : 'APPROVED';
     setPendingStatus(newStatus);
     setIsStatusModalOpen(true);
   };
 
   const confirmStatusChange = async () => {
-    // API call commented for now
-    await new Promise(resolve => setTimeout(resolve, 500));
-    toast.success(`Vendor ${pendingStatus === 'APPROVED' ? 'approved' : 'rejected'} successfully!`);
-    setIsStatusModalOpen(false);
-    setPendingStatus('');
+    if (!vendor || !pendingStatus) return;
+    try {
+      await adminApi.vendors.updateStatus(vendor.id, pendingStatus);
+      setVendor({ ...vendor, status: pendingStatus });
+      toast.success(`Vendor ${pendingStatus === 'APPROVED' ? 'approved' : 'rejected'} successfully!`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to update vendor status');
+    } finally {
+      setIsStatusModalOpen(false);
+      setPendingStatus('');
+    }
   };
 
   const confirmDelete = async () => {
-    // API call commented for now
-    await new Promise(resolve => setTimeout(resolve, 500));
-    toast.success('Vendor deleted successfully!');
-    router.push('/admin/vendors');
-    setIsDeleteOpen(false);
+    if (!vendor) return;
+    try {
+      await adminApi.vendors.delete(vendor.id);
+      toast.success('Vendor deleted successfully!');
+      router.push('/admin/vendors');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to delete vendor');
+    } finally {
+      setIsDeleteOpen(false);
+    }
   };
 
-  const StatusColor = statusColors[vendor.status] || statusColors.PENDING;
+  if (fetching) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-gray-500">Loading vendor...</div>
+      </div>
+    );
+  }
+
+  if (!vendor) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-gray-500">Vendor not found.</div>
+      </div>
+    );
+  }
+
+  const status = vendor.status || 'PENDING';
+  const StatusColor = statusColors[status] || statusColors.PENDING;
+  const StatusIcon = StatusColor.icon;
+  const email = vendor.primaryEmail || vendor.email || '';
+  const phone = vendor.primaryMobile || vendor.phone || '';
+  const businessLocation = vendor.businessLocation || vendor.location || '';
 
   return (
     <div className="space-y-6">
@@ -87,9 +142,9 @@ export default function ViewVendorPage() {
           </div>
         </div>
         <div className="flex gap-3">
-          {vendor.status !== 'PENDING' && (
+          {status !== 'PENDING' && (
             <Button variant="secondary" onClick={openStatusModal}>
-              {vendor.status === 'APPROVED' ? (
+              {status === 'APPROVED' ? (
                 <> <XCircle size={15} /> Reject Vendor</>
               ) : (
                 <> <CheckCircle size={15} /> Approve Vendor</>
@@ -116,21 +171,21 @@ export default function ViewVendorPage() {
             </div>
             <div className="flex-1">
               <div className="flex items-center gap-3 mb-2">
-                <h2 className="text-2xl font-bold text-gray-900">{vendor.companyName}</h2>
+                <h2 className="text-2xl font-bold text-gray-900">{vendor.companyName || 'Unnamed Vendor'}</h2>
                 <span className={`px-3 py-1 rounded-full text-xs font-medium flex items-center gap-1 ${StatusColor.bg} ${StatusColor.text}`}>
                   <StatusIcon size={12} />
-                  {vendor.status}
+                  {status}
                 </span>
               </div>
-              <p className="text-gray-600">Contact Person: {vendor.contactPerson}</p>
+              <p className="text-gray-600">Contact Person: {vendor.contactPerson || 'Not provided'}</p>
               <div className="flex items-center gap-4 mt-2 text-sm text-gray-500">
                 <span className="flex items-center gap-1">
                   <Mail size={14} />
-                  {vendor.email}
+                  {email || 'Not provided'}
                 </span>
                 <span className="flex items-center gap-1">
                   <Phone size={14} />
-                  {vendor.phone}
+                  {phone || 'Not provided'}
                 </span>
               </div>
             </div>
@@ -147,7 +202,9 @@ export default function ViewVendorPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pl-6">
               <div>
                 <label className="text-xs text-gray-500 uppercase tracking-wide">Trade License Number</label>
-                <p className="text-sm text-gray-900 mt-1">{vendor.tradeLicenseNumber || 'Not provided'}</p>
+                <p className="text-sm text-gray-900 mt-1">
+                  {vendor.vendorType === 'FREELANCER' ? 'N/A (Freelancer)' : (vendor.tradeLicenseNumber || 'Not provided')}
+                </p>
               </div>
               <div>
                 <label className="text-xs text-gray-500 uppercase tracking-wide">VAT Number</label>
@@ -159,7 +216,7 @@ export default function ViewVendorPage() {
               </div>
               <div>
                 <label className="text-xs text-gray-500 uppercase tracking-wide">Business Location</label>
-                <p className="text-sm text-gray-900 mt-1">{vendor.location || 'Not specified'}</p>
+                <p className="text-sm text-gray-900 mt-1">{businessLocation || 'Not specified'}</p>
               </div>
               <div className="col-span-2">
                 <label className="text-xs text-gray-500 uppercase tracking-wide">Address</label>
@@ -254,23 +311,23 @@ export default function ViewVendorPage() {
       </div>
 
       {/* Modals */}
-      <ConfirmModal 
-        isOpen={isStatusModalOpen} 
+      <ConfirmModal
+        isOpen={isStatusModalOpen}
         onClose={() => {
           setIsStatusModalOpen(false);
           setPendingStatus('');
-        }} 
-        onConfirm={confirmStatusChange} 
-        title={pendingStatus === 'APPROVED' ? 'Approve Vendor' : 'Reject Vendor'} 
-        message={`Are you sure you want to ${pendingStatus === 'APPROVED' ? 'approve' : 'reject'} vendor "${vendor.companyName}"?`} 
+        }}
+        onConfirm={confirmStatusChange}
+        title={pendingStatus === 'APPROVED' ? 'Approve Vendor' : 'Reject Vendor'}
+        message={`Are you sure you want to ${pendingStatus === 'APPROVED' ? 'approve' : 'reject'} vendor "${vendor.companyName}"?`}
       />
 
-      <ConfirmModal 
-        isOpen={isDeleteOpen} 
-        onClose={() => setIsDeleteOpen(false)} 
-        onConfirm={confirmDelete} 
-        title="Delete Vendor" 
-        message={`Are you sure you want to delete vendor "${vendor.companyName}"? This action cannot be undone.`} 
+      <ConfirmModal
+        isOpen={isDeleteOpen}
+        onClose={() => setIsDeleteOpen(false)}
+        onConfirm={confirmDelete}
+        title="Delete Vendor"
+        message={`Are you sure you want to delete vendor "${vendor.companyName}"? This action cannot be undone.`}
       />
     </div>
   );

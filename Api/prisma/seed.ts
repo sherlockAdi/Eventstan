@@ -5,11 +5,133 @@ import { DEFAULT_ROLE_PERMISSION_SEEDS } from '../src/modules/role-permission/ro
 
 const prisma = new PrismaClient();
 const scrypt = promisify(nodeScrypt);
+const csc: any = require('countries-states-cities').default;
 
 async function hashPassword(password: string) {
   const salt = randomBytes(16).toString('hex');
   const derivedKey = (await scrypt(password, salt, 64)) as Buffer;
   return `scrypt:${salt}:${derivedKey.toString('hex')}`;
+}
+
+async function seedWorldGeoData() {
+  const allCountries = csc.getAllCountries() as Array<{
+    id: number;
+    name: string;
+    iso2: string;
+    currency?: string;
+    phone_code?: string;
+    emoji?: string;
+  }>;
+
+  await prisma.cityMaster.deleteMany({});
+  await prisma.stateMaster.deleteMany({});
+
+  for (const country of allCountries) {
+    await prisma.country.upsert({
+      where: { code: country.iso2 },
+      update: {
+        name: country.name,
+        defaultCurrency: country.currency || 'USD',
+        flag: country.emoji ?? null,
+        currencySymbol: country.currency ?? null,
+        phoneCode: country.phone_code ? `+${country.phone_code}` : null,
+        status: 'Active',
+      },
+      create: {
+        code: country.iso2,
+        name: country.name,
+        defaultCurrency: country.currency || 'USD',
+        flag: country.emoji ?? null,
+        currencySymbol: country.currency ?? null,
+        phoneCode: country.phone_code ? `+${country.phone_code}` : null,
+        status: 'Active',
+      },
+    });
+  }
+
+  const countryRows = await prisma.country.findMany({ select: { id: true, code: true } });
+  const countryIdByCode = new Map(countryRows.map((row) => [row.code, row.id]));
+
+  for (const country of allCountries) {
+    const countryId = countryIdByCode.get(country.iso2);
+    if (!countryId) continue;
+    const states = csc.getStatesOfCountry(country.id) as Array<{
+      id: number;
+      name: string;
+      state_code?: string;
+    }>;
+
+    for (const state of states) {
+      await prisma.stateMaster.upsert({
+        where: {
+          countryId_name: {
+            countryId,
+            name: state.name,
+          },
+        },
+        update: {
+          code: state.state_code ?? null,
+          status: 'Active',
+        },
+        create: {
+          countryId,
+          name: state.name,
+          code: state.state_code ?? null,
+          status: 'Active',
+        },
+      });
+    }
+  }
+
+  const stateRows = await prisma.stateMaster.findMany({
+    select: { id: true, name: true, countryId: true },
+  });
+  const stateIndex = new Map<string, { id: string; countryId: number }[]>();
+  for (const state of stateRows) {
+    const key = `${state.countryId}:${state.name.trim().toLowerCase()}`;
+    const list = stateIndex.get(key) ?? [];
+    list.push({ id: state.id, countryId: state.countryId });
+    stateIndex.set(key, list);
+  }
+
+  for (const country of allCountries) {
+    const countryId = countryIdByCode.get(country.iso2);
+    if (!countryId) continue;
+    const states = csc.getStatesOfCountry(country.id) as Array<{
+      id: number;
+      name: string;
+    }>;
+    for (const state of states) {
+      const stateKey = `${countryId}:${state.name.trim().toLowerCase()}`;
+      const matchingStates = stateIndex.get(stateKey);
+      if (!matchingStates?.length) continue;
+      const stateId = matchingStates[0].id;
+      const cities = csc.getCitiesOfState(state.id) as Array<{
+        name: string;
+      }>;
+
+      for (const city of cities) {
+        await prisma.cityMaster.upsert({
+          where: {
+            stateId_name: {
+              stateId,
+              name: city.name,
+            },
+          },
+          update: {
+            countryId,
+            status: 'Active',
+          },
+          create: {
+            countryId,
+            stateId,
+            name: city.name,
+            status: 'Active',
+          },
+        });
+      }
+    }
+  }
 }
 
 const categories = [
@@ -18,6 +140,15 @@ const categories = [
   { name: 'Catering', slug: 'catering' },
   { name: 'Entertainment', slug: 'entertainment' },
   { name: 'Rentals', slug: 'rentals' },
+];
+
+const visaTypes = [
+  'Freelancer',
+  'Permanent',
+  'Employment Visa',
+  'UAE Work Visa',
+  'Investor Visa',
+  'Partner Visa',
 ];
 
 const services = [
@@ -307,6 +438,16 @@ async function main() {
     categoryBySlug.set(category.slug, row);
   }
 
+  for (const visaType of visaTypes) {
+    await prisma.visaTypeMaster.upsert({
+      where: { name: visaType },
+      update: { status: 'Active' },
+      create: { name: visaType, status: 'Active' },
+    });
+  }
+
+  await seedWorldGeoData();
+
   const vendor = await prisma.vendor.upsert({
     where: { email: 'vendor@example.com' },
     update: {
@@ -314,6 +455,9 @@ async function main() {
       companyName: 'Luxe Events Dubai',
       contactPerson: 'Aisha Khan',
       phone: '+971500000001',
+      vendorType: 'FREELANCER',
+      vendorProfileImage:
+        'https://api.eventstan.com/api/v1/uploads/images/services/2026-06-29/00f51b35-8817-4597-9ecf-6e4d60feb643.webp',
       status: 'APPROVED',
       updatedProfile: false,
       cities: ['Dubai', 'Abu Dhabi', 'New York', 'Los Angeles', 'Chicago', 'Miami', 'Houston', 'San Francisco'],
@@ -326,6 +470,9 @@ async function main() {
       contactPerson: 'Aisha Khan',
       email: 'vendor@example.com',
       phone: '+971500000001',
+      vendorType: 'FREELANCER',
+      vendorProfileImage:
+        'https://api.eventstan.com/api/v1/uploads/images/services/2026-06-29/00f51b35-8817-4597-9ecf-6e4d60feb643.webp',
       tradeLicenseNumber: 'DXB-TL-10001',
       vatNumber: '100000000000001',
       status: 'APPROVED',

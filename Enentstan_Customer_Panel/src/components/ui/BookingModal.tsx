@@ -30,7 +30,7 @@ export default function BookingModal({ pkg, service, onClose }: Props) {
   const [form, setForm] = useState<FormData>({
     fullName: user?.name ?? "",
     email: user?.email ?? "",
-    phone: user?.phone ?? "",
+    phone: user?.phone ?? "", 
     eventDate: "",
     eventAddress: "",
     eventType: "",

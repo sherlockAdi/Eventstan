@@ -8,8 +8,10 @@ import { CouponsModule } from './modules/coupons/coupons.module';
 import { HealthModule } from './modules/health/health.module';
 import { MasterDataModule } from './modules/master-data/master-data.module';
 import { PackagesModule } from './modules/packages/packages.module';
+import { BlogsModule } from './modules/blogs/blogs.module';
 import { PaymentsModule } from './modules/payments/payments.module';
 import { ReviewsModule } from './modules/reviews/reviews.module';
+import { LeadsModule } from './modules/leads/leads.module';
 import { ServicesModule } from './modules/services/services.module';
 import { SettlementsModule } from './modules/settlements/settlements.module';
 import { SupportModule } from './modules/support/support.module';
@@ -35,12 +37,14 @@ import { RolePermissionModule } from './modules/role-permission/role-permission.
     VendorsModule,
     ServicesModule,
     PackagesModule,
+    BlogsModule,
     AvailabilityModule,
     CartModule,
     BookingsModule,
     PaymentsModule,
     CouponsModule,
     ReviewsModule,
+    LeadsModule,
     SettlementsModule,
     SupportModule,
     UploadsModule,

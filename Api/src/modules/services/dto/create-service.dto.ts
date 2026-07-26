@@ -1,6 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsArray, IsNumber, IsOptional, IsString, ValidateNested } from 'class-validator';
+import { IsArray, IsBoolean, IsEnum, IsNumber, IsOptional, IsString, ValidateNested } from 'class-validator';
+import { ListingStatus } from '@prisma/client';
 import { MoneyDto } from '../../../common/dto/money.dto';
 
 export class CreateServiceDto {
@@ -57,6 +58,11 @@ export class CreateServiceDto {
   @IsString()
   imageUrl?: string;
 
+  @ApiPropertyOptional({ example: false, description: 'Show this service on the promotional homepage section.' })
+  @IsOptional()
+  @IsBoolean()
+  showOnPromotionalPage?: boolean;
+
   @ApiProperty({ type: [String], required: false })
   @IsOptional()
   @IsArray()
@@ -74,4 +80,14 @@ export class CreateServiceDto {
   @IsArray()
   @IsString({ each: true })
   features?: string[];
+
+  @ApiPropertyOptional({ example: true, description: 'Show this service on the homepage carousel/featured area.' })
+  @IsOptional()
+  @IsBoolean()
+  showOnHomepage?: boolean;
+
+  @ApiPropertyOptional({ example: 'ACTIVE', enum: ListingStatus })
+  @IsOptional()
+  @IsEnum(ListingStatus)
+  status?: ListingStatus;
 }

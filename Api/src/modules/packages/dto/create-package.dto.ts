@@ -52,10 +52,10 @@ export class CreatePackageDto {
   @Type(() => MoneyDto)
   price?: MoneyDto;
 
-  @ApiPropertyOptional({ example: false })
+  @ApiPropertyOptional({ example: false, description: 'Show this package on the promotional homepage section.' })
   @IsOptional()
   @IsBoolean()
-  showOnHomepage?: boolean;
+  showOnPromotionalPage?: boolean;
 
   @ApiPropertyOptional({ type: [String], example: ['Setup included', 'Custom floral arrangements'] })
   @IsOptional()

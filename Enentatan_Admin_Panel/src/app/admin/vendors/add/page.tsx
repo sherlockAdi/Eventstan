@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Eye, EyeOff } from 'lucide-react';
 import Button from '@/components/admin/Button';
@@ -13,6 +13,7 @@ export default function AddVendorPage() {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [isActive, setIsActive] = useState(true);
+  const [userNameEdited, setUserNameEdited] = useState(false);
   const [form, setForm] = useState({
     firstName: '',
     lastName: '',
@@ -26,6 +27,8 @@ export default function AddVendorPage() {
     whereIsYourBusiness: '',
     visaType: '',
     address: '',
+    // Permanent specific: trade license (not required/shown for FREELANCER)
+    tradeLicenseNumber: '',
     // Freelancer specific fields
     hourlyRate: '',
     availableHoursPerWeek: '',
@@ -52,12 +55,25 @@ export default function AddVendorPage() {
     branchAddress: ''
   });
 
+  // Auto-generate User Name from First Name + Last Name.
+  // Stops auto-updating once the admin manually edits the User Name field.
+  useEffect(() => {
+    if (userNameEdited) return;
+    const generated = `${form.firstName}${form.lastName}`
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, '');
+    setForm((prev) => ({ ...prev, userName: generated }));
+  }, [form.firstName, form.lastName, userNameEdited]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     try {
       const contactPerson = `${form.firstName} ${form.lastName}`.trim();
-      const response = await adminApi.vendors.create({
+      const vendorType = form.vendorType === 'permanent' ? 'PERMANENT' : 'FREELANCER';
+
+      const payload: Record<string, unknown> = {
         companyName: form.userName || `${contactPerson} Events`,
         contactPerson,
         email: form.primaryEmail,
@@ -69,11 +85,11 @@ export default function AddVendorPage() {
         firstName: form.firstName,
         lastName: form.lastName,
         userName: form.userName,
+        vendorType,
         specialization: form.specialization,
         businessLocation: form.whereIsYourBusiness,
         address: form.address,
         visaType: form.visaType,
-        tradeLicenseNumber: `PENDING-${Date.now()}`,
         cities: [form.whereIsYourBusiness],
         capacityPerDay: 1,
         commissionPercent: 10,
@@ -85,7 +101,15 @@ export default function AddVendorPage() {
         accountNumber: form.accountNumber,
         swift: form.swift,
         branchAddress: form.branchAddress,
-      });
+      };
+
+      // Trade license/document only applies to PERMANENT vendors.
+      // FREELANCER vendors must not send a tradeLicenseNumber.
+      if (vendorType === 'PERMANENT') {
+        payload.tradeLicenseNumber = form.tradeLicenseNumber;
+      }
+
+      const response = await adminApi.vendors.create(payload);
       toast.success(response.welcomeEmailSent ? 'Vendor created and welcome email sent!' : 'Vendor created, but welcome email could not be sent.');
       router.push('/admin/vendors');
     } catch (error) {
@@ -144,7 +168,12 @@ export default function AddVendorPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <Input label="First Name *" value={form.firstName} onChange={(e) => setForm({...form, firstName: e.target.value})} required />
                 <Input label="Last Name *" value={form.lastName} onChange={(e) => setForm({...form, lastName: e.target.value})} required />
-                <Input label="User Name *" value={form.userName} onChange={(e) => setForm({...form, userName: e.target.value})} required />
+                <Input 
+                  label="User Name * (auto-generated, editable)" 
+                  value={form.userName} 
+                  onChange={(e) => { setUserNameEdited(true); setForm({...form, userName: e.target.value}); }} 
+                  required 
+                />
                 <Input label="Primary Email *" type="email" value={form.primaryEmail} onChange={(e) => setForm({...form, primaryEmail: e.target.value})} required />
                 <Input label="Telephone" value={form.telephone} onChange={(e) => setForm({...form, telephone: e.target.value})} />
                 <Input label="Primary Mobile (Don't add 0 or +971) *" value={form.primaryMobile} onChange={(e) => setForm({...form, primaryMobile: e.target.value})} required />
@@ -414,6 +443,14 @@ export default function AddVendorPage() {
                     value={form.joiningDate} 
                     onChange={(e) => setForm({...form, joiningDate: e.target.value})}
                     required
+                  />
+
+                  <Input 
+                    label="Trade License Number *" 
+                    value={form.tradeLicenseNumber} 
+                    onChange={(e) => setForm({...form, tradeLicenseNumber: e.target.value})}
+                    required
+                    placeholder="e.g., LIC123456789"
                   />
                 </div>
               </div>

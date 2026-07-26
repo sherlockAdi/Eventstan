@@ -1,63 +1,181 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { ArrowLeft, Eye, EyeOff } from 'lucide-react';
 import Button from '@/components/admin/Button';
 import Input from '@/components/admin/Input';
 import toast from 'react-hot-toast';
+import { adminApi } from '@/api/adminApi';
 
 export default function EditVendorPage() {
   const router = useRouter();
   const params = useParams();
   
   const [loading, setLoading] = useState(false);
+  const [fetching, setFetching] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const [isActive, setIsActive] = useState(true);
+  const [userNameEdited, setUserNameEdited] = useState(false);
+  const [namesLoaded, setNamesLoaded] = useState(false);
   const [form, setForm] = useState({
-    firstName: 'John',
-    lastName: 'Doe',
-    userName: 'johndoe',
-    primaryEmail: 'john@testcompany.com',
-    telephone: '042345678',
-    primaryMobile: '501234567',
-    vendorType: 'permanent',
-    password: 'Test@12345',
-    specialization: 'Event Management',
-    whereIsYourBusiness: 'Dubai, UAE',
-    visaType: 'Employment Visa',
-    address: 'Business Bay, Dubai, United Arab Emirates',
+    firstName: '',
+    lastName: '',
+    userName: '',
+    primaryEmail: '',
+    telephone: '',
+    primaryMobile: '',
+    vendorType: 'freelancer',
+    password: '',
+    specialization: '',
+    whereIsYourBusiness: '',
+    visaType: '',
+    address: '',
     hourlyRate: '',
     availableHoursPerWeek: '',
     contractType: '',
     salaryType: 'monthly',
-    basicSalary: '8000',
-    housingAllowance: '2000',
-    transportationAllowance: '1000',
-    otherAllowances: '500',
-    annualLeaves: '30',
-    workingHours: '48',
-    joiningDate: '2024-01-15',
-    planDetail: 'Premium Plan - Annual Subscription',
-    planExpiry: '2025-12-31',
+    basicSalary: '',
+    housingAllowance: '',
+    transportationAllowance: '',
+    otherAllowances: '',
+    annualLeaves: '',
+    workingHours: '',
+    joiningDate: '',
+    tradeLicenseNumber: '',
+    planDetail: '',
+    planExpiry: '',
     agreementFile: null as File | null,
-    bankName: 'Emirates NBD',
-    accountFullName: 'John Doe',
-    ibanNo: 'AE123456789012345678901',
-    accountNumber: '123456789',
-    swift: 'EBILAEAD',
-    branchAddress: 'Downtown Dubai Branch, Sheikh Zayed Road'
+    bankName: '',
+    accountFullName: '',
+    ibanNo: '',
+    accountNumber: '',
+    swift: '',
+    branchAddress: ''
   });
+
+  // Fetch the actual vendor from the API and populate the form.
+  useEffect(() => {
+    const id = params.id as string;
+    if (!id) return;
+
+    (async () => {
+      try {
+        setFetching(true);
+        const vendor = await adminApi.vendors.getById(id);
+
+        const [fallbackFirst, ...fallbackLastParts] = (vendor.contactPerson || '').split(' ');
+        const fallbackLast = fallbackLastParts.join(' ');
+
+        setForm((prev) => ({
+          ...prev,
+          firstName: vendor.firstName ?? fallbackFirst ?? '',
+          lastName: vendor.lastName ?? fallbackLast ?? '',
+          userName: vendor.userName ?? '',
+          primaryEmail: vendor.primaryEmail ?? vendor.email ?? '',
+          telephone: vendor.telephone ?? '',
+          primaryMobile: vendor.primaryMobile ?? vendor.phone ?? '',
+          vendorType: (vendor.vendorType ?? 'FREELANCER').toString().toLowerCase() === 'permanent' ? 'permanent' : 'freelancer',
+          specialization: vendor.specialization ?? '',
+          whereIsYourBusiness: vendor.businessLocation ?? (vendor.cities?.[0] ?? ''),
+          visaType: vendor.visaType ?? '',
+          address: vendor.address ?? '',
+          hourlyRate: vendor.hourlyRate?.toString() ?? '',
+          availableHoursPerWeek: vendor.availableHoursPerWeek?.toString() ?? '',
+          contractType: vendor.contractType ?? '',
+          salaryType: vendor.salaryType ?? 'monthly',
+          basicSalary: vendor.basicSalary?.toString() ?? '',
+          housingAllowance: vendor.housingAllowance?.toString() ?? '',
+          transportationAllowance: vendor.transportationAllowance?.toString() ?? '',
+          otherAllowances: vendor.otherAllowances?.toString() ?? '',
+          annualLeaves: vendor.annualLeaves?.toString() ?? '',
+          workingHours: vendor.workingHours?.toString() ?? '',
+          joiningDate: vendor.joiningDate ? vendor.joiningDate.slice(0, 10) : '',
+          tradeLicenseNumber: vendor.tradeLicenseNumber ?? '',
+          planDetail: vendor.planDetails ?? vendor.planDetail ?? '',
+          planExpiry: vendor.planExpiry ? vendor.planExpiry.slice(0, 10) : '',
+          bankName: vendor.bankName ?? '',
+          accountFullName: vendor.accountFullName ?? '',
+          ibanNo: vendor.ibanNo ?? '',
+          accountNumber: vendor.accountNumber ?? '',
+          swift: vendor.swift ?? '',
+          branchAddress: vendor.branchAddress ?? '',
+        }));
+
+        setIsActive(vendor.status ? vendor.status !== 'REJECTED' : true);
+        // Existing username loaded from the server — don't auto-regenerate it
+        // unless the admin actually changes the name fields afterward.
+        setUserNameEdited(true);
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : 'Failed to load vendor');
+      } finally {
+        setFetching(false);
+      }
+    })();
+  }, [params.id]);
+
+  // Auto-generate User Name from First Name + Last Name whenever the admin
+  // changes the name fields (but not on initial load, so the vendor's
+  // existing User Name isn't clobbered when the edit page opens).
+  // Stops auto-updating once the admin manually edits the User Name field.
+  useEffect(() => {
+    if (!namesLoaded) {
+      setNamesLoaded(true);
+      return;
+    }
+    if (userNameEdited) return;
+    const generated = `${form.firstName}${form.lastName}`
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, '');
+    setForm((prev) => ({ ...prev, userName: generated }));
+  }, [form.firstName, form.lastName]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     try {
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const vendorType = form.vendorType === 'permanent' ? 'PERMANENT' : 'FREELANCER';
+      const id = params.id as string;
+
+      const payload: Record<string, unknown> = {
+        firstName: form.firstName,
+        lastName: form.lastName,
+        userName: form.userName,
+        primaryEmail: form.primaryEmail,
+        telephone: form.telephone,
+        primaryMobile: form.primaryMobile,
+        vendorType,
+        specialization: form.specialization,
+        businessLocation: form.whereIsYourBusiness,
+        address: form.address,
+        visaType: form.visaType,
+        planDetails: form.planDetail,
+        planExpiry: form.planExpiry || undefined,
+        bankName: form.bankName,
+        accountFullName: form.accountFullName,
+        ibanNo: form.ibanNo,
+        accountNumber: form.accountNumber,
+        swift: form.swift,
+        branchAddress: form.branchAddress,
+      };
+
+      // Trade license/document only applies to PERMANENT vendors.
+      // FREELANCER vendors must not send a tradeLicenseNumber.
+      if (vendorType === 'PERMANENT') {
+        payload.tradeLicenseNumber = form.tradeLicenseNumber;
+      }
+
+      // Only send a password if the admin actually typed a new one.
+      if (form.password) {
+        payload.password = form.password;
+      }
+
+      await adminApi.vendors.update(id, payload);
       toast.success('Vendor updated successfully!');
       router.push('/admin/vendors');
     } catch (error) {
-      toast.error('Failed to update vendor');
+      toast.error(error instanceof Error ? error.message : 'Failed to update vendor');
     } finally {
       setLoading(false);
     }
@@ -67,6 +185,14 @@ export default function EditVendorPage() {
     setIsActive(!isActive);
     toast.success(`Vendor ${!isActive ? 'Activated' : 'Deactivated'}`);
   };
+
+  if (fetching) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-gray-500">Loading vendor...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -125,9 +251,9 @@ export default function EditVendorPage() {
                     required 
                   />
                   <Input 
-                    label="User Name *" 
+                    label="User Name * (auto-generated, editable)" 
                     value={form.userName} 
-                    onChange={(e) => setForm({...form, userName: e.target.value})} 
+                    onChange={(e) => { setUserNameEdited(true); setForm({...form, userName: e.target.value}); }} 
                     required 
                   />
                   <Input 
@@ -201,14 +327,13 @@ export default function EditVendorPage() {
                   </div>
                   
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Password *</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Password (leave blank to keep existing)</label>
                     <div className="relative">
                       <input
                         type={showPassword ? 'text' : 'password'}
                         value={form.password}
                         onChange={(e) => setForm({...form, password: e.target.value})}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 pr-10 transition-colors"
-                        required
                       />
                       <button
                         type="button"
@@ -426,6 +551,14 @@ export default function EditVendorPage() {
                     onChange={(e) => setForm({...form, joiningDate: e.target.value})}
                     required
                   />
+
+                  <Input 
+                    label="Trade License Number *" 
+                    value={form.tradeLicenseNumber} 
+                    onChange={(e) => setForm({...form, tradeLicenseNumber: e.target.value})}
+                    required
+                    placeholder="e.g., LIC123456789"
+                  />
                 </div>
               </div>
             )}
@@ -456,7 +589,7 @@ export default function EditVendorPage() {
                       onChange={(e) => setForm({...form, agreementFile: e.target.files?.[0] || null})} 
                       className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-orange-50 file:text-orange-600 hover:file:bg-orange-100 transition-colors"
                     />
-                    <p className="text-xs text-gray-400 mt-1">Current file: agreement_john_doe.pdf (Leave empty to keep existing)</p>
+                    <p className="text-xs text-gray-400 mt-1">Leave empty to keep the existing agreement file</p>
                   </div>
                 </div>
               </div>

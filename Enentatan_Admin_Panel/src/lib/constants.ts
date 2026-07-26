@@ -1,10 +1,17 @@
-const API_ROOT =
-  process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, '') ??
-  process.env.NEXT_PUBLIC_BASE_URL?.replace(/\/$/, '') ??
-  'https://api.eventstan.com';
+// Use proxy in browser (avoids CORS), direct URL on server
+const isServer = typeof window === 'undefined';
+const isLocalBase = /localhost|127\.0\.0\.1/i.test(process.env.NEXT_PUBLIC_BASE_URL ?? '');
 
-export const BASE_URL = API_ROOT;
-export const BASE_API_URL = `${API_ROOT}/api/v1/`;
+export const BASE_URL = isServer
+  ? (process.env.NEXT_PUBLIC_BASE_URL?.replace(/\/$/, '') ?? 'https://api.eventstan.com')
+  // ? (process.env.NEXT_PUBLIC_BASE_URL?.replace(/\/$/, '') ?? 'https://uatapi.eventstan.com')
+  : '';
+
+export const BASE_API_URL = isServer
+  ? `${BASE_URL}/api/v1/`
+  : isLocalBase
+    ? `${process.env.NEXT_PUBLIC_BASE_URL?.replace(/\/$/, '') ?? 'http://localhost:4000'}/api/v1/`
+    : '/api/proxy/';
 
 const API_URL = BASE_API_URL.replace(/\/$/, '');
 
@@ -13,6 +20,7 @@ export const API_ENDPOINTS = {
   USERS: `${API_URL}/users`,
   VENDORS: `${API_URL}/vendors`,
   SERVICES: `${API_URL}/services`,
+  SUBSERVICES: `${API_URL}/subservices`,
   EVENT_SLOTS: `${API_URL}/event-slots`,
   COUPONS: `${API_URL}/coupons`,
   COUNTRIES: `${API_URL}/countries`,
@@ -24,4 +32,5 @@ export const API_ENDPOINTS = {
   FEEDBACK: `${API_URL}/feedback`,
   NOTIFICATIONS: `${API_URL}/notifications`,
   AFFILIATE_LINKS: `${API_URL}/affiliate-links`,
+  BLOGS: `${API_URL}/blogs`,
 } as const;

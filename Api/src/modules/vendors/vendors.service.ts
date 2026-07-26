@@ -31,14 +31,20 @@ export class VendorsService {
           passwordHash: await this.passwords.hash(dto.password!),
         },
       });
-      return tx.vendor.create({
-        data: {
+      const vendorData: Prisma.VendorUncheckedCreateInput = {
         userId: user.id,
         companyName: dto.companyName,
         contactPerson: dto.contactPerson,
         email: dto.email,
         phone: dto.phone,
         tradeLicenseNumber: dto.tradeLicenseNumber,
+        tradeLicenseExpiry: dto.tradeLicenseExpiry ? new Date(dto.tradeLicenseExpiry) : undefined,
+        tradeLicenseFileUrl: dto.tradeLicenseFileUrl,
+        tradeLicenseFileKey: dto.tradeLicenseFileKey,
+        passportExpiry: dto.passportExpiry ? new Date(dto.passportExpiry) : undefined,
+        passportFileUrl: dto.passportFileUrl,
+        passportFileKey: dto.passportFileKey,
+        emiratesIdExpiry: dto.emiratesIdExpiry ? new Date(dto.emiratesIdExpiry) : undefined,
         cities: dto.cities,
         capacityPerDay: dto.capacityPerDay,
         commissionPercent: dto.commissionPercent,
@@ -50,9 +56,11 @@ export class VendorsService {
         telephone: dto.telephone,
         primaryMobile: dto.primaryMobile,
         specialization: dto.specialization,
+        vendorType: dto.vendorType,
         businessLocation: dto.businessLocation,
         visaType: dto.visaType,
         address: dto.address,
+        vendorProfileImage: dto.vendorProfileImage,
         vatNumber: dto.vatNumber,
         planDetails: dto.planDetails,
         planExpiry: dto.planExpiry ? new Date(dto.planExpiry) : undefined,
@@ -65,7 +73,9 @@ export class VendorsService {
         swift: dto.swift,
         branchAddress: dto.branchAddress,
         status: VendorStatus.PENDING_VERIFICATION,
-        },
+      };
+      return tx.vendor.create({
+        data: vendorData,
       });
     });
 
@@ -168,10 +178,16 @@ export class VendorsService {
       'telephone',
       'primaryMobile',
       'specialization',
+      'vendorType',
       'businessLocation',
       'visaType',
       'address',
+      'vendorProfileImage',
       'tradeLicenseNumber',
+      'tradeLicenseFileUrl',
+      'tradeLicenseFileKey',
+      'passportFileUrl',
+      'passportFileKey',
       'vatNumber',
       'planDetails',
       'agreementFileUrl',
@@ -192,6 +208,9 @@ export class VendorsService {
     if (dto.capacityPerDay !== undefined) data.capacityPerDay = dto.capacityPerDay;
     if (dto.commissionPercent !== undefined) data.commissionPercent = dto.commissionPercent;
     if (dto.planExpiry !== undefined) data.planExpiry = dto.planExpiry ? new Date(dto.planExpiry) : null;
+    if (dto.tradeLicenseExpiry !== undefined) data.tradeLicenseExpiry = dto.tradeLicenseExpiry ? new Date(dto.tradeLicenseExpiry) : null;
+    if (dto.passportExpiry !== undefined) data.passportExpiry = dto.passportExpiry ? new Date(dto.passportExpiry) : null;
+    if (dto.emiratesIdExpiry !== undefined) data.emiratesIdExpiry = dto.emiratesIdExpiry ? new Date(dto.emiratesIdExpiry) : null;
 
     return data as Prisma.VendorUncheckedUpdateInput;
   }
