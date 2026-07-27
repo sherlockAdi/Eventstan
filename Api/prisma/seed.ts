@@ -393,7 +393,7 @@ const packages = [
 async function main() {
   const adminPasswordHash = await hashPassword(process.env.SEED_ADMIN_PASSWORD ?? 'ChangeAdminPassword123!');
   const customerPasswordHash = await hashPassword(process.env.SEED_CUSTOMER_PASSWORD ?? 'ChangeCustomerPassword123!');
-  const vendorPasswordHash = await hashPassword(process.env.SEED_VENDOR_PASSWORD ?? 'ChangeVendorPassword123!');
+  const vendorPasswordHash = await hashPassword(process.env.SEED_VENDOR_PASSWORD ?? 'Vendor@123');
 
   await prisma.user.upsert({
     where: { email: 'admin@eventstan.ae' },
