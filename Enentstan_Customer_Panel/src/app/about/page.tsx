@@ -1,50 +1,51 @@
 import Link from "next/link";
+import { Handshake, Sparkles, Lightbulb, Globe } from "lucide-react";
 
 const TEAM = [
   {
-    name: "Alexandra Chen",
-    role: "CEO & Co-Founder",
-    img: "/images/team/team-1.jpg",
-    bio: "10+ years in event management across Asia and North America.",
+    name: "Suraj Mahajan",
+    role: "Founder & CEO",
+    img: "/images/team/team.png",
+    // bio: "10+ years in event management across Asia and North America.",
   },
   {
-    name: "Marcus Williams",
-    role: "CTO & Co-Founder",
-    img: "/images/team/team-2.jpg",
-    bio: "Former senior engineer at leading tech companies, passionate about seamless UX.",
+    name: "Mehak Gouri",
+    role: "Coo & Co Founder",
+    img: "/images/team/team.png",
+    // bio: "Former senior engineer at leading tech companies, passionate about seamless UX.",
   },
   {
-    name: "Sofia Patel",
-    role: "Head of Vendor Relations",
-    img: "/images/team/team-3.jpg",
-    bio: "Built partnerships with 300+ premium event vendors across the country.",
+    name: "Ashiza Sheikh",
+    role: "Customer Experience Lead",
+    img: "/images/team/team.png",
+    // bio: "Built partnerships with 300+ premium event vendors across the country.",
   },
   {
-    name: "David Kim",
-    role: "Head of Customer Success",
-    img: "/images/team/team-4.jpg",
-    bio: "Dedicated to ensuring every event goes exactly as planned.",
+    name: "David ",
+    role: "Creative Director",
+    img: "/images/team/team.png",
+    // bio: "Dedicated to ensuring every event goes exactly as planned.",
   },
 ];
 
 const VALUES = [
   {
-    icon: "🤝",
+    icon: Handshake,
     title: "Trust & Transparency",
     desc: "Every vendor is vetted. Every review is real. No hidden fees, ever.",
   },
   {
-    icon: "✨",
+    icon: Sparkles,
     title: "Excellence First",
     desc: "We only partner with vendors who consistently deliver exceptional experiences.",
   },
   {
-    icon: "💡",
+    icon: Lightbulb,
     title: "Innovation",
     desc: "We continuously build smarter tools to make event planning effortless.",
   },
   {
-    icon: "🌍",
+    icon: Globe,
     title: "Community",
     desc: "We empower local vendors while connecting clients with the best talent.",
   },
@@ -54,16 +55,6 @@ export default function AboutPage() {
   return (
     <div>
       {/* Hero */}
-      {/* <section className="bg-gradient-to-br from-orange-50 via-white to-amber-50 py-20 px-4">
-        <div className="max-w-4xl mx-auto text-center">
-          <span className="inline-block bg-orange-100 text-orange-600 text-sm font-semibold px-4 py-1.5 rounded-full mb-4">Our Story</span>
-          <h1 className="text-5xl font-bold text-gray-900 mb-4">We&apos;re on a Mission to Make Events Magical</h1>
-          <p className="text-xl text-gray-500 leading-relaxed">
-            EventStan was born from a simple frustration: planning events was too complicated, too stressful, and too fragmented. We built the platform we wished existed.
-          </p>
-        </div>
-      </section> */}
-
       <section
         className="py-20 px-4 text-center"
         style={{
@@ -163,41 +154,47 @@ export default function AboutPage() {
             <h2 className="text-3xl font-bold text-gray-900">Our Values</h2>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {VALUES.map((v) => (
-              <div
-                key={v.title}
-                className="bg-white rounded-2xl p-6 text-center border border-gray-100 hover:shadow-md transition-shadow"
-              >
-                <div className="text-3xl mb-3">{v.icon}</div>
-                <h3 className="font-bold text-gray-900 mb-2">{v.title}</h3>
-                <p className="text-sm text-gray-500">{v.desc}</p>
-              </div>
-            ))}
+            {VALUES.map((v) => {
+              const Icon = v.icon;
+              return (
+                <div
+                  key={v.title}
+                  className="bg-white rounded-2xl p-6 text-center border border-gray-100 hover:shadow-md transition-shadow"
+                >
+                  <div className="w-12 h-12 bg-orange-100 rounded-xl flex items-center justify-center mx-auto mb-4">
+                    <Icon className="w-6 h-6 text-orange-500" strokeWidth={2} />
+                  </div>
+                  <h3 className="font-bold text-gray-900 mb-2">{v.title}</h3>
+                  <p className="text-sm text-gray-500">{v.desc}</p>
+                </div>
+              );
+            })}
           </div>
         </div>
       </section>
 
       {/* Team */}
-      <section className="py-14 px-4 max-w-5xl mx-auto">
-        <div className="text-center mb-10">
-          <h2 className="text-3xl font-bold text-gray-900">Meet the Team</h2>
-          <p className="text-gray-500 mt-1">The people behind EventStan</p>
+      <section className="py-20 px-4 max-w-6xl mx-auto">
+        <div className="text-center mb-14">
+          <h2 className="text-4xl font-bold text-gray-900" style={{ fontFamily: "'Playfair Display', serif" }}>
+            Meet the Team
+          </h2>
+          <p className="text-gray-500 mt-2 text-lg">The people behind EventStan</p>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-10">
           {TEAM.map((member) => (
             <div key={member.name} className="text-center group">
-              <div className="relative w-28 h-28 mx-auto mb-4 rounded-2xl overflow-hidden">
+              <div className="relative w-40 h-40 mx-auto mb-5 rounded-full overflow-hidden ring-4 ring-white shadow-lg">
                 <img
                   src={member.img}
                   alt={member.name}
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform"
                 />
               </div>
-              <h3 className="font-bold text-gray-900">{member.name}</h3>
-              <p className="text-sm text-orange-500 font-medium mb-2">
+              <h3 className="font-bold text-gray-900 text-lg">{member.name}</h3>
+              <p className="text-base text-gray-500 mt-1">
                 {member.role}
               </p>
-              <p className="text-xs text-gray-500">{member.bio}</p>
             </div>
           ))}
         </div>
@@ -220,7 +217,7 @@ export default function AboutPage() {
               Browse Services
             </Link>
             <Link
-              href="/vendor-dashboard"
+              href="/vendor-partners"
               className="bg-gray-900 text-white px-7 py-3 rounded-full font-semibold hover:bg-gray-800 transition-colors"
             >
               Become a Vendor

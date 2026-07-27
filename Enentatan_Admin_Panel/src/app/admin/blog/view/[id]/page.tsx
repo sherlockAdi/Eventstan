@@ -36,24 +36,65 @@ interface Package {
   price?: string;
 }
 
+// Strips inline width/height/style attributes from a matched tag string
+// so that our own Tailwind classes are guaranteed to control sizing.
+// Rich text editors (TipTap/Quill) commonly save inline style="width:...px"
+// on <img>/<video> tags, which otherwise overrides any CSS class we add.
+const stripInlineSizing = (tag: string) =>
+  tag
+    .replace(/\swidth\s*=\s*["'][^"']*["']/gi, "")
+    .replace(/\sheight\s*=\s*["'][^"']*["']/gi, "")
+    .replace(/\sstyle\s*=\s*["'][^"']*["']/gi, "")
+    .replace(/\sclass\s*=\s*["'][^"']*["']/gi, "");
+
 const MarkdownContent = ({ content }: { content: string }) => {
   const renderContent = () => {
     // If the content already contains HTML tags (e.g. saved from a rich text
     // editor), render it directly instead of running it through the
     // markdown-style regex converter below, which can mangle real HTML.
-    const looksLikeHtml = /<\/?(h[1-6]|p|ul|ol|li|strong|em|a|img|blockquote|div|span|br)[\s>]/i.test(content);
+    const looksLikeHtml = /<\/?(h[1-6]|p|ul|ol|li|strong|em|a|img|video|iframe|blockquote|div|span|br)[\s>]/i.test(content);
     if (looksLikeHtml) {
       let styledHtml = content;
-      styledHtml = styledHtml.replace(/<h1(?![^>]*class=)/gi, '<h1 class="text-3xl font-bold mt-8 mb-4 text-gray-900"');
-      styledHtml = styledHtml.replace(/<h2(?![^>]*class=)/gi, '<h2 class="text-2xl font-bold mt-8 mb-4 text-gray-800 border-b pb-2"');
-      styledHtml = styledHtml.replace(/<h3(?![^>]*class=)/gi, '<h3 class="text-lg font-semibold mt-6 mb-3 text-gray-800"');
-      styledHtml = styledHtml.replace(/<p(?![^>]*class=)/gi, '<p class="mb-4 text-gray-700 leading-relaxed"');
-      styledHtml = styledHtml.replace(/<ul(?![^>]*class=)/gi, '<ul class="my-3 space-y-1.5 list-disc pl-5 text-gray-700"');
-      styledHtml = styledHtml.replace(/<ol(?![^>]*class=)/gi, '<ol class="my-3 space-y-1.5 list-decimal pl-5 text-gray-700"');
-      styledHtml = styledHtml.replace(/<li(?![^>]*class=)/gi, '<li class="mb-1"');
-      styledHtml = styledHtml.replace(/<a(?![^>]*class=)/gi, '<a class="text-orange-500 hover:text-orange-600 underline" target="_blank" rel="noopener noreferrer"');
-      styledHtml = styledHtml.replace(/<blockquote(?![^>]*class=)/gi, '<blockquote class="border-l-4 border-orange-400 bg-orange-50 p-4 my-4 italic text-gray-700"');
-      styledHtml = styledHtml.replace(/<img(?![^>]*class=)/gi, '<img class="rounded-lg my-4 max-w-full h-auto shadow-md"');
+      styledHtml = styledHtml.replace(/<h1(?![^>]*class=)/gi, '<h1 class="text-3xl font-bold mt-10 mb-4 text-gray-900 tracking-tight"');
+      styledHtml = styledHtml.replace(/<h2(?![^>]*class=)/gi, '<h2 class="text-2xl font-bold mt-10 mb-4 text-gray-800 border-b border-gray-200 pb-3"');
+      styledHtml = styledHtml.replace(/<h3(?![^>]*class=)/gi, '<h3 class="text-lg font-semibold mt-8 mb-3 text-gray-800"');
+      styledHtml = styledHtml.replace(/<p(?![^>]*class=)/gi, '<p class="mb-5 text-gray-700 leading-[1.8] text-[15px]"');
+      styledHtml = styledHtml.replace(/<ul(?![^>]*class=)/gi, '<ul class="my-4 space-y-2 list-disc pl-5 text-gray-700"');
+      styledHtml = styledHtml.replace(/<ol(?![^>]*class=)/gi, '<ol class="my-4 space-y-2 list-decimal pl-5 text-gray-700"');
+      styledHtml = styledHtml.replace(/<li(?![^>]*class=)/gi, '<li class="mb-1 leading-relaxed"');
+      styledHtml = styledHtml.replace(/<a(?![^>]*class=)/gi, '<a class="text-orange-500 hover:text-orange-600 underline underline-offset-2 font-medium"');
+      styledHtml = styledHtml.replace(/<blockquote(?![^>]*class=)/gi, '<blockquote class="border-l-4 border-orange-400 bg-orange-50/60 px-5 py-4 my-6 italic text-gray-700 rounded-r-lg"');
+
+      // --- IMAGE: strip inline sizing, wrap in a polished card-style figure ---
+      styledHtml = styledHtml.replace(/<img\b[^>]*>/gi, (match) => {
+        const cleaned = stripInlineSizing(match);
+        const withClass = cleaned.replace(
+          /^<img/i,
+          '<img class="w-full h-64 md:h-[420px] object-cover" loading="lazy"'
+        );
+        return `<span class="block my-6 rounded-2xl overflow-hidden border border-gray-200 shadow-sm hover:shadow-md transition-shadow duration-300">${withClass}</span>`;
+      });
+
+      // --- VIDEO: strip inline sizing, wrap in a polished card-style figure ---
+      styledHtml = styledHtml.replace(/<video\b[^>]*>/gi, (match) => {
+        const cleaned = stripInlineSizing(match);
+        const withClass = cleaned.replace(
+          /^<video/i,
+          '<video class="w-full h-64 md:h-[420px] object-cover bg-black" controls preload="metadata"'
+        );
+        return `<span class="block my-6 rounded-2xl overflow-hidden border border-gray-200 shadow-sm hover:shadow-md transition-shadow duration-300">${withClass}</span>`;
+      });
+
+      // --- IFRAME: strip inline sizing, wrap in a polished card-style figure ---
+      styledHtml = styledHtml.replace(/<iframe\b[^>]*>/gi, (match) => {
+        const cleaned = stripInlineSizing(match);
+        const withClass = cleaned.replace(
+          /^<iframe/i,
+          '<iframe class="w-full h-64 md:h-[420px] border-0"'
+        );
+        return `<span class="block my-6 rounded-2xl overflow-hidden border border-gray-200 shadow-sm hover:shadow-md transition-shadow duration-300">${withClass}</span>`;
+      });
+
       styledHtml = styledHtml.replace(/<strong(?![^>]*class=)/gi, '<strong class="font-semibold text-gray-900"');
       return <div dangerouslySetInnerHTML={{ __html: styledHtml }} />;
     }
@@ -62,15 +103,15 @@ const MarkdownContent = ({ content }: { content: string }) => {
     
     html = html.replace(/```(\w*)\n([\s\S]*?)```/g, '<pre class="bg-gray-900 text-gray-100 p-4 rounded-lg overflow-x-auto my-4"><code>$2</code></pre>');
     
-    html = html.replace(/### (.*?)\n/g, '<h3 class="text-lg font-semibold mt-6 mb-3 text-gray-800">$1</h3>');
-    html = html.replace(/## (.*?)\n/g, '<h2 class="text-2xl font-bold mt-8 mb-4 text-gray-800 border-b pb-2">$1</h2>');
-    html = html.replace(/# (.*?)\n/g, '<h1 class="text-3xl font-bold mt-8 mb-4 text-gray-900">$1</h1>');
+    html = html.replace(/### (.*?)\n/g, '<h3 class="text-lg font-semibold mt-8 mb-3 text-gray-800">$1</h3>');
+    html = html.replace(/## (.*?)\n/g, '<h2 class="text-2xl font-bold mt-10 mb-4 text-gray-800 border-b border-gray-200 pb-3">$1</h2>');
+    html = html.replace(/# (.*?)\n/g, '<h1 class="text-3xl font-bold mt-10 mb-4 text-gray-900 tracking-tight">$1</h1>');
     
     html = html.replace(/\*\*\*(.*?)\*\*\*/g, '<strong><em>$1</em></strong>');
     html = html.replace(/\*\*(.*?)\*\*/g, '<strong class="font-semibold text-gray-900">$1</strong>');
     html = html.replace(/\*(.*?)\*/g, '<em class="italic">$1</em>');
     
-    html = html.replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2" class="text-orange-500 hover:text-orange-600 underline" target="_blank" rel="noopener noreferrer">$1</a>');
+    html = html.replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2" class="text-orange-500 hover:text-orange-600 underline underline-offset-2 font-medium">$1</a>');
     
     const numberedListRegex = /(\d+\.\s[^\n]+(?:\n[^\d][^\n]*)*)/g;
     html = html.replace(numberedListRegex, (match) => {
@@ -107,16 +148,35 @@ const MarkdownContent = ({ content }: { content: string }) => {
     });
     
     html = html.replace(/\n- (.*?)(\n|$)/g, '<li class="ml-4 mb-1">• $1</li>');
-    html = html.replace(/<li/g, '\n<ul class="my-3 space-y-1"><li');
+    html = html.replace(/<li/g, '\n<ul class="my-4 space-y-2"><li');
     html = html.replace(/(<\/li>\n)+/g, '</li></ul>\n');
     
-    html = html.replace(/\n&gt; (.*?)(\n|$)/g, '<blockquote class="border-l-4 border-orange-400 bg-orange-50 p-4 my-4 italic text-gray-700">$1</blockquote>');
+    html = html.replace(/\n&gt; (.*?)(\n|$)/g, '<blockquote class="border-l-4 border-orange-400 bg-orange-50/60 px-5 py-4 my-6 italic text-gray-700 rounded-r-lg">$1</blockquote>');
     
-    html = html.replace(/!\[(.*?)\]\((.*?)\)/g, '<img src="$2" alt="$1" class="rounded-lg my-4 max-w-full h-auto shadow-md" />');
+    // --- Markdown image syntax: polished card-style figure ---
+    html = html.replace(/!\[(.*?)\]\((.*?)\)/g, '<span class="block my-6 rounded-2xl overflow-hidden border border-gray-200 shadow-sm hover:shadow-md transition-shadow duration-300"><img src="$2" alt="$1" class="w-full h-64 md:h-[420px] object-cover" loading="lazy" /></span>');
+
+    // --- Guard raw video/iframe tags that slip into markdown-mode content ---
+    html = html.replace(/<video\b[^>]*>/gi, (match) => {
+      const cleaned = stripInlineSizing(match);
+      const withClass = cleaned.replace(
+        /^<video/i,
+        '<video class="w-full h-64 md:h-[420px] object-cover bg-black" controls preload="metadata"'
+      );
+      return `<span class="block my-6 rounded-2xl overflow-hidden border border-gray-200 shadow-sm hover:shadow-md transition-shadow duration-300">${withClass}</span>`;
+    });
+    html = html.replace(/<iframe\b[^>]*>/gi, (match) => {
+      const cleaned = stripInlineSizing(match);
+      const withClass = cleaned.replace(
+        /^<iframe/i,
+        '<iframe class="w-full h-64 md:h-[420px] border-0"'
+      );
+      return `<span class="block my-6 rounded-2xl overflow-hidden border border-gray-200 shadow-sm hover:shadow-md transition-shadow duration-300">${withClass}</span>`;
+    });
     
     const firstParagraph = html.match(/^[^<]+/);
     if (firstParagraph && firstParagraph[0].trim() && !html.includes('<div') && !html.includes('<ul')) {
-      html = `<p class="mb-4 text-gray-700 leading-relaxed">${firstParagraph[0].trim()}</p>${html.substring(firstParagraph[0].length)}`;
+      html = `<p class="mb-5 text-gray-700 leading-[1.8] text-[15px]">${firstParagraph[0].trim()}</p>${html.substring(firstParagraph[0].length)}`;
     }
     
     return <div dangerouslySetInnerHTML={{ __html: html }} />;
@@ -353,27 +413,27 @@ export default function ViewBlogPost() {
       </div>
 
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-        <div className="p-6 md:p-8">
-          <div className="flex items-center gap-3 text-sm mb-4">
+        <div className="p-6 md:p-10">
+          <div className="flex items-center gap-3 text-sm mb-5">
             <span className="px-3 py-1.5 bg-gradient-to-r from-orange-100 to-orange-50 text-orange-700 rounded-full text-xs font-semibold">
               {post.category}
             </span>
-            <div className="flex items-center gap-2 text-gray-500">
+            <div className="flex items-center gap-1.5 text-gray-500">
               <User size={14} />
               <span className="text-sm">{post.author_name}</span>
             </div>
-            <div className="flex items-center gap-2 text-gray-500">
+            <div className="flex items-center gap-1.5 text-gray-500">
               <Clock size={14} />
               <span className="text-sm">{post.read_time} min read</span>
             </div>
           </div>
 
-          <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4 leading-tight">{post.title}</h1>
+          <h1 className="text-3xl md:text-[2.5rem] font-bold text-gray-900 mb-5 leading-[1.15] tracking-tight">{post.title}</h1>
           
-          <p className="text-gray-600 text-base md:text-lg mb-6 leading-relaxed">{post.excerpt}</p>
+          <p className="text-gray-600 text-base md:text-lg mb-8 leading-relaxed border-l-2 border-orange-200 pl-4">{post.excerpt}</p>
           
           {post.cover_image && (
-            <div className="relative w-full h-64 md:h-96 mb-8 rounded-xl overflow-hidden">
+            <div className="relative w-full h-64 md:h-[420px] mb-10 rounded-2xl overflow-hidden border border-gray-200 shadow-sm">
               <img
                 src={post.cover_image}
                 alt={post.title}
@@ -382,12 +442,12 @@ export default function ViewBlogPost() {
             </div>
           )}
 
-          <div className="mb-8 text-sm md:text-base" id="post-content">
+          <div className="mb-10 text-sm md:text-base" id="post-content">
             <MarkdownContent content={post.content} />
           </div>
 
           {post.tags && post.tags.length > 0 && (
-            <div className="pt-4 flex flex-wrap items-center gap-2">
+            <div className="pt-5 flex flex-wrap items-center gap-2">
               <Tag size={14} className="text-gray-400" />
               {post.tags.map((tag) => (
                 <span
@@ -400,14 +460,14 @@ export default function ViewBlogPost() {
             </div>
           )}
 
-          <div className="mt-8 pt-6 border-t border-gray-200">
-            <h3 className="text-lg font-semibold text-gray-800 mb-4">Explore Venue Services</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+          <div className="mt-10 pt-8 border-t border-gray-200">
+            <h3 className="text-lg font-semibold text-gray-800 mb-5">Explore Venue Services</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {services.slice(0, 6).map(service => (
-                <div key={service.id} className="bg-gray-50 rounded-lg p-3 hover:shadow-md transition-shadow cursor-pointer">
+                <div key={service.id} className="bg-gray-50 rounded-xl p-4 hover:shadow-md hover:bg-white hover:border-orange-100 border border-transparent transition-all cursor-pointer">
                   <h4 className="font-medium text-gray-800 text-sm">{service.name}</h4>
                   {service.description && (
-                    <p className="text-xs text-gray-500 mt-1">{service.description}</p>
+                    <p className="text-xs text-gray-500 mt-1.5 leading-relaxed">{service.description}</p>
                   )}
                 </div>
               ))}
@@ -415,20 +475,20 @@ export default function ViewBlogPost() {
           </div>
 
           {(relatedServicesList.length > 0 || relatedPackagesList.length > 0) && (
-            <div className="pt-6 mt-6 border-t border-gray-200">
-              <h3 className="text-base font-semibold text-gray-800 mb-3 flex items-center gap-2">
+            <div className="pt-8 mt-8 border-t border-gray-200">
+              <h3 className="text-base font-semibold text-gray-800 mb-4 flex items-center gap-2">
                 <Layers size={16} /> Related
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {relatedServicesList.length > 0 && (
-                  <div className="bg-blue-50 rounded-lg p-3">
-                    <h4 className="text-xs font-semibold text-blue-800 mb-2">Services</h4>
-                    <div className="space-y-1">
+                  <div className="bg-blue-50 rounded-xl p-4">
+                    <h4 className="text-xs font-semibold text-blue-800 mb-3 uppercase tracking-wide">Services</h4>
+                    <div className="space-y-2">
                       {relatedServicesList.map(service => (
                         <div key={service.id} className="flex items-center justify-between">
-                          <span className="text-blue-700 text-xs">{service.name}</span>
+                          <span className="text-blue-700 text-sm font-medium">{service.name}</span>
                           {service.description && (
-                            <span className="text-xs text-blue-500">{service.description}</span>
+                            <span className="text-xs text-blue-500 ml-2 text-right">{service.description}</span>
                           )}
                         </div>
                       ))}
@@ -436,12 +496,12 @@ export default function ViewBlogPost() {
                   </div>
                 )}
                 {relatedPackagesList.length > 0 && (
-                  <div className="bg-green-50 rounded-lg p-3">
-                    <h4 className="text-xs font-semibold text-green-800 mb-2">Packages</h4>
-                    <div className="space-y-1">
+                  <div className="bg-green-50 rounded-xl p-4">
+                    <h4 className="text-xs font-semibold text-green-800 mb-3 uppercase tracking-wide">Packages</h4>
+                    <div className="space-y-2">
                       {relatedPackagesList.map(pkg => (
                         <div key={pkg.id} className="flex items-center justify-between">
-                          <span className="text-green-700 text-xs">{pkg.name}</span>
+                          <span className="text-green-700 text-sm font-medium">{pkg.name}</span>
                           {pkg.price && (
                             <span className="text-xs text-green-600 font-semibold">{pkg.price}</span>
                           )}
@@ -454,7 +514,7 @@ export default function ViewBlogPost() {
             </div>
           )}
 
-          <div className="mt-6 pt-6 border-t border-gray-200 text-xs text-gray-400 flex flex-wrap justify-between gap-2">
+          <div className="mt-8 pt-6 border-t border-gray-200 text-xs text-gray-400 flex flex-wrap justify-between gap-2">
             <p>📅 Created: {new Date(post.created_at).toLocaleString()}</p>
             <p>✏️ Last updated: {new Date(post.updated_at).toLocaleString()}</p>
           </div>

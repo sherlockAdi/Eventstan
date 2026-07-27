@@ -34,6 +34,55 @@ function CategoryBadge({ category }: { category: string }) {
   );
 }
 
+// ── Content sanitizer/normalizer ────────────────────────────────────────────
+// Rich text editors (TipTap/Quill) commonly save inline style="width:...px"
+// or width/height attributes on <img>/<video> tags. Inline styles/attrs beat
+// any CSS class we add, so we strip them first, then apply a uniform,
+// polished box size for every image/video/iframe in the article body.
+const stripInlineSizing = (tag: string) =>
+  tag
+    .replace(/\swidth\s*=\s*["'][^"']*["']/gi, "")
+    .replace(/\sheight\s*=\s*["'][^"']*["']/gi, "")
+    .replace(/\sstyle\s*=\s*["'][^"']*["']/gi, "")
+    .replace(/\sclass\s*=\s*["'][^"']*["']/gi, "");
+
+function normalizeArticleMedia(html: string): string {
+  if (!html) return html;
+  let out = html;
+
+  // Images
+  out = out.replace(/<img\b[^>]*>/gi, (match) => {
+    const cleaned = stripInlineSizing(match);
+    const withClass = cleaned.replace(
+      /^<img/i,
+      '<img class="w-full h-64 md:h-[420px] object-cover" loading="lazy"'
+    );
+    return `<span class="block my-6 rounded-2xl overflow-hidden border border-gray-100 shadow-sm">${withClass}</span>`;
+  });
+
+  // Videos
+  out = out.replace(/<video\b[^>]*>/gi, (match) => {
+    const cleaned = stripInlineSizing(match);
+    const withClass = cleaned.replace(
+      /^<video/i,
+      '<video class="w-full h-64 md:h-[420px] object-cover bg-black" controls preload="metadata"'
+    );
+    return `<span class="block my-6 rounded-2xl overflow-hidden border border-gray-100 shadow-sm">${withClass}</span>`;
+  });
+
+  // Iframes (YouTube/Vimeo embeds)
+  out = out.replace(/<iframe\b[^>]*>/gi, (match) => {
+    const cleaned = stripInlineSizing(match);
+    const withClass = cleaned.replace(
+      /^<iframe/i,
+      '<iframe class="w-full h-64 md:h-[420px] border-0"'
+    );
+    return `<span class="block my-6 rounded-2xl overflow-hidden border border-gray-100 shadow-sm">${withClass}</span>`;
+  });
+
+  return out;
+}
+
 // ── Share Buttons ─────────────────────────────────────────────────────────────
 function ShareButtons({ title, slug }: { title: string; slug: string }) {
   const [copied, setCopied] = useState(false);
@@ -124,12 +173,14 @@ function RelatedPackageCard({ pkg, services }: { pkg: Package; services: Service
   const service = services.find((s) => s.id === pkg.service_id);
   return (
     <Link href={`/services/${pkg.service_id}`} className="group block">
-      <div className="rounded-xl overflow-hidden aspect-[4/3] mb-3">
-        <img
-          src={service?.image_url ?? ""}
-          alt={pkg.title}
-          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-        />
+      <div className="rounded-xl overflow-hidden aspect-[4/3] mb-3 bg-gray-100">
+        {service?.image_url ? (
+          <img
+            src={service.image_url}
+            alt={pkg.title}
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+          />
+        ) : null}
       </div>
       <span className="text-xs font-semibold text-orange-500 uppercase tracking-wide">
         {service?.category}
@@ -205,6 +256,8 @@ export default function BlogDetailPage({ params }: PageProps) {
     ? packages.filter((p) => post.related_packages!.includes(p.id)).slice(0, 3)
     : packages.slice(0, 3);
 
+  const normalizedContent = normalizeArticleMedia(post.content);
+
   return (
     <div className="min-h-screen bg-white">
       <div className="max-w-3xl mx-auto px-4 py-8">
@@ -255,12 +308,13 @@ export default function BlogDetailPage({ params }: PageProps) {
 
         {/* ── Article body ── */}
         <div
-          className="prose prose-gray prose-lg max-w-none mb-10
+          className="text-black prose prose-gray prose-lg max-w-none mb-10
             prose-h2:text-2xl prose-h2:font-bold prose-h2:text-gray-900 prose-h2:mt-8 prose-h2:mb-3
             prose-h3:text-lg prose-h3:font-semibold prose-h3:text-gray-800 prose-h3:mt-6 prose-h3:mb-2
             prose-p:text-gray-600 prose-p:leading-relaxed prose-p:mb-4
-            prose-a:text-orange-500 prose-a:no-underline hover:prose-a:underline"
-          dangerouslySetInnerHTML={{ __html: post.content }}
+            prose-a:text-orange-500 prose-a:no-underline hover:prose-a:underline
+            prose-img:m-0 prose-img:rounded-none"
+          dangerouslySetInnerHTML={{ __html: normalizedContent }}
         />
 
         {/* ── Tags ── */}

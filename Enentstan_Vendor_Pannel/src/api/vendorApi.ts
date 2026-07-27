@@ -57,6 +57,8 @@ export const vendorApi = {
       request<T>('auth/login', jsonOptions('POST', { email, password })),
     logout: () => request<void>('auth/logout', jsonOptions('POST')),
     me: <T = unknown>() => request<T>('auth/me', { headers: headers() }),
+    changePassword: <T = unknown>(payload: { currentPassword: string; newPassword: string }) =>
+      request<T>('auth/change-password', jsonOptions('POST', payload)),
   },
 
   dashboard: {
@@ -126,5 +128,6 @@ export const vendorApi = {
     countries: <T = unknown[]>() => request<T>('master-data/countries'),
     categories: <T = unknown[]>() => request<T>('master-data/categories'),
     priceUnits: <T = unknown[]>() => request<T>('master-data/price-units'),
+    visaTypes: <T = unknown[]>() => request<T>('master-data/visa-types'),
   },
 };

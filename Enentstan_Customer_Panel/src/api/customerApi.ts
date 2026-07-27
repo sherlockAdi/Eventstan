@@ -23,10 +23,6 @@ export interface AuthResponse {
   welcomeEmailSent?: boolean;
 }
 
-export interface ForgotPasswordResponse {
-  message: string;
-}
-
 function token() {
   return typeof window === "undefined" ? null : localStorage.getItem("es_token");
 }
@@ -98,15 +94,6 @@ export interface City {
   id: string;
   name: string;
   countryId?: number;
-  stateId?: string;
-  status?: string;
-}
-
-export interface State {
-  id: string;
-  name: string;
-  countryId: number;
-  code?: string | null;
   status?: string;
 }
 
@@ -146,12 +133,20 @@ export const customerApi = {
       request<AuthResponse>("/auth/login", { method: "POST", body: JSON.stringify({ email, password }) }),
     register: (name: string, email: string, phone: string, password: string) =>
       request<AuthResponse>("/auth/register", { method: "POST", body: JSON.stringify({ name, email, phone, password }) }),
-    forgotPassword: (email: string) =>
-      request<ForgotPasswordResponse>("/auth/forgot-password", { method: "POST", body: JSON.stringify({ email }) }),
-    resetPassword: (token: string, password: string) =>
-      request<{ reset: boolean }>("/auth/reset-password", { method: "POST", body: JSON.stringify({ token, password }) }),
     me: () => request<ApiUser>("/auth/me"),
     logout: () => request<{ loggedOut: boolean }>("/auth/logout", { method: "POST" }),
+    // Forgot Password — Login page's "Forgot password?" link
+    forgotPassword: (email: string) =>
+      request<{ message?: string }>("/auth/forgot-password", {
+        method: "POST",
+        body: JSON.stringify({ email }),
+      }),
+    // Reset Password — link from email, carries ?token=...
+    resetPassword: (token: string, password: string) =>
+      request<{ message?: string }>("/auth/reset-password", {
+        method: "POST",
+        body: JSON.stringify({ token, password }),
+      }),
   },
   cart: {
     get: <T>() => request<T>("/cart"),
@@ -190,25 +185,8 @@ export const customerApi = {
     // hitting a known-dead endpoint. Once a real cities endpoint exists,
     // swap the body of this function back to a `request()` call like
     // getCountries above.
-    getStates: async (countryId?: number): Promise<State[]> => {
-      try {
-        const suffix = countryId ? `?countryId=${encodeURIComponent(String(countryId))}` : "";
-        const states = await request<State[]>(`/master-data/states${suffix}`);
-        return states.filter((state) => state.status === "Active");
-      } catch (err) {
-        console.error("Error fetching states:", err);
-        return [];
-      }
-    },
-    getCities: async (stateId?: string): Promise<City[]> => {
-      try {
-        const suffix = stateId ? `?stateId=${encodeURIComponent(stateId)}` : "";
-        const cities = await request<City[]>(`/master-data/cities${suffix}`);
-        return cities.filter((city) => city.status === "Active");
-      } catch (err) {
-        console.error("Error fetching cities:", err);
-        return FALLBACK_CITIES;
-      }
+    getCities: async (): Promise<City[]> => {
+      return FALLBACK_CITIES;
     },
   },
 };

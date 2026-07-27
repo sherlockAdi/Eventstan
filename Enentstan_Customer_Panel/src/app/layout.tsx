@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Script from "next/script";
 import "./globals.css";
 import Navbar from "@/components/ui/Navbar";
 import Footer from "@/components/ui/Footer";
@@ -12,10 +13,34 @@ export const metadata: Metadata = {
   description: "Your one-stop marketplace for premium event services",
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <html lang="en" suppressHydrationWarning={true}>
-      <body className="bg-white font-sans antialiased" suppressHydrationWarning={true}>
+      <head>
+        {/* Google Analytics */}
+        <Script
+          src="https://www.googletagmanager.com/gtag/js?id=G-9HD74LKG7J"
+          strategy="afterInteractive"
+        />
+        <Script id="google-analytics" strategy="afterInteractive">
+          {`
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+
+            gtag('config', 'G-9HD74LKG7J');
+          `}
+        </Script>
+      </head>
+
+      <body
+        className="bg-white font-sans antialiased"
+        suppressHydrationWarning={true}
+      >
         <AuthProvider>
           <CartProvider>
             <Navbar />
@@ -24,6 +49,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <CartDrawer />
           </CartProvider>
         </AuthProvider>
+
         <Toaster position="top-right" />
       </body>
     </html>

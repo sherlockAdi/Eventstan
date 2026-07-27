@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { vendorApi } from "@/api/vendorApi";
 import { getUser } from "@/lib/auth";
-import { PriceUnitMaster } from "@/lib/priceUnits";
+import { findPriceUnit, PriceUnitMaster } from "@/lib/priceUnits";
 
 const CITIES = [
   { id: "dubai", name: "Dubai" },
@@ -27,6 +27,12 @@ const CITIES = [
   { id: "umm_al_quwain", name: "Umm Al Quwain" },
 ] as const;
 
+const STATUS_OPTIONS = [
+  { id: "ACTIVE", name: "Active" },
+  { id: "INACTIVE", name: "Inactive" },
+  { id: "DRAFT", name: "Draft" },
+] as const;
+
 const emptyForm = {
   title: "",
   slug: "",
@@ -36,10 +42,13 @@ const emptyForm = {
   currency: "AED",
   priceMax: "",
   priceUnit: "per event",
+  minPieces: "",
+  maxPieces: "",
   tags: [] as string[],
   features: [] as string[],
   imageUrl: "",
   categoryId: "",
+  status: "ACTIVE",
 };
 
 function slugify(value: string) {
@@ -113,7 +122,7 @@ export default function AddServicePage() {
         setForm((current) => ({
           ...current,
           currency: uae?.defaultCurrency ?? current.currency,
-          categoryId: current.categoryId || categoryRows[0]?.id || "",
+          categoryId: current.categoryId,
           priceUnit: current.priceUnit || activePriceUnits[0]?.code || "per event",
         }));
       } catch (err) {
@@ -257,10 +266,23 @@ export default function AddServicePage() {
     if (slugStatus === "taken") return "Service slug is already in use.";
     if (!form.description.trim()) return "Description is required.";
     if (!form.city.trim()) return "City is required.";
+    if (!form.status) return "Status is required.";
     if (!form.amount || Number(form.amount) <= 0)
       return "Valid starting price is required.";
     if (form.priceMax && Number(form.priceMax) < Number(form.amount))
       return "Max price cannot be less than starting price.";
+
+    const selectedPriceUnit = findPriceUnit(priceUnits, form.priceUnit);
+
+    if (selectedPriceUnit?.requiresPieceRange) {
+      if (!form.minPieces || Number(form.minPieces) <= 0)
+        return "Minimum pieces is required and must be greater than 0.";
+      if (!form.maxPieces || Number(form.maxPieces) <= 0)
+        return "Maximum pieces is required and must be greater than 0.";
+      if (Number(form.minPieces) > Number(form.maxPieces))
+        return "Minimum pieces cannot be greater than maximum pieces.";
+    }
+
     return "";
   };
 
@@ -281,10 +303,12 @@ export default function AddServicePage() {
       setError("");
 
       const galleryUrls = await uploadGalleryImages();
+      const selectedPriceUnit = findPriceUnit(priceUnits, form.priceUnit);
 
-      await vendorApi.services.create({
+      const servicePayload: Record<string, unknown> = {
         vendorId,
         categoryId: form.categoryId,
+        status: form.status,
         title: form.title.trim(),
         slug: slugify(form.slug),
         description: form.description.trim(),
@@ -297,7 +321,14 @@ export default function AddServicePage() {
         tags: form.tags.length > 0 ? form.tags : undefined,
         gallery: galleryUrls.length > 0 ? galleryUrls : undefined,
         features: form.features.length > 0 ? form.features : undefined,
-      });
+      };
+
+      if (selectedPriceUnit?.requiresPieceRange) {
+        servicePayload.minPieces = Number(form.minPieces);
+        servicePayload.maxPieces = Number(form.maxPieces);
+      }
+
+      await vendorApi.services.create(servicePayload);
 
       router.push("/vendor/services");
     } catch (err) {
@@ -307,6 +338,9 @@ export default function AddServicePage() {
       setSaving(false);
     }
   };
+
+  const selectedPriceUnit = findPriceUnit(priceUnits, form.priceUnit);
+  const showPieceFields = Boolean(selectedPriceUnit?.requiresPieceRange);
 
   return (
     <div className="max-w-5xl mx-auto space-y-4 pb-3">
@@ -378,11 +412,8 @@ export default function AddServicePage() {
                   </label>
                   <input
                     value={form.slug}
-                    onChange={(e) => {
-                      setSlugEdited(true);
-                      setFormField("slug", slugify(e.target.value));
-                    }}
-                    className="w-full px-4 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-orange-400"
+                    readOnly
+                    className="w-full px-4 py-2.5 text-sm border border-gray-100 bg-gray-50 text-gray-400 rounded-xl focus:outline-none cursor-not-allowed"
                     placeholder="wedding-decor"
                   />
                   <p
@@ -399,18 +430,21 @@ export default function AddServicePage() {
 
                 <div>
                   <label className="text-xs font-semibold text-gray-700 mb-1.5 block">
-                    Description *
+                    Status *
                   </label>
-                  <textarea
-                    value={form.description}
-                    onChange={(e) =>
-                      setFormField("description", e.target.value)
-                    }
-                    rows={4}
-                    className="w-full px-4 py-3 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-orange-400 resize-none"
-                    placeholder="Describe the service. Customers will book packages under this service."
-                  />
+                  <select
+                    value={form.status}
+                    onChange={(e) => setFormField("status", e.target.value)}
+                    className="w-full px-4 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-orange-400"
+                  >
+                    {STATUS_OPTIONS.map((statusOption) => (
+                      <option key={statusOption.id} value={statusOption.id}>
+                        {statusOption.name}
+                      </option>
+                    ))}
+                  </select>
                 </div>
+
               </div>
             </div>
 
@@ -455,6 +489,37 @@ export default function AddServicePage() {
                   </div>
                 </div>
 
+                {showPieceFields && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-xs font-semibold text-gray-700 mb-1.5 block">
+                        Min Pieces *
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={form.minPieces}
+                        onChange={(e) => setFormField("minPieces", e.target.value)}
+                        className="w-full px-4 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-orange-400"
+                        placeholder="1"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold text-gray-700 mb-1.5 block">
+                        Max Pieces *
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={form.maxPieces}
+                        onChange={(e) => setFormField("maxPieces", e.target.value)}
+                        className="w-full px-4 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-orange-400"
+                        placeholder="10"
+                      />
+                    </div>
+                  </div>
+                )}
+
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
                     <label className="text-xs font-semibold text-gray-700 mb-1.5 block">
@@ -490,6 +555,7 @@ export default function AddServicePage() {
                     </label>
                     <input
                       value={form.currency}
+                      readOnly
                       onChange={(e) =>
                         setFormField("currency", e.target.value.toUpperCase())
                       }
@@ -500,6 +566,26 @@ export default function AddServicePage() {
                 </div>
               </div>
             </div>
+          </div>
+
+          <div>
+            <label className="text-xs font-semibold text-gray-700 mb-1.5 block">
+              Description *
+            </label>
+            <textarea
+              value={form.description}
+              onChange={(e) =>
+                setFormField("description", e.target.value.slice(0, 500))
+              }
+              rows={4}
+              maxLength={500}
+              className="w-full px-4 py-3 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-orange-400 resize-none"
+              placeholder="Describe the service. Customers will book packages under this service."
+            />
+            <p className="mt-1 text-xs text-gray-400 text-right">
+              {form.description.length} / 500 used &middot;{" "}
+              {500 - form.description.length} remaining
+            </p>
           </div>
         </div>
 

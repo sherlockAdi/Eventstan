@@ -91,11 +91,17 @@ interface ApiPackage {
   promotionDiscountType?: string | null;
   promotion_discount_value?: number | null;
   promotionDiscountValue?: number | null;
+  promotionStartDate?: string;
+  promotion_start_date?: string;
+  promotionEndDate?: string;
+  promotion_end_date?: string;
   createdAt?: string;
   updatedAt?: string;
   created_at?: string;
   showOnHomepage?: boolean;
   show_on_homepage?: boolean;
+  showOnPromotionalPage?: boolean;
+  show_on_promotional_page?: boolean;
   exactPrice?: number;
   exact_price?: number;
   vendorPhone?: string;
@@ -108,6 +114,32 @@ interface ApiPackage {
   promotional_price?: number;
   promotionalPrice?: number;
   service_id?: string;
+  categoryId?: string;
+  category?: { id: string; name: string; image?: string | null } | null;
+  minHours?: number;
+  maxHours?: number;
+  minPersons?: number;
+  maxPersons?: number;
+  isRental?: boolean;
+  is_rental?: boolean;
+  rentalLocation?: string;
+  rental_location?: string;
+  serviceArea?: string;
+  service_area?: string;
+  deliveryRadius?: number;
+  delivery_radius?: number;
+  deliveryFeeType?: string;
+  delivery_fee_type?: string;
+  deliveryFee?: number;
+  delivery_fee?: number;
+  pickupAvailable?: boolean;
+  pickup_available?: boolean;
+  deliveryAvailable?: boolean;
+  delivery_available?: boolean;
+  requiresDeposit?: boolean;
+  requires_deposit?: boolean;
+  depositAmount?: number;
+  deposit_amount?: number;
 }
 
 function packageAmount(pkg: ApiPackage) {
@@ -118,10 +150,24 @@ function packageCurrency(pkg: ApiPackage) {
   return pkg.money?.currency ?? pkg.currency ?? "AED";
 }
 
+// Formats any parseable date string into dd-mm-yyyy
+function formatDateDDMMYYYY(dateStr?: string | null) {
+  if (!dateStr) return "";
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return "";
+  const day = String(d.getDate()).padStart(2, "0");
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const year = d.getFullYear();
+  return `${day}-${month}-${year}`;
+}
+
 export default function PackageViewPage() {
   const params = useParams();
   const router = useRouter();
   const [pkg, setPkg] = useState<ApiPackage | null>(null);
+  const [categories, setCategories] = useState<
+    Array<{ id: string; name: string; image?: string | null }>
+  >([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState("");
@@ -148,10 +194,16 @@ export default function PackageViewPage() {
       setLoading(true);
       setError(null);
       
-      const data = await vendorApi.packages.get<ApiPackage>(packageId);
-      
+      const [data, categoryRows] = await Promise.all([
+        vendorApi.packages.get<ApiPackage>(packageId),
+        vendorApi.masterData
+          .categories<Array<{ id: string; name: string; image?: string | null }>>()
+          .catch(() => []),
+      ]);
+
       if (!abortController.signal.aborted) {
         setPkg(data);
+        setCategories(categoryRows);
         hasFetched.current = true;
       }
     } catch (err) {
@@ -253,11 +305,33 @@ export default function PackageViewPage() {
   
   const isPopular = pkg.isPopular ?? pkg.is_popular ?? false;
   const isPromotional = pkg.isPromotional ?? pkg.is_promotional ?? false;
-  const showOnHomepage = pkg.showOnHomepage ?? pkg.show_on_homepage ?? false;
+  const showOnHomepage =
+    pkg.showOnPromotionalPage ??
+    pkg.show_on_promotional_page ??
+    pkg.showOnHomepage ??
+    pkg.show_on_homepage ??
+    false;
   const createdAt = pkg.createdAt || pkg.created_at;
   
   const packageImage = pkg.imageUrl || pkg.image_url || null;
-  const defaultImage = `https://eventstancom.vercel.app/images/featured-services/featured-services-1.jpg`;
+  const globalDefaultImage = `https://eventstancom.vercel.app/images/featured-services/featured-services-1.jpg`;
+
+  const isRental = pkg.isRental ?? pkg.is_rental ?? false;
+  const rentalLocation = pkg.rentalLocation || pkg.rental_location || "";
+  const serviceArea = pkg.serviceArea || pkg.service_area || "";
+  const deliveryRadius = pkg.deliveryRadius ?? pkg.delivery_radius ?? null;
+  const deliveryFeeType = pkg.deliveryFeeType || pkg.delivery_fee_type || "";
+  const deliveryFee = pkg.deliveryFee ?? pkg.delivery_fee ?? null;
+  const pickupAvailable = pkg.pickupAvailable ?? pkg.pickup_available ?? false;
+  const deliveryAvailable = pkg.deliveryAvailable ?? pkg.delivery_available ?? false;
+  const requiresDeposit = pkg.requiresDeposit ?? pkg.requires_deposit ?? false;
+  const depositAmount = pkg.depositAmount ?? pkg.deposit_amount ?? null;
+  const vendorPhone = pkg.vendorPhone || "";
+  const minHours = pkg.minHours ?? null;
+  const maxHours = pkg.maxHours ?? null;
+  const minPersons = pkg.minPersons ?? null;
+  const maxPersons = pkg.maxPersons ?? null;
+  const categoryName = pkg.category?.name || "";
 
   const getPromotionalPrice = () => {
     if (!isPromotional) return null;
@@ -267,18 +341,43 @@ export default function PackageViewPage() {
     
     const discountType = pkg.promotionDiscountType || pkg.promotion_discount_type;
     const discountValue = pkg.promotionDiscountValue ?? pkg.promotion_discount_value;
+    const basePrice = pkg.exactPrice ?? pkg.exact_price ?? amount;
     
     if (discountType === "PERCENTAGE" && discountValue) {
-      return amount - (amount * discountValue / 100);
+      return basePrice - (basePrice * discountValue / 100);
     }
     if (discountType === "FLAT" && discountValue) {
-      return amount - discountValue;
+      return basePrice - discountValue;
     }
     return null;
   };
 
   const promotionalPrice = getPromotionalPrice();
+  const discountType = pkg.promotionDiscountType || pkg.promotion_discount_type;
+  const discountValue = pkg.promotionDiscountValue ?? pkg.promotion_discount_value;
+  const originalPrice = pkg.exactPrice ?? pkg.exact_price ?? amount;
+  const discountAmount =
+    isPromotional && promotionalPrice != null
+      ? originalPrice - promotionalPrice
+      : null;
+  const discountPercent =
+    isPromotional && discountAmount != null && originalPrice > 0
+      ? discountType === "PERCENTAGE" && discountValue
+        ? discountValue
+        : Math.round((discountAmount / originalPrice) * 100)
+      : null;
+  const promotionStart = pkg.promotionStartDate || pkg.promotion_start_date;
+  const promotionEnd = pkg.promotionEndDate || pkg.promotion_end_date;
   const services = pkg.items || [];
+  const resolvedCategoryName = categoryName || services[0]?.service?.category?.name || "";
+  const resolvedCategoryId = pkg.category?.id || pkg.categoryId || "";
+  const matchedCategory =
+    categories.find((cat) => cat.id === resolvedCategoryId) ||
+    categories.find(
+      (cat) => cat.name.toLowerCase() === resolvedCategoryName.toLowerCase(),
+    );
+  const categoryImage = matchedCategory?.image || null;
+  const defaultImage = categoryImage || globalDefaultImage;
 
   // Show only 4 items initially, then "View More"
   const displayInclusions = showAllInclusions ? includedItems : includedItems.slice(0, 4);
@@ -346,7 +445,10 @@ export default function PackageViewPage() {
             alt={packageName}
             className="w-full h-full object-cover"
             onError={(e) => {
-              (e.target as HTMLImageElement).src = defaultImage;
+              const img = e.target as HTMLImageElement;
+              if (img.src !== globalDefaultImage) {
+                img.src = globalDefaultImage;
+              }
             }}
           />
           <div className="absolute top-4 left-4 flex items-center gap-2 flex-wrap">
@@ -383,6 +485,9 @@ export default function PackageViewPage() {
                   <>
                     <span className="text-green-600">{promotionalPrice.toLocaleString()} {currency}</span>
                     <span className="text-xs text-gray-400 line-through ml-1">{amount.toLocaleString()} {currency}</span>
+                    {discountPercent != null && (
+                      <span className="ml-1 text-[10px] font-bold text-red-500">-{discountPercent}%</span>
+                    )}
                   </>
                 ) : (
                   <>{amount.toLocaleString()} {currency}</>
@@ -430,32 +535,63 @@ export default function PackageViewPage() {
                   {packageName}
                 </h1>
               </div>
-              {services.length > 0 && services[0]?.service?.category?.name && (
+              {resolvedCategoryName && (
                 <p className="text-sm text-gray-500 mt-1 flex items-center gap-2">
                   <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded text-xs font-medium">
-                    {services[0].service.category.name}
+                    {resolvedCategoryName}
+                  </span>
+                  {showOnHomepage && (
+                    <span className="bg-blue-50 text-blue-600 px-2 py-0.5 rounded text-xs font-medium">
+                      Shown on Promotional Page
+                    </span>
+                  )}
+                </p>
+              )}
+              {!resolvedCategoryName && showOnHomepage && (
+                <p className="text-sm text-gray-500 mt-1 flex items-center gap-2">
+                  <span className="bg-blue-50 text-blue-600 px-2 py-0.5 rounded text-xs font-medium">
+                    Shown on Promotional Page
                   </span>
                 </p>
               )}
             </div>
             <div className="text-right shrink-0">
-              <div className="flex items-center gap-2 justify-end">
-                {promotionalPrice ? (
-                  <>
-                    <span className="text-xl font-bold text-green-600">
+              {promotionalPrice ? (
+                <>
+                  <div className="flex items-baseline gap-1.5 justify-end flex-wrap">
+                    <span className="text-2xl font-bold text-gray-900">
                       {promotionalPrice.toLocaleString()} {currency}
                     </span>
-                    <span className="text-sm text-gray-400 line-through">
-                      {amount.toLocaleString()} {currency}
+                    <span className="text-xs text-gray-400 capitalize">
+                      / {priceUnit}
                     </span>
-                  </>
-                ) : (
-                  <span className="text-xl font-bold text-gray-900">
+                  </div>
+                  <div className="flex items-center gap-2 justify-end mt-0.5">
+                    <span className="text-sm text-gray-400 line-through">
+                      {originalPrice.toLocaleString()} {currency}
+                    </span>
+                    {discountPercent != null && (
+                      <span className="text-sm font-semibold text-orange-500">
+                        {discountPercent}% OFF
+                      </span>
+                    )}
+                  </div>
+                </>
+              ) : (
+                <div className="flex items-baseline gap-1.5 justify-end flex-wrap">
+                  <span className="text-2xl font-bold text-gray-900">
                     {amount.toLocaleString()} {currency}
                   </span>
-                )}
-              </div>
-              <p className="text-xs text-gray-400 capitalize">{priceUnit}</p>
+                  <span className="text-xs text-gray-400 capitalize">
+                    / {priceUnit}
+                  </span>
+                </div>
+              )}
+              {promotionalPrice && discountAmount != null && (
+                <p className="text-xs font-medium text-green-600 mt-0.5">
+                  You save {discountAmount.toLocaleString()} {currency}
+                </p>
+              )}
               {maxGuests && (
                 <p className="text-xs text-gray-400 mt-0.5">
                   min 1 – max {maxGuests} guests
@@ -463,6 +599,18 @@ export default function PackageViewPage() {
               )}
             </div>
           </div>
+          {isPromotional && (promotionStart || promotionEnd) && (
+            <div className="mt-3 flex items-center gap-2 rounded-xl bg-red-50 border border-red-100 px-3 py-2 text-xs text-red-700">
+              <Calendar size={14} className="shrink-0" />
+              <span>
+                Promotion valid
+                {promotionStart &&
+                  ` from ${formatDateDDMMYYYY(promotionStart)}`}
+                {promotionEnd &&
+                  ` to ${formatDateDDMMYYYY(promotionEnd)}`}
+              </span>
+            </div>
+          )}
         </div>
 
         {/* 4. Description */}
@@ -541,6 +689,80 @@ export default function PackageViewPage() {
             </div>
           </div>
         </div>
+
+        {/* 6. Additional Details */}
+        {(vendorPhone || isRental || minHours || minPersons) && (
+          <div className="p-5 md:p-6 border-t border-gray-100">
+            <h2 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+              <Info size={16} className="text-orange-500" />
+              Additional Details
+            </h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+              {vendorPhone && (
+                <div className="flex items-center gap-2 text-gray-600">
+                  <Phone size={14} className="text-gray-400 shrink-0" />
+                  <span>{vendorPhone}</span>
+                </div>
+              )}
+              {(minHours || maxHours) && (
+                <div className="flex items-center gap-2 text-gray-600">
+                  <Clock size={14} className="text-gray-400 shrink-0" />
+                  <span>{minHours || "—"}h – {maxHours || "—"}h</span>
+                </div>
+              )}
+              {(minPersons || maxPersons) && (
+                <div className="flex items-center gap-2 text-gray-600">
+                  <Users size={14} className="text-gray-400 shrink-0" />
+                  <span>{minPersons || "—"} – {maxPersons || "—"} persons</span>
+                </div>
+              )}
+              {isRental && rentalLocation && (
+                <div className="flex items-center gap-2 text-gray-600">
+                  <MapPin size={14} className="text-gray-400 shrink-0" />
+                  <span>{rentalLocation}</span>
+                </div>
+              )}
+              {isRental && serviceArea && (
+                <div className="flex items-center gap-2 text-gray-600">
+                  <Building2 size={14} className="text-gray-400 shrink-0" />
+                  <span>Service area: {serviceArea}</span>
+                </div>
+              )}
+              {isRental && deliveryRadius != null && (
+                <div className="flex items-center gap-2 text-gray-600">
+                  <Truck size={14} className="text-gray-400 shrink-0" />
+                  <span>Delivery radius: {deliveryRadius} km</span>
+                </div>
+              )}
+              {isRental && (
+                <div className="flex items-center gap-2 text-gray-600">
+                  <Truck size={14} className="text-gray-400 shrink-0" />
+                  <span>
+                    {deliveryFeeType === "free"
+                      ? "Free delivery"
+                      : deliveryFee != null
+                        ? `Delivery fee: ${deliveryFee} ${currency}`
+                        : "Delivery fee not set"}
+                  </span>
+                </div>
+              )}
+              {isRental && (
+                <div className="flex items-center gap-2 text-gray-600">
+                  <CheckCircle2 size={14} className="text-gray-400 shrink-0" />
+                  <span>
+                    {pickupAvailable ? "Pickup available" : "No pickup"} · {deliveryAvailable ? "Delivery available" : "No delivery"}
+                  </span>
+                </div>
+              )}
+              {isRental && requiresDeposit && (
+                <div className="flex items-center gap-2 text-gray-600">
+                  <Tag size={14} className="text-gray-400 shrink-0" />
+                  <span>Deposit required: {depositAmount ?? "—"} {currency}</span>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Delete Confirmation Modal */}

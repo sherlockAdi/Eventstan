@@ -65,6 +65,9 @@ interface ApiPackage {
   promotion_end_date?: string;
   promotionEndDate?: string;
   serviceId?: string;
+  categoryId?: string;
+  category_id?: string;
+  category?: { id?: string; name?: string; slug?: string } | null;
   itemIds?: string[];
   items?: { serviceId: string; service?: ApiService }[];
   imageUrl?: string;
@@ -72,7 +75,13 @@ interface ApiPackage {
   maxGuests?: number;
   durationHours?: number;
   includedItems?: string[];
+  inclusions?: string[];
+  features?: string[];
   vendorPhone?: string;
+  showOnHomepage?: boolean;
+  show_on_homepage?: boolean;
+  showOnPromotionalPage?: boolean;
+  show_on_promotional_page?: boolean;
   isRental?: boolean;
   rentalLocation?: string;
   rentalLocationId?: string;
@@ -91,6 +100,8 @@ interface ApiPackage {
   minPieces?: number;
   maxPieces?: number;
 }
+
+const DESCRIPTION_CHAR_LIMIT = 1500;
 
 // Same as Add page - only Base Fee and Free Delivery
 const DELIVERY_FEE_TYPES = [
@@ -126,6 +137,7 @@ export default function EditPackagePage() {
   const [existingImage, setExistingImage] = useState<string | null>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [newIncludedItem, setNewIncludedItem] = useState('');
+  const [newFeature, setNewFeature] = useState('');
 
   const [form, setForm] = useState({
     title: '',
@@ -145,6 +157,7 @@ export default function EditPackagePage() {
     minPieces: '',
     maxPieces: '',
     includedItems: [] as string[],
+    features: [] as string[],
     vendorPhone: '',
     isPromotional: false,
     promotionDiscountType: 'PERCENTAGE',
@@ -201,15 +214,43 @@ export default function EditPackagePage() {
         });
 
         const categoryList = Array.from(categoryMap.values());
+
+        const pkgCategoryId = pkg.categoryId || pkg.category_id || pkg.category?.id || '';
+        const pkgCategoryName = pkg.category?.name || '';
+
+        if (pkgCategoryId && !categoryMap.has(pkgCategoryId)) {
+          const injectedCategory: CategoryGroup = {
+            id: pkgCategoryId,
+            name: pkgCategoryName || 'Current category',
+            services: [],
+            isRental: pkg.isRental || false,
+          };
+          categoryMap.set(pkgCategoryId, injectedCategory);
+          categoryList.unshift(injectedCategory);
+        }
+
         setCategories(categoryList);
 
         let selectedCategoryId = '';
         let selectedCategoryIsRental = false;
-        for (const category of categoryList) {
-          if (category.services.some(s => s.id === selectedServiceId)) {
-            selectedCategoryId = category.id;
-            selectedCategoryIsRental = category.isRental || false;
-            break;
+
+        if (pkgCategoryId && categoryMap.has(pkgCategoryId)) {
+          const cat = categoryMap.get(pkgCategoryId)!;
+          selectedCategoryId = cat.id;
+          selectedCategoryIsRental = cat.isRental || false;
+        } else {
+          for (const category of categoryList) {
+            if (category.services.some(s => s.id === selectedServiceId)) {
+              selectedCategoryId = category.id;
+              selectedCategoryIsRental = category.isRental || false;
+              break;
+            }
+          }
+          // Fall back to the package's own category id even if we couldn't
+          // build a matching group from the active services list, so the
+          // dropdown doesn't silently default to an unrelated category.
+          if (!selectedCategoryId && pkgCategoryId) {
+            selectedCategoryId = pkgCategoryId;
           }
         }
 
@@ -240,19 +281,24 @@ export default function EditPackagePage() {
 
         const isRental = pkg.isRental || selectedCategoryIsRental || false;
 
-        // Determine delivery fee type - only 'base' or 'free' as per Add page
+        // Determine delivery fee type - only 'base' or 'free' as per Add page.
+        // Backend may send deliveryFeeType as "fixed" or "base" - normalize both to 'base'.
         let deliveryFeeType = 'base';
         let deliveryFixedFee = '';
-        
-        if (pkg.deliveryFeeType) {
-          deliveryFeeType = pkg.deliveryFeeType;
-        } else if (pkg.deliveryFee !== undefined && pkg.deliveryFee !== null) {
-          if (pkg.deliveryFee === 0) {
-            deliveryFeeType = 'free';
-          } else {
-            deliveryFeeType = 'base';
-            deliveryFixedFee = String(pkg.deliveryFee);
-          }
+
+        const rawFeeType = pkg.deliveryFeeType;
+        if (rawFeeType === 'free') {
+          deliveryFeeType = 'free';
+        } else if (rawFeeType === 'base' || rawFeeType === 'fixed') {
+          deliveryFeeType = 'base';
+        } else if (pkg.deliveryFee === 0) {
+          deliveryFeeType = 'free';
+        } else {
+          deliveryFeeType = 'base';
+        }
+
+        if (deliveryFeeType === 'base' && pkg.deliveryFee !== undefined && pkg.deliveryFee !== null) {
+          deliveryFixedFee = String(pkg.deliveryFee);
         }
 
         setForm({
@@ -266,7 +312,7 @@ export default function EditPackagePage() {
             'per event',
           status: pkg.status || 'ACTIVE',
           serviceId: selectedServiceId,
-          categoryId: selectedCategoryId || categoryList[0]?.id || '',
+          categoryId: selectedCategoryId,
           maxGuests: String(pkg.maxGuests || ''),
           durationHours: String(pkg.durationHours || ''),
           minHours: String(pkg.minHours || ''),
@@ -275,7 +321,8 @@ export default function EditPackagePage() {
           maxPersons: String(pkg.maxPersons || ''),
           minPieces: String(pkg.minPieces || ''),
           maxPieces: String(pkg.maxPieces || ''),
-          includedItems: pkg.includedItems || [],
+          includedItems: pkg.includedItems || pkg.inclusions || [],
+          features: pkg.features || [],
           vendorPhone: pkg.vendorPhone || '',
           isPromotional: Boolean(pkg.isPromotional || pkg.is_promotional),
           promotionDiscountType: pkg.promotionDiscountType || pkg.promotion_discount_type || 'PERCENTAGE',
@@ -394,6 +441,35 @@ export default function EditPackagePage() {
     }
   };
 
+  const addFeature = () => {
+    const trimmed = newFeature.trim();
+    if (!trimmed) return;
+    if (form.features.includes(trimmed)) {
+      setFormError('This feature is already added.');
+      return;
+    }
+    setForm((current) => ({
+      ...current,
+      features: [...current.features, trimmed],
+    }));
+    setNewFeature('');
+    setFormError('');
+  };
+
+  const removeFeature = (index: number) => {
+    setForm((current) => ({
+      ...current,
+      features: current.features.filter((_, i) => i !== index),
+    }));
+  };
+
+  const handleFeatureKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      addFeature();
+    }
+  };
+
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -434,6 +510,10 @@ export default function EditPackagePage() {
     }
     if (!form.price || Number(form.price) <= 0) {
       setFormError('Valid package price is required.');
+      return;
+    }
+    if (form.description.length > DESCRIPTION_CHAR_LIMIT) {
+      setFormError(`Description cannot exceed ${DESCRIPTION_CHAR_LIMIT} characters.`);
       return;
     }
     if (!form.priceUnit) {
@@ -564,6 +644,7 @@ export default function EditPackagePage() {
         vendorId,
         title: form.title.trim(),
         description: form.description.trim(),
+        categoryId: form.categoryId || undefined,
         serviceId: form.serviceId,
         exactPrice: Number(form.price),
         currency: form.currency,
@@ -574,8 +655,10 @@ export default function EditPackagePage() {
           ? Number(form.durationHours)
           : undefined,
         includedItems: form.includedItems,
+        features: form.features,
         vendorPhone: form.vendorPhone || undefined,
         imageUrl: uploadedImageUrl || existingImage || undefined,
+        showOnPromotionalPage: form.isPromotional,
         isPromotional: form.isPromotional,
         promotionDiscountType: form.isPromotional
           ? form.promotionDiscountType
@@ -656,6 +739,7 @@ export default function EditPackagePage() {
   }
 
   const selectedPriceUnit = findPriceUnit(priceUnits, form.priceUnit);
+  const descriptionCharCount = form.description.length;
   const showHourFields = Boolean(selectedPriceUnit?.requiresHourRange);
   const showPersonFields = Boolean(selectedPriceUnit?.requiresPersonRange);
   const showPieceFields = Boolean(selectedPriceUnit?.requiresPieceRange);
@@ -694,7 +778,7 @@ export default function EditPackagePage() {
             </div>
             <div>
               <h2 className="text-lg font-semibold text-gray-900">
-                Package essentials
+                Package Essentials
               </h2>
               <p className="text-sm text-gray-500">
                 Update the package details as needed.
@@ -717,13 +801,13 @@ export default function EditPackagePage() {
                   {categories.map((category) => (
                     <option key={category.id} value={category.id}>
                       {category.name} ({category.services.length})
-                      {category.isRental && ' 🏠'}
+                      {category.isRental}
                     </option>
                   ))}
                 </select>
                 {form.isRental && (
                   <p className="mt-1 text-xs text-orange-600">
-                    🏠 Rental category selected - delivery/pickup options
+                    Rental category selected - delivery/pickup options
                     available
                   </p>
                 )}
@@ -780,11 +864,28 @@ export default function EditPackagePage() {
               </label>
               <textarea
                 value={form.description}
-                onChange={(e) => setField('description', e.target.value)}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  if (value.length > DESCRIPTION_CHAR_LIMIT) {
+                    setField('description', value.slice(0, DESCRIPTION_CHAR_LIMIT));
+                    return;
+                  }
+                  setField('description', value);
+                }}
+                maxLength={DESCRIPTION_CHAR_LIMIT}
                 rows={3}
                 placeholder="Describe the package outcome, style, and what customers should expect."
                 className="w-full resize-none rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-orange-400 focus:ring-4 focus:ring-orange-100"
               />
+              <p
+                className={`mt-1 text-right text-xs ${
+                  descriptionCharCount >= DESCRIPTION_CHAR_LIMIT
+                    ? 'text-red-500'
+                    : 'text-gray-400'
+                }`}
+              >
+                {descriptionCharCount}/{DESCRIPTION_CHAR_LIMIT} characters
+              </p>
             </div>
 
             <div className="grid gap-3 sm:grid-cols-4">
@@ -1107,15 +1208,62 @@ export default function EditPackagePage() {
 
             <div>
               <label className="mb-1.5 block text-xs font-semibold tracking-wide text-gray-600">
+                Features
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={newFeature}
+                  onChange={(e) => setNewFeature(e.target.value)}
+                  onKeyDown={handleFeatureKeyDown}
+                  placeholder="e.g. Indoor"
+                  className="flex-1 rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-orange-400 focus:ring-4 focus:ring-orange-100"
+                />
+                <button
+                  onClick={addFeature}
+                  className="flex items-center gap-1 rounded-2xl bg-orange-500 px-4 py-3 text-sm font-medium text-white transition hover:bg-orange-600"
+                >
+                  <Plus size={18} />
+                  Add
+                </button>
+              </div>
+
+              {form.features.length > 0 && (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {form.features.map((item, index) => (
+                    <span
+                      key={index}
+                      className="inline-flex items-center gap-1.5 rounded-2xl bg-orange-50 px-3 py-1.5 text-sm text-orange-700 border border-orange-200"
+                    >
+                      {item}
+                      <button
+                        onClick={() => removeFeature(index)}
+                        className="rounded-full p-0.5 text-orange-400 hover:bg-orange-200 hover:text-orange-600 transition-colors"
+                      >
+                        <X size={14} />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
+              <p className="mt-1.5 text-xs text-gray-400">
+                Press Enter or click Add to add a feature. Click the X to
+                remove.
+              </p>
+            </div>
+
+            <div>
+              <label className="mb-1.5 block text-xs font-semibold tracking-wide text-gray-600">
                 Vendor Phone
               </label>
               <input
-                type="tel"
-                value={form.vendorPhone}
-                onChange={(e) => setField('vendorPhone', e.target.value)}
-                placeholder="e.g. +971 50 123 4567"
-                className="w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-orange-400 focus:ring-4 focus:ring-orange-100"
-              />
+                  type="tel"
+                  value={form.vendorPhone}
+                  readOnly
+                  disabled
+                  placeholder="e.g. +971 50 123 4567"
+                  className="w-full cursor-not-allowed rounded-2xl border border-gray-200 bg-gray-50 pl-9 pr-9 py-3 text-sm text-gray-500 outline-none"
+                />
             </div>
 
             <div>
@@ -1204,10 +1352,7 @@ export default function EditPackagePage() {
                     type="checkbox"
                     checked={form.isPromotional}
                     onChange={(e) =>
-                      setForm((current) => ({
-                        ...current,
-                        isPromotional: e.target.checked,
-                      }))
+                      setField('isPromotional', e.target.checked)
                     }
                     className="h-4 w-4 rounded border-gray-300 text-orange-500 focus:ring-orange-400"
                   />

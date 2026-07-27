@@ -1,6 +1,5 @@
 // Use proxy in browser (avoids CORS), direct URL on server
 const isServer = typeof window === 'undefined';
-const isLocalBase = /localhost|127\.0\.0\.1/i.test(process.env.NEXT_PUBLIC_BASE_URL ?? '');
 
 export const BASE_URL = isServer
   ? (process.env.NEXT_PUBLIC_BASE_URL?.replace(/\/$/, '') ?? 'https://api.eventstan.com')
@@ -9,9 +8,7 @@ export const BASE_URL = isServer
 
 export const BASE_API_URL = isServer
   ? `${BASE_URL}/api/v1/`
-  : isLocalBase
-    ? `${process.env.NEXT_PUBLIC_BASE_URL?.replace(/\/$/, '') ?? 'http://localhost:4000'}/api/v1/`
-    : '/api/proxy/';
+  : '/api/proxy/';
 
 const API_URL = BASE_API_URL.replace(/\/$/, '');
 

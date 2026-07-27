@@ -48,6 +48,78 @@ function StarRating({ rating, active }: { rating: number; active: boolean }) {
   );
 }
 
+// ─── Review Modal ─────────────────────────────────────────────────────────────
+function ReviewModal({
+  review,
+  onClose,
+}: {
+  review: (typeof REVIEWS)[0] | null;
+  onClose: () => void;
+}) {
+  useEffect(() => {
+    if (!review) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [review, onClose]);
+
+  if (!review) return null;
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm px-3 sm:px-4 py-6"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white rounded-2xl w-full max-w-md relative text-center shadow-xl flex flex-col max-h-[85vh] sm:max-h-[80vh]"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <button
+          onClick={onClose}
+          aria-label="Close"
+          className="absolute top-3 right-3 sm:top-4 sm:right-4 w-8 h-8 rounded-full flex items-center justify-center text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors z-10 bg-white"
+        >
+          ✕
+        </button>
+
+        {/* Scrollable content */}
+        <div className="overflow-y-auto px-5 sm:px-8 pt-8 sm:pt-8 pb-4">
+          <div
+            className="w-14 h-14 sm:w-16 sm:h-16 rounded-full mx-auto mb-3 sm:mb-4 flex items-center justify-center text-sm sm:text-base font-medium flex-shrink-0"
+            style={{
+              background: "#fff4e6",
+              color: "#9a3412",
+              outline: "2.5px solid #f97316",
+              outlineOffset: "2px",
+            }}
+          >
+            {getInitials(review.reviewer_name)}
+          </div>
+
+          <span className="inline-block text-[10px] font-medium px-2.5 py-1 rounded-full bg-orange-50 text-orange-800 border border-orange-100 mb-3">
+            {review.event_type}
+          </span>
+
+          <StarRating rating={review.rating} active={true} />
+
+          <p className="text-[13px] sm:text-sm leading-relaxed text-gray-600 whitespace-pre-line text-left sm:text-center">
+            {review.comment}
+          </p>
+        </div>
+
+        {/* Fixed footer with name */}
+        <div className="px-5 sm:px-8 pb-6 sm:pb-8 pt-2 flex-shrink-0">
+          <div className="inline-block max-w-full px-4 sm:px-6 py-2 rounded-full text-[11px] sm:text-xs font-semibold tracking-widest uppercase bg-orange-500 text-white truncate">
+            {review.reviewer_name}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Review Card ──────────────────────────────────────────────────────────────
 function ReviewCard({
   review,
@@ -55,15 +127,19 @@ function ReviewCard({
   isActive,
   isNear,
   onClick,
+  onReadMore,
 }: {
   review: (typeof REVIEWS)[0];
   index: number;
   isActive: boolean;
   isNear: boolean;
   onClick: () => void;
+  onReadMore: () => void;
 }) {
   const color = AVATAR_COLORS[index % AVATAR_COLORS.length];
   const initials = getInitials(review.reviewer_name);
+  // Heuristic: if comment is long enough that line-clamp-3 will likely cut it
+  const isLong = review.comment.length > 110;
 
   return (
     <div
@@ -108,11 +184,26 @@ function ReviewCard({
 
       {/* Review text */}
       <p
-        className="text-[13px] leading-relaxed mb-4 line-clamp-3 transition-colors duration-500"
+        className="text-[13px] leading-relaxed mb-1 line-clamp-3 transition-colors duration-500"
         style={{ color: isActive ? "#374151" : "#9ca3af" }}
       >
         {review.comment}
       </p>
+
+      {/* Read more button */}
+      {isLong ? (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onReadMore();
+          }}
+          className="block w-full text-center text-[11px] font-semibold text-orange-500 hover:text-orange-600 mb-3 underline underline-offset-2"
+        >
+          Read more
+        </button>
+      ) : (
+        <div className="mb-3" />
+      )}
 
       {/* Name button */}
       <div
@@ -132,6 +223,7 @@ function ReviewCard({
 function ReviewsSlider() {
   const [current, setCurrent] = useState(2);
   const [isHovered, setIsHovered] = useState(false);
+  const [modalReview, setModalReview] = useState<(typeof REVIEWS)[0] | null>(null);
   const trackRef = useRef<HTMLDivElement>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
   const CARD_W = 292;
@@ -142,12 +234,12 @@ function ReviewsSlider() {
   }, []);
 
   useEffect(() => {
-    if (isHovered) return;
+    if (isHovered || modalReview) return;
     const timer = setInterval(() => {
       setCurrent((prev) => (prev + 1) % REVIEWS.length);
     }, 3000);
     return () => clearInterval(timer);
-  }, [isHovered]);
+  }, [isHovered, modalReview]);
 
   useEffect(() => {
     if (!trackRef.current || !viewportRef.current) return;
@@ -191,6 +283,7 @@ function ReviewsSlider() {
                 Math.abs(actualIndex - current) === REVIEWS.length - 1
               }
               onClick={() => goTo(actualIndex)}
+              onReadMore={() => setModalReview(review)}
             />
           );
         })}
@@ -230,6 +323,8 @@ function ReviewsSlider() {
           →
         </button>
       </div>
+
+      <ReviewModal review={modalReview} onClose={() => setModalReview(null)} />
     </div>
   );
 }

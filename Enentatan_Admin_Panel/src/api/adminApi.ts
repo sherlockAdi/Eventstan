@@ -83,7 +83,6 @@ export const adminApi = {
 
   vendors: {
     list: () => request<any[]>('vendors'),
-    getById: (id: string) => request<any>(`vendors/${id}`),
     create: (payload: JsonBody) => request<any>('vendors', jsonOptions('POST', payload)),
     update: (id: string, payload: JsonBody) => request<any>(`vendors/${id}`, jsonOptions('PUT', payload)),
     updateStatus: (id: string, status: string) =>
@@ -217,23 +216,6 @@ export const adminApi = {
     list: () => request<any[]>('reviews/admin/all'),
     approve: (id: string) => request<any>(`reviews/${id}/approve`, jsonOptions('PATCH')),
     reject: (id: string) => request<any>(`reviews/${id}/reject`, jsonOptions('PATCH')),
-  },
-
-  rolePermissions: {
-    definitions: <T = unknown[]>() => request<T>('role-permission/definitions'),
-    list: <T = unknown[]>() => request<T>('role-permission'),
-    get: <T = unknown>(role: string) => request<T>(`role-permission/${role}`),
-    update: <T = unknown>(role: string, payload: JsonBody) =>
-      request<T>(`role-permission/${role}`, jsonOptions('PUT', payload)),
-  },
-
-  support: {
-    list: <T = unknown[]>() => request<T>('support/tickets'),
-    get: <T = unknown>(id: string) => request<T>(`support/tickets/${id}`),
-    reply: <T = unknown>(id: string, payload: JsonBody) =>
-      request<T>(`support/tickets/${id}/replies`, jsonOptions('POST', payload)),
-    updateStatus: <T = unknown>(id: string, status: string) =>
-      request<T>(`support/tickets/${id}/status`, jsonOptions('PATCH', { status })),
   },
 
   blogs: {

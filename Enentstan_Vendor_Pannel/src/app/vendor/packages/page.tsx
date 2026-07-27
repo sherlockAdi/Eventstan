@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import Link from "next/link";
 import {
   AlertTriangle,
@@ -18,6 +18,9 @@ import {
   ToggleRight,
   Trash2,
   X,
+  RotateCcw,
+  Filter,
+  Search,
 } from "lucide-react";
 import { vendorApi } from "@/api/vendorApi";
 import Pagination from "@/components/vendor/Pagination";
@@ -30,7 +33,7 @@ const ITEMS_PER_PAGE = 10;
 interface PackageService {
   id: string;
   title: string;
-  category?: { name: string };
+  category?: { id?: string; name: string };
   imageUrl?: string | null;
 }
 
@@ -56,19 +59,206 @@ interface ApiPackage {
   itemIds?: string[];
   items?: ApiPackageItem[];
   inclusions?: string[];
+  includedItems?: string[];
   features?: string[];
   max_guests?: number;
+  maxGuests?: number;
   duration_hours?: number;
+  durationHours?: number;
   is_popular?: boolean;
   created_at?: string;
+  categoryId?: string;
+  category_id?: string;
+  serviceId?: string;
+  service_id?: string;
+  exactPrice?: number;
+  exact_price?: number;
+  vendorPhone?: string;
+  vendor_phone?: string;
+  imageUrl?: string;
+  image_url?: string;
+  showOnHomepage?: boolean;
+  show_on_homepage?: boolean;
+  isPromotional?: boolean;
+  is_promotional?: boolean;
+  promotionDiscountType?: string;
+  promotion_discount_type?: string;
+  promotionDiscountValue?: number;
+  promotion_discount_value?: number;
+  promotionStartDate?: string;
+  promotion_start_date?: string;
+  promotionEndDate?: string;
+  promotion_end_date?: string;
+  isRental?: boolean;
+  is_rental?: boolean;
+  rentalLocation?: string;
+  rental_location?: string;
+  rentalLocationId?: string;
+  rental_location_id?: string;
+  serviceArea?: string;
+  service_area?: string;
+  deliveryRadius?: number;
+  delivery_radius?: number;
+  deliveryFeeType?: string;
+  delivery_fee_type?: string;
+  deliveryFee?: number;
+  delivery_fee?: number;
+  pickupAvailable?: boolean;
+  pickup_available?: boolean;
+  deliveryAvailable?: boolean;
+  delivery_available?: boolean;
+  requiresDeposit?: boolean;
+  requires_deposit?: boolean;
+  depositAmount?: number;
+  deposit_amount?: number;
+  minHours?: number;
+  min_hours?: number;
+  maxHours?: number;
+  max_hours?: number;
+  minPersons?: number;
+  min_persons?: number;
+  maxPersons?: number;
+  max_persons?: number;
+  minPieces?: number;
+  min_pieces?: number;
+  maxPieces?: number;
+  max_pieces?: number;
+  category?: { id?: string; name?: string; slug?: string } | null;
+  category_name?: string;
+  category_slug?: string;
+  originalPrice?: number;
+  original_price?: number;
+  promotionalPrice?: number;
+  promotional_price?: number;
+  showOnPromotionalPage?: boolean;
+  show_on_promotional_page?: boolean;
+  updatedAt?: string;
+  updated_at?: string;
+}
+
+// ── Searchable Select Component ──
+function SearchableSelectField({
+  value,
+  onChange,
+  options,
+  placeholder = "All Categories",
+  label,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  options: { value: string; label: string }[];
+  placeholder?: string;
+  label?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const ref = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false);
+        setQuery("");
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const selected = options.find((o) => o.value === value);
+  const filtered = query
+    ? options.filter((o) => o.label.toLowerCase().includes(query.toLowerCase()))
+    : options;
+
+  return (
+    <div className="flex-1 min-w-[200px]">
+      {label && (
+        <label className="block text-xs font-semibold text-gray-500 uppercase mb-1.5">
+          {label}
+        </label>
+      )}
+      <div className="relative" ref={ref}>
+        <button
+          type="button"
+          onClick={() => setOpen((o) => !o)}
+          className="relative w-full flex items-center gap-2 px-4 py-2 pr-9 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-orange-400 bg-white text-left hover:border-orange-300 transition-colors"
+        >
+          <span className={`truncate ${selected ? "text-gray-700" : "text-gray-400"}`}>
+            {selected ? selected.label : placeholder}
+          </span>
+          <ChevronDown
+            size={13}
+            className={`absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 transition-transform ${open ? "rotate-180" : ""}`}
+          />
+        </button>
+
+        {open && (
+          <div className="absolute z-30 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden">
+            <div className="p-2 border-b border-gray-100">
+              <input
+                autoFocus
+                type="text"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search..."
+                className="w-full px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-orange-400"
+              />
+            </div>
+            <div className="max-h-56 overflow-y-auto py-1">
+              {filtered.length === 0 && (
+                <p className="px-3 py-2 text-xs text-gray-400">No options found</p>
+              )}
+              {filtered.map((opt) => {
+                const isSelected = opt.value === value;
+                return (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => {
+                      onChange(opt.value);
+                      setOpen(false);
+                      setQuery("");
+                    }}
+                    className={`w-full flex items-center justify-between gap-2 px-3 py-2 text-sm text-left hover:bg-orange-50 transition-colors
+                      ${isSelected ? "text-orange-600 font-medium bg-orange-50/60" : "text-gray-700"}`}
+                  >
+                    <span className="truncate">{opt.label}</span>
+                    {isSelected && <CheckCircle2 size={14} className="text-orange-500 shrink-0" />}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
 }
 
 function packageAmount(pkg: ApiPackage) {
   return pkg.money?.amount ?? pkg.amount ?? pkg.price ?? 0;
 }
 
-function packageCurrency(pkg: ApiPackage) {
-  return pkg.money?.currency ?? pkg.currency ?? "AED";
+// Currency is always shown as AED regardless of what's stored on the
+// package record (some older records may have USD or other values saved).
+function packageCurrency(_pkg: ApiPackage) {
+  return "AED";
+}
+
+function packageOriginalPrice(pkg: ApiPackage) {
+  return pkg.originalPrice ?? pkg.original_price ?? pkg.exactPrice ?? pkg.exact_price;
+}
+
+function packageCategoryName(pkg: ApiPackage) {
+  return pkg.category?.name ?? pkg.category_name ?? "";
+}
+
+function packageCategoryId(pkg: ApiPackage) {
+  return pkg.category?.id ?? pkg.categoryId ?? pkg.category_id ?? "";
+}
+
+function packageIsPromotional(pkg: ApiPackage) {
+  return pkg.isPromotional ?? pkg.is_promotional ?? false;
 }
 
 function packageServices(pkg: ApiPackage): ApiPackageItem[] {
@@ -192,8 +382,16 @@ function PackageDetailModal({
               <p className="text-xs font-semibold text-gray-400 uppercase mb-1">
                 Price
               </p>
-              <p className="text-xl font-bold text-gray-900">
+              <p className="text-xl font-bold text-gray-900 flex items-center gap-2">
                 {packageAmount(pkg).toLocaleString()} {packageCurrency(pkg)}
+                {packageIsPromotional(pkg) &&
+                  packageOriginalPrice(pkg) != null &&
+                  packageOriginalPrice(pkg) !== packageAmount(pkg) && (
+                    <span className="text-sm font-medium text-gray-400 line-through">
+                      {packageOriginalPrice(pkg)!.toLocaleString()}{" "}
+                      {packageCurrency(pkg)}
+                    </span>
+                  )}
               </p>
               <p className="text-xs text-gray-400">
                 {pkg.price_unit || pkg.priceUnit || "package"}
@@ -281,41 +479,81 @@ export default function PackagesPage() {
   const [deleteTarget, setDeleteTarget] = useState<ApiPackage | null>(null);
   const [toggleTarget, setToggleTarget] = useState<ApiPackage | null>(null);
   const [viewTarget, setViewTarget] = useState<ApiPackage | null>(null);
-  
+
   // Filter states
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [serviceFilter, setServiceFilter] = useState<string>("all");
+  const [allCategories, setAllCategories] = useState<
+    Array<{ id: string; name: string; image?: string | null }>
+  >([]);
 
-  // Extract unique categories from packages
+  // All categories (not just ones already used by a package), for the filter dropdown.
+  // Filtering by id (not name) avoids mismatches between master-data category
+  // names and the category names embedded in services/packages.
   const categories = useMemo(() => {
-    const cats = new Set<string>();
+    if (allCategories.length) {
+      const seen = new Map<string, string>();
+      allCategories.forEach((c) => seen.set(c.id, c.name));
+      return Array.from(seen.entries())
+        .map(([id, name]) => ({ id, name }))
+        .sort((a, b) => a.name.localeCompare(b.name));
+    }
+    // Fallback: derive from packages if master data hasn't loaded yet
+    const cats = new Map<string, string>();
     packages.forEach(pkg => {
       const services = packageServices(pkg);
       services.forEach(item => {
-        if (item.service?.category?.name) {
-          cats.add(item.service.category.name);
-        }
+        const id = item.service?.category?.id;
+        const name = item.service?.category?.name;
+        if (id && name) cats.set(id, name);
       });
+      const pkgCatId = packageCategoryId(pkg);
+      const pkgCatName = packageCategoryName(pkg);
+      if (pkgCatId && pkgCatName) cats.set(pkgCatId, pkgCatName);
     });
-    return Array.from(cats).sort();
-  }, [packages]);
+    return Array.from(cats.entries())
+      .map(([id, name]) => ({ id, name }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [packages, allCategories]);
+
+  // Convert categories to options format for SearchableSelectField
+  const categoryOptions = useMemo(
+    () => [
+      { value: "all", label: "All Categories" },
+      ...categories.map((cat) => ({ value: cat.id, label: cat.name })),
+    ],
+    [categories]
+  );
 
   // Extract unique services based on selected category
   const services = useMemo(() => {
     const svcs = new Set<string>();
     packages.forEach(pkg => {
       const pkgServices = packageServices(pkg);
+      const pkgCatId = packageCategoryId(pkg);
       pkgServices.forEach(item => {
         // If category filter is selected, only show services from that category
-        if (categoryFilter === "all" || item.service?.category?.name === categoryFilter) {
-          if (item.service?.title) {
-            svcs.add(item.service.title);
-          }
+        const itemCatId = item.service?.category?.id;
+        const matchesCategory =
+          categoryFilter === "all" ||
+          itemCatId === categoryFilter ||
+          pkgCatId === categoryFilter;
+        if (matchesCategory && item.service?.title) {
+          svcs.add(item.service.title);
         }
       });
     });
     return Array.from(svcs).sort();
   }, [packages, categoryFilter]);
+
+  // Convert services to options format for SearchableSelectField
+  const serviceOptions = useMemo(
+    () => [
+      { value: "all", label: "All Services" },
+      ...services.map((svc) => ({ value: svc, label: svc })),
+    ],
+    [services]
+  );
 
   // Reset service filter when category changes
   useEffect(() => {
@@ -334,8 +572,20 @@ export default function PackagesPage() {
     }
   };
 
+  const fetchCategories = async () => {
+    try {
+      const rows = await vendorApi.masterData.categories<
+        Array<{ id: string; name: string; image?: string | null }>
+      >();
+      setAllCategories(rows);
+    } catch (err) {
+      console.error("Failed to load categories:", err);
+    }
+  };
+
   useEffect(() => {
     void fetchPackages();
+    void fetchCategories();
   }, []);
 
   // Reset to page 1 when filters or sort changes
@@ -351,19 +601,27 @@ export default function PackagesPage() {
     }
   };
 
+  // Reset all filters
+  const handleResetFilters = () => {
+    setCategoryFilter("all");
+    setServiceFilter("all");
+    setCurrentPage(1);
+  };
+
   const filtered = useMemo(() => {
     return [...packages]
       .filter((pkg) => {
         const pkgServices = packageServices(pkg);
-        
+
         // Filter by category
         if (categoryFilter !== "all") {
-          const hasCategory = pkgServices.some(
-            item => item.service?.category?.name === categoryFilter
-          );
+          const hasCategory =
+            pkgServices.some(
+              item => item.service?.category?.id === categoryFilter
+            ) || packageCategoryId(pkg) === categoryFilter;
           if (!hasCategory) return false;
         }
-        
+
         // Filter by service
         if (serviceFilter !== "all") {
           const hasService = pkgServices.some(
@@ -371,7 +629,7 @@ export default function PackagesPage() {
           );
           if (!hasService) return false;
         }
-        
+
         return true;
       })
       .sort((a, b) => {
@@ -390,6 +648,18 @@ export default function PackagesPage() {
     (currentPage - 1) * ITEMS_PER_PAGE,
     currentPage * ITEMS_PER_PAGE,
   );
+
+  const resolvePackageImage = (pkg: ApiPackage): string | null => {
+    if (pkg.imageUrl || pkg.image_url) return pkg.imageUrl || pkg.image_url || null;
+    const catId = packageCategoryId(pkg);
+    const catName = packageCategoryName(pkg);
+    const matched =
+      allCategories.find((c) => c.id === catId) ||
+      allCategories.find(
+        (c) => c.name.toLowerCase() === catName.toLowerCase(),
+      );
+    return matched?.image || null;
+  };
 
   const th = (key: SortKey, label: string) => (
     <th
@@ -417,22 +687,89 @@ export default function PackagesPage() {
 
   const handleToggle = async () => {
     if (!toggleTarget) return;
-    const newStatus = toggleTarget.status === "ACTIVE" ? "INACTIVE" : "ACTIVE";
+    const pkg = toggleTarget;
+    const newStatus = pkg.status === "ACTIVE" ? "INACTIVE" : "ACTIVE";
+
+    // The backend validates the FULL package payload even on a partial PATCH
+    // (e.g. it still requires minHours > 0 for hourly packages). So instead
+    // of sending just { status }, we resend the package's existing data via
+    // the same PUT endpoint the Edit page uses, only flipping status.
+    const services = packageServices(pkg);
+    const serviceId = pkg.serviceId || pkg.service_id || services[0]?.serviceId || "";
+    const minHours = pkg.minHours ?? pkg.min_hours;
+    const maxHours = pkg.maxHours ?? pkg.max_hours;
+    const minPersons = pkg.minPersons ?? pkg.min_persons;
+    const maxPersons = pkg.maxPersons ?? pkg.max_persons;
+    const minPieces = pkg.minPieces ?? pkg.min_pieces;
+    const maxPieces = pkg.maxPieces ?? pkg.max_pieces;
+    const isRental = pkg.isRental ?? pkg.is_rental ?? false;
+
+    const payload: Record<string, unknown> = {
+      vendorId: pkg.vendorId,
+      title: pkg.title || pkg.name,
+      description: pkg.description || "",
+      categoryId: pkg.categoryId || pkg.category_id || undefined,
+      serviceId,
+      exactPrice: pkg.exactPrice ?? pkg.exact_price ?? packageAmount(pkg),
+      currency: packageCurrency(pkg),
+      priceUnit: pkg.priceUnit || pkg.price_unit || "package",
+      status: newStatus,
+      maxGuests: pkg.maxGuests ?? pkg.max_guests ?? undefined,
+      durationHours: pkg.durationHours ?? pkg.duration_hours ?? undefined,
+      includedItems: pkg.includedItems || pkg.inclusions || [],
+      features: pkg.features || [],
+      vendorPhone: pkg.vendorPhone || pkg.vendor_phone || undefined,
+      imageUrl: pkg.imageUrl || pkg.image_url || undefined,
+      showOnPromotionalPage: pkg.showOnPromotionalPage ?? pkg.show_on_promotional_page ?? false,
+      isPromotional: pkg.isPromotional ?? pkg.is_promotional ?? false,
+      promotionDiscountType: pkg.promotionDiscountType || pkg.promotion_discount_type || undefined,
+      promotionDiscountValue: pkg.promotionDiscountValue ?? pkg.promotion_discount_value ?? undefined,
+      promotionStartDate: pkg.promotionStartDate || pkg.promotion_start_date || undefined,
+      promotionEndDate: pkg.promotionEndDate || pkg.promotion_end_date || undefined,
+    };
+
+    if (isRental) {
+      payload.isRental = true;
+      payload.rentalLocation = pkg.rentalLocation || pkg.rental_location || "";
+      payload.rentalLocationId = pkg.rentalLocationId || pkg.rental_location_id || "";
+      payload.serviceArea = pkg.serviceArea || pkg.service_area || undefined;
+      payload.deliveryRadius = pkg.deliveryRadius ?? pkg.delivery_radius ?? undefined;
+      payload.deliveryFeeType = pkg.deliveryFeeType || pkg.delivery_fee_type || undefined;
+      payload.deliveryFee = pkg.deliveryFee ?? pkg.delivery_fee ?? undefined;
+      payload.pickupAvailable = pkg.pickupAvailable ?? pkg.pickup_available ?? true;
+      payload.deliveryAvailable = pkg.deliveryAvailable ?? pkg.delivery_available ?? true;
+      payload.requiresDeposit = pkg.requiresDeposit ?? pkg.requires_deposit ?? false;
+      payload.depositAmount = pkg.depositAmount ?? pkg.deposit_amount ?? undefined;
+    }
+
+    if (minHours != null || maxHours != null) {
+      payload.minHours = minHours;
+      payload.maxHours = maxHours;
+    } else if (minPersons != null || maxPersons != null) {
+      payload.minPersons = minPersons;
+      payload.maxPersons = maxPersons;
+    } else if (minPieces != null || maxPieces != null) {
+      payload.minPieces = minPieces;
+      payload.maxPieces = maxPieces;
+    }
+
     try {
-      await vendorApi.packages.updateStatus(toggleTarget.id, newStatus);
-      setPackages((cur) =>
-        cur.map((pkg) =>
-          pkg.id === toggleTarget.id ? { ...pkg, status: newStatus } : pkg,
-        ),
-      );
+      await vendorApi.packages.update(pkg.id, payload);
+      const fresh = await vendorApi.packages.list<ApiPackage[]>();
+      setPackages(fresh);
       setSuccess(
-        `"${toggleTarget.title}" ${newStatus === "ACTIVE" ? "activated" : "deactivated"}`,
+        `"${pkg.title}" ${newStatus === "ACTIVE" ? "activated" : "deactivated"}`,
       );
       setToggleTarget(null);
       window.setTimeout(() => setSuccess(""), 3000);
-    } catch {
-      setError("Failed to update package status.");
-      window.setTimeout(() => setError(null), 4000);
+    } catch (err) {
+      console.error("Failed to update package status:", err);
+      setError(
+        err instanceof Error
+          ? `Failed to update package status: ${err.message}`
+          : "Failed to update package status.",
+      );
+      window.setTimeout(() => setError(null), 5000);
     }
   };
 
@@ -449,6 +786,8 @@ export default function PackagesPage() {
       </div>
     );
   }
+
+  const hasActiveFilters = categoryFilter !== "all" || serviceFilter !== "all";
 
   return (
     <div className="space-y-5">
@@ -501,61 +840,71 @@ export default function PackagesPage() {
       </div>
 
       {/* Filters */}
-      <div className="flex flex-wrap gap-4">
-        <div className="flex-1 min-w-[200px]">
-          <label className="block text-xs font-semibold text-gray-500 uppercase mb-1.5">
-            Category
-          </label>
-          <select
-            value={categoryFilter}
-            onChange={(e) => setCategoryFilter(e.target.value)}
-            className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-orange-400 bg-white"
-          >
-            <option value="all">All Categories</option>
-            {categories.map((cat) => (
-              <option key={cat} value={cat}>
-                {cat}
-              </option>
-            ))}
-          </select>
-        </div>
-        
-        <div className="flex-1 min-w-[200px]">
-          <label className="block text-xs font-semibold text-gray-500 uppercase mb-1.5">
-            Service
-          </label>
-          <select
-            value={serviceFilter}
-            onChange={(e) => setServiceFilter(e.target.value)}
-            className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-orange-400 bg-white"
-          >
-            <option value="all">All Services</option>
-            {services.map((svc) => (
-              <option key={svc} value={svc}>
-                {svc}
-              </option>
-            ))}
-          </select>
-          {categoryFilter !== "all" && services.length === 0 && (
-            <p className="text-xs text-gray-400 mt-1">
-              No services available in this category
-            </p>
+      <div className="flex flex-wrap items-end gap-4">
+        <SearchableSelectField
+          value={categoryFilter}
+          onChange={setCategoryFilter}
+          options={categoryOptions}
+          placeholder="All Categories"
+          label="Category"
+        />
+
+        <SearchableSelectField
+          value={serviceFilter}
+          onChange={setServiceFilter}
+          options={serviceOptions}
+          placeholder="All Services"
+          label="Service"
+        />
+
+        <button
+          onClick={handleResetFilters}
+          className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-gray-600 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 hover:text-gray-900 transition-colors shrink-0"
+          title="Reset all filters"
+        >
+          <RotateCcw size={15} />
+          Reset
+        </button>
+      </div>
+
+      {/* Active filters indicator */}
+      {hasActiveFilters && (
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-xs text-gray-500">Active filters:</span>
+          {categoryFilter !== "all" && (
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-orange-50 text-orange-700 text-xs rounded-full">
+              <Filter size={12} />
+              {categories.find(c => c.id === categoryFilter)?.name || categoryFilter}
+              <button
+                onClick={() => setCategoryFilter("all")}
+                className="text-orange-400 hover:text-orange-600"
+              >
+                <X size={12} />
+              </button>
+            </span>
+          )}
+          {serviceFilter !== "all" && (
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-orange-50 text-orange-700 text-xs rounded-full">
+              <Search size={12} />
+              {serviceFilter}
+              <button
+                onClick={() => setServiceFilter("all")}
+                className="text-orange-400 hover:text-orange-600"
+              >
+                <X size={12} />
+              </button>
+            </span>
+          )}
+          {hasActiveFilters && (
+            <button
+              onClick={handleResetFilters}
+              className="text-xs text-gray-400 hover:text-gray-600 underline-offset-2 hover:underline"
+            >
+              Clear all
+            </button>
           )}
         </div>
-        
-        {/* Clear Filters Button */}
-        {(categoryFilter !== "all" || serviceFilter !== "all") && (
-          <button
-            onClick={() => {
-              setCategoryFilter("all");
-              setServiceFilter("all");
-            }}
-            className="self-end px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors"
-          >
-            Clear Filters ✕
-          </button>
-        )}
-      </div>
+      )}
 
       {/* Table */}
       <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
@@ -564,8 +913,8 @@ export default function PackagesPage() {
             <Layers size={36} className="mx-auto mb-3 opacity-30" />
             <p className="font-medium">No packages found</p>
             <p className="text-sm mt-1">
-              {categoryFilter !== "all" || serviceFilter !== "all" 
-                ? "Try clearing filters." 
+              {hasActiveFilters
+                ? "Try clearing your filters."
                 : "Create your first package."}
             </p>
           </div>
@@ -587,6 +936,7 @@ export default function PackagesPage() {
                 <tbody className="divide-y divide-gray-50">
                   {paginated.map((pkg) => {
                     const services = packageServices(pkg);
+                    const rowImage = resolvePackageImage(pkg);
                     return (
                       <tr
                         key={pkg.id}
@@ -594,11 +944,19 @@ export default function PackagesPage() {
                       >
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-lg bg-orange-50 flex items-center justify-center shrink-0">
-                              <PackageIcon
-                                size={16}
-                                className="text-orange-500"
-                              />
+                            <div className="w-10 h-10 rounded-lg bg-orange-50 flex items-center justify-center shrink-0 overflow-hidden">
+                              {rowImage ? (
+                                <img
+                                  src={rowImage}
+                                  alt={pkg.title || pkg.name || "Package"}
+                                  className="w-full h-full object-cover"
+                                />
+                              ) : (
+                                <PackageIcon
+                                  size={16}
+                                  className="text-orange-500"
+                                />
+                              )}
                             </div>
                             <div className="min-w-0">
                               <p className="text-sm font-semibold text-gray-900 truncate max-w-[280px]">
@@ -636,9 +994,17 @@ export default function PackagesPage() {
                           </div>
                         </td>
                         <td className="px-4 py-3">
-                          <div className="text-sm font-semibold text-gray-800 whitespace-nowrap">
+                          <div className="text-sm font-semibold text-gray-800 whitespace-nowrap flex items-center gap-1.5">
                             {packageAmount(pkg).toLocaleString()}{" "}
                             {packageCurrency(pkg)}
+                            {packageIsPromotional(pkg) &&
+                              packageOriginalPrice(pkg) != null &&
+                              packageOriginalPrice(pkg) !== packageAmount(pkg) && (
+                                <span className="text-xs font-medium text-gray-400 line-through">
+                                  {packageOriginalPrice(pkg)!.toLocaleString()}{" "}
+                                  {packageCurrency(pkg)}
+                                </span>
+                              )}
                           </div>
                           <div className="text-xs text-gray-400">
                             {pkg.price_unit || pkg.priceUnit || "package"}

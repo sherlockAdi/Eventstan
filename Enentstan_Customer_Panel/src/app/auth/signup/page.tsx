@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/AuthContext";
+import { customerApi, Country } from "@/api/customerApi";
 
 export default function SignupPage() {
   const { signup, user } = useAuth();
@@ -18,8 +19,20 @@ export default function SignupPage() {
   const [loading,  setLoading]  = useState(false);
   const [focused,  setFocused]  = useState<string | null>(null);
   const [step,     setStep]     = useState<1 | 2>(1);
+  const [countries, setCountries]   = useState<Country[]>([]);
+  const [countryCode, setCountryCode] = useState("+971");
+  const [codeOpen, setCodeOpen]       = useState(false);
 
   useEffect(() => { if (user) router.replace("/"); }, [user, router]);
+
+  useEffect(() => {
+    customerApi.masterData.getCountries().then((list) => {
+      setCountries(list);
+      if (list.length && !list.some((c) => c.phoneCode === countryCode)) {
+        setCountryCode(list[0].phoneCode);
+      }
+    });
+  }, []);
 
   const pwStrength = (() => {
     if (!password) return 0;
@@ -48,7 +61,8 @@ export default function SignupPage() {
     if (password !== confirm) { setError("Passwords do not match."); return; }
     if (pwStrength < 2)       { setError("Please choose a stronger password."); return; }
     setError(""); setLoading(true);
-    const res = await signup(name, email, phone, password, "individual");
+    const fullPhone = `${countryCode}${phone.replace(/^0+/, "")}`;
+    const res = await signup(name, email, fullPhone, password, "individual");
     setLoading(false);
     if (res.ok) router.push("/");
     else setError(res.error || "Sign up failed.");
@@ -194,16 +208,54 @@ export default function SignupPage() {
                 </div>
               </div>
 
-              {/* Phone */}
+              {/* Phone — with country code selector */}
               <div>
                 <label htmlFor="phone" className="block text-xs font-semibold text-gray-600 uppercase tracking-wider mb-1.5">Phone Number</label>
                 <div className={boxClass("phone")}>
-                  <svg className="absolute left-3.5 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/></svg>
+
+                  {/* Country code dropdown */}
+                  <div className="relative flex-shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => setCodeOpen(o => !o)}
+                      className="flex items-center gap-1 pl-3.5 pr-2 py-3 text-sm text-gray-700 font-medium border-r border-gray-200 focus:outline-none"
+                    >
+                      <span>
+                        {countries.find(c => c.phoneCode === countryCode)?.flag ?? "🌐"}
+                      </span>
+                      <span>{countryCode}</span>
+                      <svg className={`w-3 h-3 text-gray-400 transition-transform ${codeOpen ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7"/>
+                      </svg>
+                    </button>
+
+                    {codeOpen && (
+                      <>
+                        {/* backdrop to close on outside click */}
+                        <div className="fixed inset-0 z-10" onClick={() => setCodeOpen(false)} />
+                        <div className="absolute z-20 top-full left-0 mt-1 w-56 max-h-56 overflow-y-auto bg-white border border-gray-200 rounded-xl shadow-lg py-1">
+                          {countries.map(c => (
+                            <button
+                              key={c.id}
+                              type="button"
+                              onClick={() => { setCountryCode(c.phoneCode); setCodeOpen(false); }}
+                              className={`w-full flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-orange-50 ${c.phoneCode === countryCode ? "bg-orange-50 text-orange-600" : "text-gray-700"}`}
+                            >
+                              <span>{c.flag}</span>
+                              <span className="flex-1 truncate">{c.name}</span>
+                              <span className="text-gray-400">{c.phoneCode}</span>
+                            </button>
+                          ))}
+                        </div>
+                      </>
+                    )}
+                  </div>
+
                   <input
-                    id="phone" type="tel" value={phone} required placeholder="+971500000000"
-                    onChange={e => { setPhone(e.target.value); setError(""); }}
+                    id="phone" type="tel" value={phone} required placeholder="50 000 0000"
+                    onChange={e => { setPhone(e.target.value.replace(/[^\d]/g, "")); setError(""); }}
                     onFocus={() => setFocused("phone")} onBlur={() => setFocused(null)}
-                    className={inputBase}
+                    className="w-full bg-transparent pl-3 pr-4 py-3 text-sm text-gray-900 placeholder-gray-400 rounded-xl focus:outline-none"
                   />
                 </div>
               </div>

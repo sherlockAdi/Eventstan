@@ -2,10 +2,22 @@
 
 import { useEffect, useState } from "react";
 import Image from "next/image";
-import { CheckCircle, Clock, Star, Mail, Phone, Calendar, Users, Loader2 } from "lucide-react";
+import {
+  CheckCircle,
+  Clock,
+  Star,
+  Mail,
+  Phone,
+  Calendar,
+  Users,
+  Loader2,
+} from "lucide-react";
 import { customerApi } from "@/api/customerApi";
 import type { Country } from "@/api/customerApi";
-import { categoryService, type Category } from "@/services/api/category.service";
+import {
+  categoryService,
+  type Category,
+} from "@/services/api/category.service";
 
 const budgetOptions = [
   { label: "Under $1,000", min: 0, max: 1000 },
@@ -15,7 +27,13 @@ const budgetOptions = [
   { label: "$30,000+", min: 30000, max: 1000000 },
 ];
 
-const serviceOptions = ["Venue", "Decor", "Catering", "Entertainment", "Rentals"];
+const serviceOptions = [
+  "Venue",
+  "Decor",
+  "Catering",
+  "Entertainment",
+  "Rentals",
+];
 
 // Strips numbers only (keeps everything else the user types)
 const stripDigits = (value: string) => value.replace(/[0-9]/g, "");
@@ -67,7 +85,7 @@ export default function ContactPage() {
 
   const toggleService = (s: string) => {
     setServices((prev) =>
-      prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s]
+      prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s],
     );
   };
 
@@ -86,7 +104,7 @@ export default function ContactPage() {
     ) {
       setStatus("error");
       setErrorMsg(
-        "Please fill in all required fields (Name, Email, Phone, Event Type, Budget Range, Services Needed)."
+        "Please fill in all required fields (Name, Email, Phone, Event Type, Budget Range, Services Needed).",
       );
       return;
     }
@@ -99,7 +117,9 @@ export default function ContactPage() {
       phone: phone ? `${countryCode}${phone}` : phone,
       eventType,
       preferredEventDate: preferredEventDate || undefined,
-      expectedGuestCount: expectedGuestCount ? Number(expectedGuestCount) : undefined,
+      expectedGuestCount: expectedGuestCount
+        ? Number(expectedGuestCount)
+        : undefined,
       budgetRange: selectedBudget
         ? {
             min: selectedBudget.min,
@@ -130,7 +150,9 @@ export default function ContactPage() {
     } catch (err) {
       setStatus("error");
       setErrorMsg(
-        err instanceof Error ? err.message : "Something went wrong. Please try again."
+        err instanceof Error
+          ? err.message
+          : "Something went wrong. Please try again.",
       );
     }
   };
@@ -150,8 +172,9 @@ export default function ContactPage() {
             Tell Us About Your Event
           </h1>
           <p className="mx-auto mt-4 max-w-2xl text-neutral-500">
-            Fill in your event details and our team will call you back within 24 hours
-            with personalised vendor recommendations and a free consultation.
+            Fill in your event details and our team will call you back within 24
+            hours with personalised vendor recommendations and a free
+            consultation.
           </p>
         </div>
 
@@ -253,23 +276,25 @@ export default function ContactPage() {
                         placeholder="50 000 0000"
                         className="w-full min-w-0 bg-transparent px-3 py-2.5 text-sm text-neutral-900 placeholder-neutral-400 outline-none"
                         value={phone}
-                        onChange={(e) => setPhone(sanitizeDigits(e.target.value))}
+                        onChange={(e) =>
+                          setPhone(sanitizeDigits(e.target.value))
+                        }
                       />
                     </div>
                   </Field>
                   <Field label="Event Type" required>
-  <select
-    className="input"
-    value={eventType}
-    onChange={(e) => setEventType(e.target.value)}
-  >
-    <option value="">Select event type...</option>
-    <option value="Wedding">Wedding</option>
-    <option value="Corporate">Corporate</option>
-    <option value="Birthday">Birthday</option>
-    <option value="Other">Other</option>
-  </select>
-</Field>
+                    <select
+                      className="input"
+                      value={eventType}
+                      onChange={(e) => setEventType(e.target.value)}
+                    >
+                      <option value="">Select event type...</option>
+                      <option value="Wedding">Wedding</option>
+                      <option value="Corporate">Corporate</option>
+                      <option value="Birthday">Birthday</option>
+                      <option value="Other">Other</option>
+                    </select>
+                  </Field>
                 </div>
 
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -299,7 +324,9 @@ export default function ContactPage() {
                           const digits = sanitizeDigits(e.target.value);
                           // Don't allow 0 or a leading-zero count
                           setExpectedGuestCount(
-                            digits && Number(digits) > 0 ? String(Number(digits)) : ""
+                            digits && Number(digits) > 0
+                              ? String(Number(digits))
+                              : "",
                           );
                         }}
                       />
@@ -312,7 +339,6 @@ export default function ContactPage() {
                     <p className="text-sm font-medium text-neutral-800">
                       Budget Range <span className="text-orange-500">*</span>
                     </p>
-                    
                   </div>
                   <div className="flex flex-wrap gap-2">
                     {budgetOptions.map((b) => (

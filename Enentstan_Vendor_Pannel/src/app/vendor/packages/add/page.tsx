@@ -14,6 +14,8 @@ import {
   Plus,
   Truck,
   MapPin,
+  Phone,
+  Lock,
 } from "lucide-react";
 import { vendorApi } from "@/api/vendorApi";
 import { getUser } from "@/lib/auth";
@@ -42,6 +44,8 @@ interface CategoryGroup {
   services: ApiService[];
   isRental?: boolean;
 }
+
+const DESCRIPTION_CHAR_LIMIT = 1500;
 
 const DELIVERY_FEE_TYPES = [
   { value: "base", label: "Base Fee" },
@@ -74,6 +78,7 @@ export default function AddPackagePage() {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [newIncludedItem, setNewIncludedItem] = useState("");
+  const [newFeature, setNewFeature] = useState("");
 
   const [form, setForm] = useState({
     title: "",
@@ -92,6 +97,7 @@ export default function AddPackagePage() {
     minPieces: "",
     maxPieces: "",
     includedItems: [] as string[],
+    features: [] as string[],
     vendorPhone: "",
     isPromotional: false,
     promotionDiscountType: "PERCENTAGE",
@@ -99,7 +105,7 @@ export default function AddPackagePage() {
     promotionStartDate: "",
     promotionEndDate: "",
     isRental: false,
-    deliveryFeeType: "fixed",
+    deliveryFeeType: "base",
     deliveryFixedFee: "",
     pickupAvailable: true,
     deliveryAvailable: true,
@@ -147,12 +153,18 @@ export default function AddPackagePage() {
         setCategories(categoryList);
 
         let vendorAddress = "";
+        let vendorPhoneNumber = "";
         try {
           const profile = await vendorApi.profile.get();
           if (profile) {
             vendorAddress =
               (profile as any).businessLocation ||
               (profile as any).address ||
+              "";
+            vendorPhoneNumber =
+              (profile as any).phone ||
+              (profile as any).primaryMobile ||
+              (profile as any).telephone ||
               "";
           }
         } catch (error) {
@@ -166,21 +178,27 @@ export default function AddPackagePage() {
           }
         }
 
-        if (categoryList.length > 0 && categoryList[0].services.length > 0) {
-          const firstService = categoryList[0].services[0];
-          const firstCategory = categoryList[0];
+        if (!vendorPhoneNumber) {
+          const user: any = getUser();
+          if (user) {
+            vendorPhoneNumber = user.phone || user.mobile || "";
+          }
+        }
 
+        if (categoryList.length > 0 && categoryList[0].services.length > 0) {
           setForm((current) => ({
             ...current,
-            categoryId: firstCategory.id,
-            serviceId: firstService.id,
-            currency: firstService.price?.currency || current.currency,
             priceUnit:
-              findPriceUnit(activePriceUnits, firstService.price_unit)?.code ||
               current.priceUnit ||
               activePriceUnits[0]?.code ||
               "per event",
-            isRental: firstCategory.isRental || false,
+            rentalLocation: vendorAddress || "",
+            vendorPhone: vendorPhoneNumber || "",
+          }));
+        } else {
+          setForm((current) => ({
+            ...current,
+            vendorPhone: vendorPhoneNumber || "",
             rentalLocation: vendorAddress || "",
           }));
         }
@@ -225,8 +243,6 @@ export default function AddPackagePage() {
   };
 
   const handleCategoryChange = (categoryId: string) => {
-    const categoryServices = getServicesForCategory(categoryId);
-    const firstService = categoryServices[0];
     const selectedCategory = categories.find((cat) => cat.id === categoryId);
 
     const isRental = selectedCategory?.isRental || false;
@@ -234,11 +250,7 @@ export default function AddPackagePage() {
     setForm((current) => ({
       ...current,
       categoryId,
-      serviceId: firstService?.id || "",
-      currency: firstService?.price?.currency || current.currency,
-      priceUnit:
-        findPriceUnit(priceUnits, firstService?.price_unit)?.code ||
-        current.priceUnit,
+      serviceId: "",
       isRental: isRental,
       ...(isRental
         ? {}
@@ -283,6 +295,35 @@ export default function AddPackagePage() {
     }
   };
 
+  const addFeature = () => {
+    const trimmed = newFeature.trim();
+    if (!trimmed) return;
+    if (form.features.includes(trimmed)) {
+      setFormError("This feature is already added.");
+      return;
+    }
+    setForm((current) => ({
+      ...current,
+      features: [...current.features, trimmed],
+    }));
+    setNewFeature("");
+    setFormError("");
+  };
+
+  const removeFeature = (index: number) => {
+    setForm((current) => ({
+      ...current,
+      features: current.features.filter((_, i) => i !== index),
+    }));
+  };
+
+  const handleFeatureKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      addFeature();
+    }
+  };
+
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -323,6 +364,12 @@ export default function AddPackagePage() {
       setFormError("Valid package price is required.");
       return;
     }
+    if (form.description.length > DESCRIPTION_CHAR_LIMIT) {
+      setFormError(
+        `Description cannot exceed ${DESCRIPTION_CHAR_LIMIT} characters.`,
+      );
+      return;
+    }
     if (!form.priceUnit) {
       setFormError("Please select a price unit.");
       return;
@@ -334,7 +381,7 @@ export default function AddPackagePage() {
         return;
       }
 
-      if (form.deliveryFeeType === "fixed" && !form.deliveryFixedFee) {
+      if (form.deliveryFeeType === "base" && !form.deliveryFixedFee) {
         setFormError("Please enter a fixed delivery fee.");
         return;
       }
@@ -451,6 +498,7 @@ export default function AddPackagePage() {
         vendorId,
         title: form.title.trim(),
         description: form.description.trim(),
+        categoryId: form.categoryId || undefined,
         serviceId: form.serviceId,
         exactPrice: Number(form.price),
         currency: form.currency,
@@ -460,8 +508,10 @@ export default function AddPackagePage() {
           ? Number(form.durationHours)
           : undefined,
         includedItems: form.includedItems,
+        features: form.features,
         vendorPhone: form.vendorPhone || undefined,
         imageUrl: uploadedImageUrl || undefined,
+        showOnPromotionalPage: form.isPromotional,
         isPromotional: form.isPromotional,
         promotionDiscountType: form.isPromotional
           ? form.promotionDiscountType
@@ -495,8 +545,8 @@ export default function AddPackagePage() {
         if (form.deliveryFeeType === "free") {
           packageData.deliveryFeeType = "free";
           packageData.deliveryFee = 0;
-        } else if (form.deliveryFeeType === "fixed") {
-          packageData.deliveryFeeType = "fixed";
+        } else if (form.deliveryFeeType === "base") {
+          packageData.deliveryFeeType = "base";
           packageData.deliveryFee = Number(form.deliveryFixedFee);
         }
       }
@@ -542,6 +592,7 @@ export default function AddPackagePage() {
   }
 
   const selectedPriceUnit = findPriceUnit(priceUnits, form.priceUnit);
+  const descriptionCharCount = form.description.length;
   const showHourFields = Boolean(selectedPriceUnit?.requiresHourRange);
   const showPersonFields = Boolean(selectedPriceUnit?.requiresPersonRange);
   const showPieceFields = Boolean(selectedPriceUnit?.requiresPieceRange);
@@ -580,7 +631,7 @@ export default function AddPackagePage() {
             </div>
             <div>
               <h2 className="text-lg font-semibold text-gray-900">
-                Package essentials
+                Package Essentials
               </h2>
               <p className="text-sm text-gray-500">
                 Everything needed to create the package in one screen.
@@ -603,13 +654,13 @@ export default function AddPackagePage() {
                   {categories.map((category) => (
                     <option key={category.id} value={category.id}>
                       {category.name} ({category.services.length})
-                      {category.isRental && " 🏠"}
+                      {category.isRental}
                     </option>
                   ))}
                 </select>
                 {form.isRental && (
                   <p className="mt-1 text-xs text-orange-600">
-                    🏠 Rental category selected - delivery/pickup options
+                    Rental category selected - delivery/pickup options
                     available
                   </p>
                 )}
@@ -666,11 +717,31 @@ export default function AddPackagePage() {
               </label>
               <textarea
                 value={form.description}
-                onChange={(e) => setField("description", e.target.value)}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  if (value.length > DESCRIPTION_CHAR_LIMIT) {
+                    setField(
+                      "description",
+                      value.slice(0, DESCRIPTION_CHAR_LIMIT),
+                    );
+                    return;
+                  }
+                  setField("description", value);
+                }}
+                maxLength={DESCRIPTION_CHAR_LIMIT}
                 rows={3}
                 placeholder="Describe the package outcome, style, and what customers should expect."
                 className="w-full resize-none rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-orange-400 focus:ring-4 focus:ring-orange-100"
               />
+              <p
+                className={`mt-1 text-right text-xs ${
+                  descriptionCharCount >= DESCRIPTION_CHAR_LIMIT
+                    ? "text-red-500"
+                    : "text-gray-400"
+                }`}
+              >
+                {descriptionCharCount}/{DESCRIPTION_CHAR_LIMIT} characters
+              </p>
             </div>
 
             <div className="grid gap-3 sm:grid-cols-4">
@@ -898,21 +969,6 @@ export default function AddPackagePage() {
                         className="w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-orange-400 focus:ring-4 focus:ring-orange-100"
                       />
                     </div>
-                    {/* <div>
-                      <label className="mb-1.5 block text-xs font-semibold tracking-wide text-gray-600">
-                        Delivery Radius (km)
-                      </label>
-                      <input
-                        type="number"
-                        min="0"
-                        value={form.deliveryRadius}
-                        onChange={(e) =>
-                          setField("deliveryRadius", e.target.value)
-                        }
-                        placeholder="50"
-                        className="w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-orange-400 focus:ring-4 focus:ring-orange-100"
-                      />
-                    </div> */}
                     <div>
                     <label className="mb-1.5 block text-xs font-semibold tracking-wide text-gray-600">
                       Delivery Fee Type <span className="text-red-500">*</span>
@@ -933,9 +989,7 @@ export default function AddPackagePage() {
                   </div>
                   </div>
 
-                  
-
-                  {form.deliveryFeeType === "fixed" && (
+                  {form.deliveryFeeType === "base" && (
                     <div>
                       <label className="mb-1.5 block text-xs font-semibold tracking-wide text-gray-600">
                         Fixed Delivery Fee{" "}
@@ -1010,15 +1064,76 @@ export default function AddPackagePage() {
 
             <div>
               <label className="mb-1.5 block text-xs font-semibold tracking-wide text-gray-600">
+                Features
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={newFeature}
+                  onChange={(e) => setNewFeature(e.target.value)}
+                  onKeyDown={handleFeatureKeyDown}
+                  placeholder="e.g. Indoor"
+                  className="flex-1 rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-orange-400 focus:ring-4 focus:ring-orange-100"
+                />
+                <button
+                  onClick={addFeature}
+                  className="flex items-center gap-1 rounded-2xl bg-orange-500 px-4 py-3 text-sm font-medium text-white transition hover:bg-orange-600"
+                >
+                  <Plus size={18} />
+                  Add
+                </button>
+              </div>
+
+              {form.features.length > 0 && (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {form.features.map((item, index) => (
+                    <span
+                      key={index}
+                      className="inline-flex items-center gap-1.5 rounded-2xl bg-orange-50 px-3 py-1.5 text-sm text-orange-700 border border-orange-200"
+                    >
+                      {item}
+                      <button
+                        onClick={() => removeFeature(index)}
+                        className="rounded-full p-0.5 text-orange-400 hover:bg-orange-200 hover:text-orange-600 transition-colors"
+                      >
+                        <X size={14} />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
+              <p className="mt-1.5 text-xs text-gray-400">
+                Press Enter or click Add to add a feature. Click the X to
+                remove.
+              </p>
+            </div>
+
+            <div>
+              <label className="mb-1.5 block text-xs font-semibold tracking-wide text-gray-600">
                 Vendor Phone
               </label>
-              <input
-                type="tel"
-                value={form.vendorPhone}
-                onChange={(e) => setField("vendorPhone", e.target.value)}
-                placeholder="e.g. +971 50 123 4567"
-                className="w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-orange-400 focus:ring-4 focus:ring-orange-100"
-              />
+              <div className="relative">
+                <Phone
+                  size={16}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+                />
+                <input
+                  type="tel"
+                  value={form.vendorPhone}
+                  readOnly
+                  disabled
+                  placeholder="e.g. +971 50 123 4567"
+                  className="w-full cursor-not-allowed rounded-2xl border border-gray-200 bg-gray-50 pl-9 pr-9 py-3 text-sm text-gray-500 outline-none"
+                />
+                <Lock
+                  size={14}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-300"
+                />
+              </div>
+              <p className="mt-1 text-xs text-gray-400">
+                This is your registered phone number from your vendor profile
+                and cannot be edited here. Update it from your Profile page.
+              </p>
             </div>
 
             <div className="pt-2 border-t border-gray-100">
@@ -1092,10 +1207,7 @@ export default function AddPackagePage() {
                     type="checkbox"
                     checked={form.isPromotional}
                     onChange={(e) =>
-                      setForm((current) => ({
-                        ...current,
-                        isPromotional: e.target.checked,
-                      }))
+                      setField("isPromotional", e.target.checked)
                     }
                     className="h-4 w-4 rounded border-gray-300 text-orange-500 focus:ring-orange-400"
                   />

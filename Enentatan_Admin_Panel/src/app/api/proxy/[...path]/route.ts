@@ -1,18 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 // Server-side only — never sent to the browser, so no CORS issue.
-const upstreamBaseUrl = (() => {
-  const base = process.env.NEXT_PUBLIC_BASE_URL?.replace(/\/$/, '') ?? 'https://api.eventstan.com';
-  try {
-    const parsed = new URL(base);
-    if (parsed.hostname === 'localhost') {
-      parsed.hostname = '127.0.0.1';
-    }
-    return `${parsed.toString().replace(/\/$/, '')}/api/v1/`;
-  } catch {
-    return `${base}/api/v1/`;
-  }
-})();
+const UPSTREAM_BASE =
+  (process.env.NEXT_PUBLIC_BASE_URL?.replace(/\/$/, '') ?? 'https://api.eventstan.com') + '/api/v1/';
 
 // Headers that must not be forwarded as-is (hop-by-hop / host-specific)
 const STRIP_REQUEST_HEADERS = new Set([
@@ -28,11 +18,11 @@ const STRIP_RESPONSE_HEADERS = new Set([
   'connection',
 ]);
 
-async function handler(req: NextRequest, { params }: { params: { path: string[] } }) {
-  const { path } = params;
+async function handler(req: NextRequest, { params }: { params: Promise<{ path: string[] }> }) {
+  const { path } = await params;
   const targetPath = (path ?? []).join('/');
   const search = req.nextUrl.search;
-  const targetUrl = `${upstreamBaseUrl}${targetPath}${search}`;
+  const targetUrl = `${UPSTREAM_BASE}${targetPath}${search}`;
 
   const headers = new Headers();
   req.headers.forEach((value, key) => {
@@ -41,13 +31,14 @@ async function handler(req: NextRequest, { params }: { params: { path: string[] 
     }
   });
 
-  const hasBody = !['GET', 'HEAD'].includes(req.method);
-  const body = hasBody ? await req.arrayBuffer() : undefined;
-
   const init: RequestInit = {
     method: req.method,
     headers,
-    body,
+    // GET/HEAD must not have a body
+    body: ['GET', 'HEAD'].includes(req.method) ? undefined : req.body,
+    // Required by fetch when streaming a Request body in Node
+    // @ts-expect-error - duplex is valid at runtime, missing from TS lib types
+    duplex: ['GET', 'HEAD'].includes(req.method) ? undefined : 'half',
     redirect: 'manual',
   };
 

@@ -28,6 +28,12 @@ interface ApiService {
   price?: { amount: number; currency: string };
   price_max?: number;
   price_unit?: string;
+  minHours?: number;
+  maxHours?: number;
+  minPersons?: number;
+  maxPersons?: number;
+  minPieces?: number;
+  maxPieces?: number;
   image_url?: string;
   status: string;
   tags?: string[];
@@ -46,6 +52,8 @@ const emptyForm = {
   currency: "AED",
   priceMax: "",
   priceUnit: "per event",
+  minPieces: "",
+  maxPieces: "",
   status: "ACTIVE",
   tags: [] as string[],
   features: [] as string[],
@@ -109,12 +117,14 @@ export default function EditServicePage() {
           description: data.description || "",
           city: data.city || "",
           amount: String(data.price?.amount ?? ""),
-          currency: data.price?.currency || "AED",
+          currency: "AED",
           priceMax: String(data.price_max ?? ""),
           priceUnit:
             findPriceUnit(activePriceUnits, data.price_unit)?.code ||
             activePriceUnits[0]?.code ||
             "per event",
+          minPieces: String(data.minPieces ?? ""),
+          maxPieces: String(data.maxPieces ?? ""),
           status: data.status || "ACTIVE",
           tags: data.tags || [],
           features: data.features || [],
@@ -279,6 +289,18 @@ export default function EditServicePage() {
       return "Valid starting price is required.";
     if (form.priceMax && Number(form.priceMax) < Number(form.amount))
       return "Max price cannot be less than starting price.";
+
+    const selectedPriceUnit = findPriceUnit(priceUnits, form.priceUnit);
+
+    if (selectedPriceUnit?.requiresPieceRange) {
+      if (!form.minPieces || Number(form.minPieces) <= 0)
+        return "Minimum pieces is required and must be greater than 0.";
+      if (!form.maxPieces || Number(form.maxPieces) <= 0)
+        return "Maximum pieces is required and must be greater than 0.";
+      if (Number(form.minPieces) > Number(form.maxPieces))
+        return "Minimum pieces cannot be greater than maximum pieces.";
+    }
+
     return "";
   };
 
@@ -300,7 +322,9 @@ export default function EditServicePage() {
         newGalleryUrls.push(result.url);
       }
 
-      await vendorApi.services.update(id, {
+      const selectedPriceUnit = findPriceUnit(priceUnits, form.priceUnit);
+
+      const servicePayload: Record<string, unknown> = {
         title: form.title.trim(),
         slug: slugify(form.slug),
         description: form.description.trim(),
@@ -314,7 +338,14 @@ export default function EditServicePage() {
         tags: form.tags,
         gallery: [...existingGallery, ...newGalleryUrls],
         features: form.features,
-      });
+      };
+
+      if (selectedPriceUnit?.requiresPieceRange) {
+        servicePayload.minPieces = Number(form.minPieces);
+        servicePayload.maxPieces = Number(form.maxPieces);
+      }
+
+      await vendorApi.services.update(id, servicePayload);
 
       router.push("/vendor/services");
     } catch (err) {
@@ -349,6 +380,9 @@ export default function EditServicePage() {
       </div>
     );
   }
+
+  const selectedPriceUnit = findPriceUnit(priceUnits, form.priceUnit);
+  const showPieceFields = Boolean(selectedPriceUnit?.requiresPieceRange);
 
   return (
     <div className="max-w-5xl mx-auto space-y-4 pb-3">
@@ -416,11 +450,8 @@ export default function EditServicePage() {
                   </label>
                   <input
                     value={form.slug}
-                    onChange={(e) => {
-                      setSlugEdited(true);
-                      setFormField("slug", slugify(e.target.value));
-                    }}
-                    className="w-full px-4 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-orange-400"
+                    readOnly
+                    className="w-full px-4 py-2.5 text-sm border border-gray-100 bg-gray-50 text-gray-400 rounded-xl focus:outline-none cursor-not-allowed"
                   />
                   <p
                     className={`mt-1 text-xs ${slugStatus === "taken" ? "text-red-500" : slugStatus === "available" ? "text-emerald-600" : "text-gray-400"}`}
@@ -432,20 +463,6 @@ export default function EditServicePage() {
                     {slugStatus === "idle" &&
                       "This slug will be used in the customer service URL."}
                   </p>
-                </div>
-
-                <div>
-                  <label className="text-xs font-semibold text-gray-700 mb-1.5 block">
-                    Description *
-                  </label>
-                  <textarea
-                    value={form.description}
-                    onChange={(e) =>
-                      setFormField("description", e.target.value)
-                    }
-                    rows={4}
-                    className="w-full px-4 py-3 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-orange-400 resize-none"
-                  />
                 </div>
               </div>
             </div>
@@ -484,6 +501,37 @@ export default function EditServicePage() {
                   </div>
                 </div>
 
+                {showPieceFields && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-xs font-semibold text-gray-700 mb-1.5 block">
+                        Min Pieces *
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={form.minPieces}
+                        onChange={(e) => setFormField("minPieces", e.target.value)}
+                        className="w-full px-4 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-orange-400"
+                        placeholder="1"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold text-gray-700 mb-1.5 block">
+                        Max Pieces *
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={form.maxPieces}
+                        onChange={(e) => setFormField("maxPieces", e.target.value)}
+                        className="w-full px-4 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-orange-400"
+                        placeholder="10"
+                      />
+                    </div>
+                  </div>
+                )}
+
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                   <div>
                     <label className="text-xs font-semibold text-gray-700 mb-1.5 block">
@@ -511,18 +559,16 @@ export default function EditServicePage() {
                     />
                   </div>
 
-                  <div>
+                  {/* <div>
                     <label className="text-xs font-semibold text-gray-700 mb-1.5 block">
                       Currency *
                     </label>
                     <input
                       value={form.currency}
-                      onChange={(e) =>
-                        setFormField("currency", e.target.value.toUpperCase())
-                      }
-                      className="w-full px-4 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-orange-400"
+                      readOnly
+                      className="w-full px-4 py-2.5 text-sm border border-gray-100 bg-gray-50 text-gray-400 rounded-xl focus:outline-none cursor-not-allowed"
                     />
-                  </div>
+                  </div> */}
 
                   <div>
                     <label className="text-xs font-semibold text-gray-700 mb-1.5 block">
@@ -540,6 +586,25 @@ export default function EditServicePage() {
                 </div>
               </div>
             </div>
+          </div>
+
+          <div>
+            <label className="text-xs font-semibold text-gray-700 mb-1.5 block">
+              Description *
+            </label>
+            <textarea
+              value={form.description}
+              onChange={(e) =>
+                setFormField("description", e.target.value.slice(0, 500))
+              }
+              rows={4}
+              maxLength={500}
+              className="w-full px-4 py-3 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-orange-400 resize-none"
+            />
+            <p className="mt-1 text-xs text-gray-400 text-right">
+              {form.description.length} / 500 used &middot;{" "}
+              {500 - form.description.length} remaining
+            </p>
           </div>
         </div>
 
