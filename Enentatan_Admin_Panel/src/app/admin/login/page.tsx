@@ -32,7 +32,7 @@ export default function LoginPage() {
       {
         const token = data.accessToken;
         const userData = data.user;
-        if (!['ADMIN', 'SUPER_ADMIN'].includes(userData?.role)) {
+        if (!['ADMIN', 'SUPER_ADMIN', 'BLOG'].includes(userData?.role)) {
           throw new Error('This account does not have admin access.');
         }
         if (token) {
@@ -47,8 +47,8 @@ export default function LoginPage() {
             },
           });
           
-          toast.success(data.message || data.msg || 'Welcome back, Admin!');
-          router.push('/admin/dashboard');
+          toast.success(data.message || data.msg || 'Welcome back!');
+          router.push(userData?.role === 'BLOG' ? '/admin/blog' : '/admin/dashboard');
         } else {
           throw new Error(`No token received from server. Response structure: ${Object.keys(data).join(', ')}`);
         }
