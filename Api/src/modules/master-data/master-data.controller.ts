@@ -28,6 +28,8 @@ type EmailTemplatePayload = { name: string; subject: string; trigger: string; bo
 type PriceUnitPayload = {
   code: string;
   label: string;
+  minValue?: number | string | null;
+  maxValue?: number | string | null;
   isActive?: boolean;
   sortOrder?: number;
   requiresHourRange?: boolean;
@@ -528,15 +530,22 @@ export class MasterDataController {
     if (!code || !label) {
       throw new BadRequestException('Code and label are required');
     }
+    const minValue = this.normalizeNullableNumber(body.minValue);
+    const maxValue = this.normalizeNullableNumber(body.maxValue);
+    if (minValue !== null && maxValue !== null && minValue > maxValue) {
+      throw new BadRequestException('Minimum value cannot be greater than maximum value');
+    }
 
     return {
       code,
       label,
+      minValue,
+      maxValue,
       isActive: body.isActive ?? true,
       sortOrder: body.sortOrder ?? 0,
       requiresHourRange: body.requiresHourRange ?? false,
       requiresPersonRange: body.requiresPersonRange ?? false,
-      requiresPieceRange: false,
+      requiresPieceRange: body.requiresPieceRange ?? false,
     };
   }
 
@@ -661,11 +670,13 @@ export class MasterDataController {
           data: {
             code: unit.code,
             label: unit.label,
+            minValue: this.normalizeNullableNumber(unit.minValue),
+            maxValue: this.normalizeNullableNumber(unit.maxValue),
             isActive: unit.isActive ?? true,
             sortOrder: unit.sortOrder ?? 0,
             requiresHourRange: unit.requiresHourRange ?? false,
             requiresPersonRange: unit.requiresPersonRange ?? false,
-            requiresPieceRange: false,
+            requiresPieceRange: unit.requiresPieceRange ?? false,
           },
         });
       }
@@ -683,6 +694,17 @@ export class MasterDataController {
         data: { isActive: false, requiresPieceRange: false },
       });
     }
+  }
+
+  private normalizeNullableNumber(value?: number | string | null) {
+    if (value === undefined || value === null || value === '') {
+      return null;
+    }
+    const parsed = Number(value);
+    if (Number.isNaN(parsed)) {
+      throw new BadRequestException('Min and max values must be numeric');
+    }
+    return parsed;
   }
 
   private async ensureDefaultVisaTypes() {

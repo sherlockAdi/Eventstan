@@ -2,6 +2,8 @@ export interface PriceUnitMaster {
   id: string;
   code: string;
   label: string;
+  minValue?: number | null;
+  maxValue?: number | null;
   isActive: boolean;
   sortOrder: number;
   requiresHourRange: boolean;

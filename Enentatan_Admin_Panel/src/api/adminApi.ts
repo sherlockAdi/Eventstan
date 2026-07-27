@@ -83,6 +83,7 @@ export const adminApi = {
 
   vendors: {
     list: () => request<any[]>('vendors'),
+    getById: (id: string) => request<any>(`vendors/${encodeURIComponent(id)}`),
     create: (payload: JsonBody) => request<any>('vendors', jsonOptions('POST', payload)),
     update: (id: string, payload: JsonBody) => request<any>(`vendors/${id}`, jsonOptions('PUT', payload)),
     updateStatus: (id: string, status: string) =>
@@ -194,6 +195,25 @@ export const adminApi = {
     update: (id: number, payload: JsonBody) =>
       request<any>(`master-data/email-templates/${id}`, jsonOptions('PUT', payload)),
     delete: (id: number) => request<void>(`master-data/email-templates/${id}`, { method: 'DELETE' }),
+  },
+
+  rolePermissions: {
+    definitions: <T = unknown[]>() => request<T>('role-permission/definitions'),
+    list: <T = unknown[]>() => request<T>('role-permission'),
+    get: <T = unknown>(role: string) => request<T>(`role-permission/${encodeURIComponent(role)}`),
+    update: <T = unknown>(role: string, payload: JsonBody) =>
+      request<T>(`role-permission/${encodeURIComponent(role)}`, jsonOptions('PUT', payload)),
+    patch: <T = unknown>(role: string, payload: JsonBody) =>
+      request<T>(`role-permission/${encodeURIComponent(role)}`, jsonOptions('PATCH', payload)),
+  },
+
+  support: {
+    list: <T = unknown[]>() => request<T>('support/tickets'),
+    get: <T = unknown>(id: string) => request<T>(`support/tickets/${encodeURIComponent(id)}`),
+    reply: <T = unknown>(id: string, payload: JsonBody) =>
+      request<T>(`support/tickets/${encodeURIComponent(id)}/replies`, jsonOptions('POST', payload)),
+    updateStatus: <T = unknown>(id: string, status: string) =>
+      request<T>(`support/tickets/${encodeURIComponent(id)}/status`, jsonOptions('PATCH', { status })),
   },
 
   users: {

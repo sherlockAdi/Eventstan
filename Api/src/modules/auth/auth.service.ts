@@ -279,7 +279,7 @@ export class AuthService {
       return `${configured}${separator}token=${encodeURIComponent(token)}`;
     }
 
-    const baseUrl = this.customerAppUrl('/auth/reset-password');
+    const baseUrl = this.customerAppUrl('/auth/login');
     return `${baseUrl}?token=${encodeURIComponent(token)}`;
   }
 

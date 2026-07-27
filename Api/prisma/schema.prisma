@@ -383,6 +383,8 @@ model PriceUnitMaster {
   id                   String   @id @default(cuid())
   code                 String   @unique
   label                String
+  minValue             Int?
+  maxValue             Int?
   isActive             Boolean  @default(true)
   sortOrder            Int      @default(0)
   requiresHourRange    Boolean  @default(false)
