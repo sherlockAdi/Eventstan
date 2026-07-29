@@ -16,25 +16,17 @@ interface PriceUnitRow {
   id: string;
   code: string;
   label: string;
-  minValue: number | null;
-  maxValue: number | null;
   isActive: boolean;
   sortOrder: number;
-  requiresHourRange: boolean;
-  requiresPersonRange: boolean;
-  requiresPieceRange: boolean;
+  requireRange: boolean;
 }
 
 const emptyForm: Omit<PriceUnitRow, 'id'> = {
   code: '',
   label: '',
-  minValue: null,
-  maxValue: null,
   isActive: true,
   sortOrder: 0,
-  requiresHourRange: false,
-  requiresPersonRange: false,
-  requiresPieceRange: false,
+  requireRange: false,
 };
 
 export default function PriceUnitsPage() {
@@ -75,13 +67,9 @@ export default function PriceUnitsPage() {
     setForm({
       code: row.code,
       label: row.label,
-      minValue: row.minValue,
-      maxValue: row.maxValue,
       isActive: row.isActive,
       sortOrder: row.sortOrder,
-      requiresHourRange: row.requiresHourRange,
-      requiresPersonRange: row.requiresPersonRange,
-      requiresPieceRange: row.requiresPieceRange,
+      requireRange: row.requireRange,
     });
     setModalOpen(true);
   };
@@ -160,27 +148,11 @@ export default function PriceUnitsPage() {
       label: 'Order',
     },
     {
-      key: 'minmax',
-      label: 'Min / Max',
-      render: (_: unknown, row: PriceUnitRow) => (
-        <span className="text-sm text-gray-600">
-          {row.minValue !== null || row.maxValue !== null
-            ? `${row.minValue ?? '—'} / ${row.maxValue ?? '—'}`
-            : '—'}
-        </span>
+      key: 'requireRange',
+      label: 'Requires Range',
+      render: (value: boolean) => (
+        <span className="text-sm text-gray-600">{value ? 'Yes' : 'No'}</span>
       ),
-    },
-    {
-      key: 'rules',
-      label: 'Extra Fields',
-      render: (_: unknown, row: PriceUnitRow) => {
-        const labels = [
-          row.requiresHourRange ? 'Hours' : '',
-          row.requiresPersonRange ? 'Persons' : '',
-          row.requiresPieceRange ? 'Pieces' : '',
-        ].filter(Boolean);
-        return <span className="text-sm text-gray-600">{labels.length ? labels.join(', ') : 'None'}</span>;
-      },
     },
     {
       key: 'isActive',
@@ -271,34 +243,6 @@ export default function PriceUnitsPage() {
               required
               disabled={loading}
             />
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <Input
-                label="Min Value"
-                type="number"
-                value={form.minValue === null ? '' : String(form.minValue)}
-                onChange={(event) =>
-                  setForm((current) => ({
-                    ...current,
-                    minValue: event.target.value === '' ? null : Number(event.target.value),
-                  }))
-                }
-                placeholder="Optional"
-                disabled={loading}
-              />
-              <Input
-                label="Max Value"
-                type="number"
-                value={form.maxValue === null ? '' : String(form.maxValue)}
-                onChange={(event) =>
-                  setForm((current) => ({
-                    ...current,
-                    maxValue: event.target.value === '' ? null : Number(event.target.value),
-                  }))
-                }
-                placeholder="Optional"
-                disabled={loading}
-              />
-            </div>
             <Input
               label="Sort Order"
               type="number"
@@ -319,42 +263,18 @@ export default function PriceUnitsPage() {
             </label>
             <div className="rounded-xl border border-gray-100 bg-gray-50 p-4">
               <p className="mb-3 text-sm font-semibold text-gray-800">Unit-specific rules</p>
-              <div className="space-y-2">
-                <label className="flex items-center gap-2 text-sm text-gray-700">
-                  <input
-                    type="checkbox"
-                    checked={form.requiresHourRange}
-                    onChange={(event) =>
-                      setForm((current) => ({ ...current, requiresHourRange: event.target.checked }))
-                    }
-                    className="h-4 w-4 rounded border-gray-300 text-orange-500 focus:ring-orange-400"
-                  />
-                  Requires hour range
-                </label>
-                <label className="flex items-center gap-2 text-sm text-gray-700">
-                  <input
-                    type="checkbox"
-                    checked={form.requiresPersonRange}
-                    onChange={(event) =>
-                      setForm((current) => ({ ...current, requiresPersonRange: event.target.checked }))
-                    }
-                    className="h-4 w-4 rounded border-gray-300 text-orange-500 focus:ring-orange-400"
-                  />
-                  Requires person range
-                </label>
-            <label className="flex items-center gap-2 text-sm text-gray-700">
-              <input
-                type="checkbox"
-                checked={form.requiresPieceRange}
-                onChange={(event) =>
-                  setForm((current) => ({ ...current, requiresPieceRange: event.target.checked }))
-                }
-                className="h-4 w-4 rounded border-gray-300 text-orange-500 focus:ring-orange-400"
-              />
-                  Requires piece range
+              <label className="flex items-center gap-2 text-sm text-gray-700">
+                <input
+                  type="checkbox"
+                  checked={form.requireRange}
+                  onChange={(event) =>
+                    setForm((current) => ({ ...current, requireRange: event.target.checked }))
+                  }
+                  className="h-4 w-4 rounded border-gray-300 text-orange-500 focus:ring-orange-400"
+                />
+                Requires range (e.g. hours, persons, pieces)
               </label>
             </div>
-          </div>
           </div>
 
           <div className="mt-6 flex justify-end gap-3">

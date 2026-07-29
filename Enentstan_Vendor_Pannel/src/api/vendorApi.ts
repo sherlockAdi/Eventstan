@@ -129,5 +129,14 @@ export const vendorApi = {
     categories: <T = unknown[]>() => request<T>('master-data/categories'),
     priceUnits: <T = unknown[]>() => request<T>('master-data/price-units'),
     visaTypes: <T = unknown[]>() => request<T>('master-data/visa-types'),
+    states: <T = unknown[]>(countryId?: number) =>
+      request<T>(`master-data/states${countryId ? `?countryId=${countryId}` : ''}`),
+    cities: <T = unknown[]>(countryId?: number, stateId?: string) => {
+      const params = new URLSearchParams();
+      if (countryId) params.set('countryId', String(countryId));
+      if (stateId) params.set('stateId', stateId);
+      const query = params.toString();
+      return request<T>(`master-data/cities${query ? `?${query}` : ''}`);
+    },
   },
 };

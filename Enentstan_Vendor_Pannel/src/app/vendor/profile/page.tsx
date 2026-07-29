@@ -39,6 +39,7 @@ import { updateSessionUser } from "@/lib/auth";
 // Loaded at runtime from the master-data/countries API (see `countryCodes`
 // state in ProfilePage) instead of being hardcoded here.
 interface CountryOption {
+  id: number | string; // unique id from master-data, used as the React key
   code: string; // phoneCode, e.g. "+971"
   country: string; // name, e.g. "United Arab Emirates (UAE)"
   flag: string;
@@ -47,52 +48,21 @@ interface CountryOption {
 // Sensible fallback shown until the master-data/countries API responds
 // (or if that call fails), so the phone fields never render empty.
 const DEFAULT_COUNTRY_CODES: CountryOption[] = [
-  { code: "+971", country: "United Arab Emirates (UAE)", flag: "🇦🇪" },
+  { id: "default-ae", code: "+971", country: "United Arab Emirates (UAE)", flag: "🇦🇪" },
 ];
 
-// Areas within Dubai — used for the "Service Cities" selector so vendors can pick
-// specific Dubai localities rather than just the emirate name.
-const DUBAI_AREAS = [
-  "Downtown Dubai",
-  "Dubai Marina",
-  "Jumeirah",
-  "Deira",
-  "Bur Dubai",
-  "Business Bay",
-  "Al Barsha",
-  "Jumeirah Lake Towers (JLT)",
-  "Palm Jumeirah",
-  "Al Quoz",
-  "International City",
-  "Dubai Silicon Oasis",
-  "Dubai Sports City",
-  "Discovery Gardens",
-  "Jumeirah Village Circle (JVC)",
-  "Jumeirah Village Triangle (JVT)",
-  "Al Nahda",
-  "Mirdif",
-  "Umm Suqeim",
-  "Al Karama",
-  "Al Satwa",
-  "Al Barari",
-  "Arabian Ranches",
-  "Motor City",
-  "Dubai Investment Park (DIP)",
-  "Dubai Production City",
-  "Dubai Studio City",
-  "Al Furjan",
-  "The Springs",
-  "The Meadows",
-  "Emirates Hills",
-  "Dubai Festival City",
-  "Dubai Healthcare City",
-  "Al Rigga",
-  "Al Qusais",
-  "Nad Al Sheba",
-  "Dubai South",
-  "Damac Hills",
-  "Town Square",
-] as const;
+interface CityOption {
+  id: number | string;
+  name: string;
+  countryId: number;
+  countryName?: string;
+  status: string;
+}
+
+// Extended CityOption with country name resolved from the countries list
+interface CityWithCountry extends CityOption {
+  countryName: string;
+}
 
 interface VendorProfile {
   id: string;
@@ -101,6 +71,7 @@ interface VendorProfile {
   contactPerson: string;
   email: string;
   phone: string;
+  phoneCountryCode?: string | null; 
   vendorProfileImage?: string | null;
   about?: string | null;
   businessLocation?: string | null;
@@ -166,6 +137,17 @@ interface VisaTypeMasterRow {
   status: string;
   createdAt: string;
   updatedAt: string;
+}
+
+// Shape of a row returned by GET /master-data/cities
+interface CityMasterRow {
+  id: number | string;
+  name: string;
+  countryId: number;
+  stateId?: string | null;
+  status: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 /* ─── helpers ──────────────────────────────────────────────── */
@@ -704,6 +686,7 @@ function PhoneField({
   onCountryCodeChange,
   onNumberChange,
   options,
+  placeholder = "Number only",
 }: {
   label: string;
   countryCode: string;
@@ -711,6 +694,7 @@ function PhoneField({
   onCountryCodeChange: (v: string) => void;
   onNumberChange: (v: string) => void;
   options: CountryOption[];
+  placeholder?: string;
 }) {
   const [open, setOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
@@ -746,7 +730,7 @@ function PhoneField({
             <div className="absolute z-30 top-full left-0 mt-1 w-64 bg-white border border-gray-200 rounded-xl shadow-lg max-h-64 overflow-y-auto py-1">
               {options.map((c) => (
                 <button
-                  key={c.code}
+                  key={c.id} // ✅ FIX: use unique id instead of code
                   type="button"
                   onClick={() => {
                     onCountryCodeChange(c.code);
@@ -769,7 +753,7 @@ function PhoneField({
           type="tel"
           inputMode="numeric"
           value={number}
-          placeholder="Number only"
+          placeholder={placeholder}
           onChange={(e) => onNumberChange(sanitizeDigitsInput(e.target.value).slice(0, 15))}
           className="flex-1 min-w-0 py-2.5 px-3 text-sm rounded-r-xl focus:outline-none bg-white text-gray-800"
         />
@@ -992,8 +976,7 @@ function ChangePasswordCard() {
         <p className="text-xs text-gray-400">
           Use at least 8 characters. You'll stay signed in on this device.
         </p>
-        <button
-          type="button"
+        <button          type="button"
           onClick={handleChangePassword}
           disabled={saving}
           className="flex items-center justify-center gap-2 bg-gray-900 hover:bg-gray-800 disabled:opacity-60 text-white px-5 py-2.5 rounded-xl text-sm font-semibold transition-colors"
@@ -1031,6 +1014,11 @@ export default function ProfilePage() {
   // Visa types, sourced from GET /master-data/visa-types, used to populate
   // the Visa Type dropdown in the Legal & Compliance section.
   const [visaTypes, setVisaTypes] = useState<Array<{ value: string; label: string }>>([]);
+  // Cities state — now sourced from the real GET /master-data/cities API
+  // (same source admin uses), not faked from the countries list.
+  const [allCities, setAllCities] = useState<CityWithCountry[]>([]);
+  const [citiesLoading, setCitiesLoading] = useState(true);
+  const [citySearchQuery, setCitySearchQuery] = useState("");
   const [citiesMenuOpen, setCitiesMenuOpen] = useState(false);
   const avatarMenuRef = useRef<HTMLDivElement | null>(null);
   const avatarInputRef = useRef<HTMLInputElement | null>(null);
@@ -1043,6 +1031,7 @@ export default function ProfilePage() {
       }
       if (citiesMenuRef.current && !citiesMenuRef.current.contains(e.target as Node)) {
         setCitiesMenuOpen(false);
+        setCitySearchQuery("");
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
@@ -1057,6 +1046,7 @@ export default function ProfilePage() {
           ...data,
           telephoneCountryCode: data.telephoneCountryCode || "+971",
           primaryMobileCountryCode: data.primaryMobileCountryCode || "+971",
+          phoneCountryCode: data.phoneCountryCode || "+971", // ✅ Added for Phone Number
         }),
       )
       .catch((cause: unknown) =>
@@ -1072,16 +1062,13 @@ export default function ProfilePage() {
       .catch((cause: unknown) =>
         console.error("Unable to load categories:", cause),
       );
-
-    // Load dialing codes (+ flag, country name) from master data instead of
-    // a hardcoded list, so new countries added on the backend show up here
-    // automatically.
     vendorApi.masterData
       .countries<CountryMasterRow[]>()
       .then((data) => {
         const mapped = data
           .filter((c) => c.status === "Active" && c.phoneCode)
           .map((c) => ({
+            id: c.id, 
             code: c.phoneCode,
             country: c.name,
             flag: c.flag,
@@ -1091,9 +1078,6 @@ export default function ProfilePage() {
       .catch((cause: unknown) =>
         console.error("Unable to load countries:", cause),
       );
-
-    // Load visa types from master data so the Visa Type field becomes a
-    // dropdown instead of a free-text input.
     vendorApi.masterData
       .visaTypes<VisaTypeMasterRow[]>()
       .then((data) => {
@@ -1105,6 +1089,43 @@ export default function ProfilePage() {
       .catch((cause: unknown) =>
         console.error("Unable to load visa types:", cause),
       );
+    (async () => {
+      setCitiesLoading(true);
+      try {
+        const countries = await vendorApi.masterData.countries<CountryMasterRow[]>();
+        const activeCountries = countries.filter((c) => c.status === "Active");
+        const countryMap = new Map(activeCountries.map((c) => [c.id, c.name]));
+        let cities = await vendorApi.masterData
+          .cities<CityMasterRow[]>()
+          .catch(() => [] as CityMasterRow[]);
+        if (!cities || cities.length === 0) {
+          const perCountry = await Promise.all(
+            activeCountries.map((country) =>
+              vendorApi.masterData
+                .cities<CityMasterRow[]>(country.id)
+                .catch(() => [] as CityMasterRow[]),
+            ),
+          );
+          cities = perCountry.flat();
+        }
+
+        const mapped: CityWithCountry[] = cities
+          .filter((city) => city.status === "Active")
+          .map((city) => ({
+            id: city.id,
+            name: city.name,
+            countryId: city.countryId,
+            countryName: countryMap.get(city.countryId) ?? "",
+            status: city.status,
+          }));
+
+        setAllCities(mapped);
+      } catch (cause) {
+        console.error("Unable to load cities:", cause);
+      } finally {
+        setCitiesLoading(false);
+      }
+    })();
   }, []);
 
   useEffect(() => {
@@ -1113,13 +1134,27 @@ export default function ProfilePage() {
     if (generated && generated !== profile.userName) {
       setProfile((cur) => (cur ? { ...cur, userName: generated } : cur));
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profile?.firstName, profile?.lastName]);
 
   const update = <K extends keyof VendorProfile>(
     key: K,
     value: VendorProfile[K],
   ) => setProfile((cur) => (cur ? { ...cur, [key]: value } : cur));
+
+  const toggleCity = (cityName: string) => {
+    if (!profile) return;
+    const currentCities = profile.cities || [];
+    const updated = currentCities.includes(cityName)
+      ? currentCities.filter((c) => c !== cityName)
+      : [...currentCities, cityName];
+    update("cities", updated);
+  };
+
+  const filteredCities = citySearchQuery
+    ? allCities.filter((city) =>
+        city.name.toLowerCase().includes(citySearchQuery.toLowerCase())
+      )
+    : allCities;
 
   const handleSave = async () => {
     if (!profile) return;
@@ -1132,6 +1167,7 @@ export default function ProfilePage() {
         contactPerson: profile.contactPerson,
         email: profile.email,
         phone: profile.phone,
+        phoneCountryCode: profile.phoneCountryCode ?? "+971", // ✅ Added for Phone Number
         vendorProfileImage: profile.vendorProfileImage ?? "",
         firstName: profile.firstName ?? "",
         lastName: profile.lastName ?? "",
@@ -1175,6 +1211,7 @@ export default function ProfilePage() {
         ...updated,
         telephoneCountryCode: updated.telephoneCountryCode || "+971",
         primaryMobileCountryCode: updated.primaryMobileCountryCode || "+971",
+        phoneCountryCode: updated.phoneCountryCode || "+971", // ✅ Added for Phone Number
       });
       updateSessionUser({
         companyName: updated.companyName,
@@ -1194,7 +1231,6 @@ export default function ProfilePage() {
     }
   };
 
-  /* ── loading / error states ── */
   if (loading) {
     return (
       <div className="min-h-[50vh] flex items-center justify-center">
@@ -1513,12 +1549,18 @@ export default function ProfilePage() {
             type="email"
             readOnly
           />
-          <Field
+          
+          {/* ✅ Replaced regular Field with PhoneField for Phone Number */}
+          <PhoneField
             label="Phone Number"
-            value={profile.phone}
-            onChange={(v) => update("phone", v)}
-            icon={Phone}
+            countryCode={profile.phoneCountryCode ?? "+971"}
+            number={profile.phone ?? ""}
+            onCountryCodeChange={(v) => update("phoneCountryCode", v)}
+            onNumberChange={(v) => update("phone", v)}
+            options={countryCodes}
+            placeholder="Phone number"
           />
+          
           <SearchableSelectField
             label="Specialization"
             value={
@@ -1539,7 +1581,47 @@ export default function ProfilePage() {
             value={profile.businessLocation ?? ""}
             onChange={(v) => update("businessLocation", v)}
             icon={MapPin}
-            options={DUBAI_AREAS.map((c) => ({ value: c, label: c }))}
+            options={[
+              "Downtown Dubai",
+              "Dubai Marina",
+              "Jumeirah",
+              "Deira",
+              "Bur Dubai",
+              "Business Bay",
+              "Al Barsha",
+              "Jumeirah Lake Towers (JLT)",
+              "Palm Jumeirah",
+              "Al Quoz",
+              "International City",
+              "Dubai Silicon Oasis",
+              "Dubai Sports City",
+              "Discovery Gardens",
+              "Jumeirah Village Circle (JVC)",
+              "Jumeirah Village Triangle (JVT)",
+              "Al Nahda",
+              "Mirdif",
+              "Umm Suqeim",
+              "Al Karama",
+              "Al Satwa",
+              "Al Barari",
+              "Arabian Ranches",
+              "Motor City",
+              "Dubai Investment Park (DIP)",
+              "Dubai Production City",
+              "Dubai Studio City",
+              "Al Furjan",
+              "The Springs",
+              "The Meadows",
+              "Emirates Hills",
+              "Dubai Festival City",
+              "Dubai Healthcare City",
+              "Al Rigga",
+              "Al Qusais",
+              "Nad Al Sheba",
+              "Dubai South",
+              "Damac Hills",
+              "Town Square",
+            ].map((c) => ({ value: c, label: c }))}
             placeholder="Select business location"
           />
           <SearchableSelectField
@@ -1547,83 +1629,160 @@ export default function ProfilePage() {
             value={profile.address ?? ""}
             onChange={(v) => update("address", v)}
             icon={MapPin}
-            options={DUBAI_AREAS.map((c) => ({ value: c, label: c }))}
+            options={[
+              "Downtown Dubai",
+              "Dubai Marina",
+              "Jumeirah",
+              "Deira",
+              "Bur Dubai",
+              "Business Bay",
+              "Al Barsha",
+              "Jumeirah Lake Towers (JLT)",
+              "Palm Jumeirah",
+              "Al Quoz",
+              "International City",
+              "Dubai Silicon Oasis",
+              "Dubai Sports City",
+              "Discovery Gardens",
+              "Jumeirah Village Circle (JVC)",
+              "Jumeirah Village Triangle (JVT)",
+              "Al Nahda",
+              "Mirdif",
+              "Umm Suqeim",
+              "Al Karama",
+              "Al Satwa",
+              "Al Barari",
+              "Arabian Ranches",
+              "Motor City",
+              "Dubai Investment Park (DIP)",
+              "Dubai Production City",
+              "Dubai Studio City",
+              "Al Furjan",
+              "The Springs",
+              "The Meadows",
+              "Emirates Hills",
+              "Dubai Festival City",
+              "Dubai Healthcare City",
+              "Al Rigga",
+              "Al Qusais",
+              "Nad Al Sheba",
+              "Dubai South",
+              "Damac Hills",
+              "Town Square",
+            ].map((c) => ({ value: c, label: c }))}
             placeholder="Select address"
           />
         </div>
 
         <div className="grid sm:grid-cols-2 gap-4 mt-4">
-          {/* Cities */}
+          {/* Cities - Updated with search and country display, backed by real API */}
           <div className="relative" ref={citiesMenuRef}>
             <label className="text-xs font-medium text-gray-500 mb-1 block">
               Service Cities
             </label>
             <button
               type="button"
-              onClick={() => setCitiesMenuOpen((o) => !o)}
-              className="flex flex-wrap items-center gap-2 w-full px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-orange-400 bg-white text-left"
+              onClick={() => setCitiesMenuOpen((prev) => !prev)}
+              className="flex flex-wrap items-center gap-2 w-full px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-orange-400 bg-white text-left min-h-[44px]"
             >
               <Globe size={13} className="text-gray-400 shrink-0" />
-              {profile.cities.length === 0 && (
-                <span className="text-sm text-gray-400">Select service cities</span>
+              {(!profile.cities || profile.cities.length === 0) && (
+                <span className="text-sm text-gray-400">Search and select service cities</span>
               )}
-              {profile.cities.map((city) => (
-                <span
-                  key={city}
-                  className="inline-flex items-center gap-1 pl-2.5 pr-1.5 py-1 rounded-full bg-orange-50 text-orange-700 text-xs font-medium"
-                >
-                  {city}
+              {profile.cities && profile.cities.map((cityName) => {
+                const cityData = allCities.find((c) => c.name === cityName);
+                return (
                   <span
-                    role="button"
-                    tabIndex={-1}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      update(
-                        "cities",
-                        profile.cities.filter((c) => c !== city),
-                      );
-                    }}
-                    className="text-orange-400 hover:text-orange-600"
+                    key={cityName}
+                    className="inline-flex items-center gap-1 pl-2.5 pr-1.5 py-1 rounded-full bg-orange-50 text-orange-700 text-xs font-medium"
                   >
-                    <X size={12} />
+                    {cityData?.countryName && (
+                      <span className="text-gray-400 text-[10px]">
+                        {cityData.countryName.substring(0, 3).toUpperCase()}
+                      </span>
+                    )}
+                    {cityName}
+                    <span
+                      role="button"
+                      tabIndex={-1}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setProfile((prev) => {
+                          if (!prev) return prev;
+                          return {
+                            ...prev,
+                            cities: prev.cities.filter((c) => c !== cityName),
+                          };
+                        });
+                      }}
+                      className="text-orange-400 hover:text-orange-600"
+                    >
+                      <X size={12} />
+                    </span>
                   </span>
-                </span>
-              ))}
+                );
+              })}
               <ChevronDown
                 size={13}
-                className={`ml-auto text-gray-400 transition-transform shrink-0 ${citiesMenuOpen ? "rotate-180" : ""}`}
+                className={`ml-auto text-gray-400 transition-transform shrink-0 ${
+                  citiesMenuOpen ? "rotate-180" : ""
+                }`}
               />
             </button>
+
             {citiesMenuOpen && (
-              <div className="absolute z-30 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg max-h-64 overflow-y-auto py-1">
-                {DUBAI_AREAS.map((city) => {
-                  const checked = profile.cities.includes(city);
-                  return (
-                    <label
-                      key={city}
-                      className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-gray-50 cursor-pointer"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={checked}
-                        onChange={() => {
-                          update(
-                            "cities",
-                            checked
-                              ? profile.cities.filter((c) => c !== city)
-                              : [...profile.cities, city],
-                          );
-                        }}
-                        className="rounded border-gray-300 text-orange-500 focus:ring-orange-400"
-                      />
-                      {city}
-                    </label>
-                  );
-                })}
+              <div className="absolute z-30 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden">
+                <div className="p-2 border-b border-gray-100">
+                  <div className="relative">
+                    <input
+                      autoFocus
+                      type="text"
+                      value={citySearchQuery}
+                      onChange={(e) => setCitySearchQuery(e.target.value)}
+                      placeholder="Search cities..."
+                      className="w-full px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-orange-400 pl-8"
+                    />
+                    <Globe size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                  </div>
+                </div>
+                <div className="max-h-56 overflow-y-auto py-1">
+                  {citiesLoading && (
+                    <p className="px-3 py-2 text-xs text-gray-400 flex items-center gap-1.5">
+                      <Loader2 size={12} className="animate-spin" /> Loading cities...
+                    </p>
+                  )}
+                  {!citiesLoading && filteredCities.length === 0 && (
+                    <p className="px-3 py-2 text-xs text-gray-400">
+                      {citySearchQuery ? "No cities found" : "No cities available"}
+                    </p>
+                  )}
+                  {filteredCities.map((city) => {
+                    const isSelected = profile.cities?.includes(city.name) || false;
+                    return (
+                      <label
+                        key={city.id}
+                        className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-gray-50 cursor-pointer"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => toggleCity(city.name)}
+                          className="rounded border-gray-300 text-orange-500 focus:ring-orange-400"
+                        />
+                        <span className="flex-1">{city.name}</span>
+                        {city.countryName && (
+                          <span className="text-xs text-gray-400 bg-gray-50 px-2 py-0.5 rounded-full">
+                            {city.countryName}
+                          </span>
+                        )}
+                      </label>
+                    );
+                  })}
+                </div>
               </div>
             )}
             <p className="text-xs text-gray-400 mt-1">
-              Select one or more Dubai areas you provide services in
+              Select cities where you provide services (global coverage)
             </p>
           </div>
 

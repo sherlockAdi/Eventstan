@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { ArrowLeft, Eye, EyeOff } from 'lucide-react';
+import { ArrowLeft, Eye, EyeOff, Image as ImageIcon, X } from 'lucide-react';
 import Button from '@/components/admin/Button';
 import Input from '@/components/admin/Input';
 import toast from 'react-hot-toast';
@@ -18,6 +18,11 @@ export default function EditVendorPage() {
   const [isActive, setIsActive] = useState(true);
   const [userNameEdited, setUserNameEdited] = useState(false);
   const [namesLoaded, setNamesLoaded] = useState(false);
+
+  // Profile image preview + upload state (image uploads immediately, like the blog cover image)
+  const [profileImagePreview, setProfileImagePreview] = useState('');
+  const [uploadingProfileImage, setUploadingProfileImage] = useState(false);
+
   const [form, setForm] = useState({
     firstName: '',
     lastName: '',
@@ -31,6 +36,7 @@ export default function EditVendorPage() {
     whereIsYourBusiness: '',
     visaType: '',
     address: '',
+    vendorProfileImage: '' as string, // stores the uploaded image URL, not a File
     hourlyRate: '',
     availableHoursPerWeek: '',
     contractType: '',
@@ -80,6 +86,7 @@ export default function EditVendorPage() {
           whereIsYourBusiness: vendor.businessLocation ?? (vendor.cities?.[0] ?? ''),
           visaType: vendor.visaType ?? '',
           address: vendor.address ?? '',
+          vendorProfileImage: vendor.vendorProfileImage ?? '',
           hourlyRate: vendor.hourlyRate?.toString() ?? '',
           availableHoursPerWeek: vendor.availableHoursPerWeek?.toString() ?? '',
           contractType: vendor.contractType ?? '',
@@ -101,6 +108,11 @@ export default function EditVendorPage() {
           swift: vendor.swift ?? '',
           branchAddress: vendor.branchAddress ?? '',
         }));
+
+        // Show the vendor's existing profile image, if any.
+        if (vendor.vendorProfileImage) {
+          setProfileImagePreview(vendor.vendorProfileImage);
+        }
 
         setIsActive(vendor.status ? vendor.status !== 'REJECTED' : true);
         // Existing username loaded from the server — don't auto-regenerate it
@@ -131,8 +143,40 @@ export default function EditVendorPage() {
     setForm((prev) => ({ ...prev, userName: generated }));
   }, [form.firstName, form.lastName]);
 
+  // Upload a new vendor profile image immediately on selection (same pattern as the blog cover image upload).
+  const handleProfileImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Instant local preview while the real upload happens.
+    const localPreview = URL.createObjectURL(file);
+    setProfileImagePreview(localPreview);
+
+    setUploadingProfileImage(true);
+    try {
+      const result = await adminApi.uploads.image(file, 'vendors');
+      setForm((prev) => ({ ...prev, vendorProfileImage: result.url }));
+      setProfileImagePreview(result.url);
+    } catch (error: any) {
+      toast.error(error?.message || 'Profile image upload failed');
+    } finally {
+      setUploadingProfileImage(false);
+    }
+  };
+
+  const removeProfileImage = () => {
+    setProfileImagePreview('');
+    setForm((prev) => ({ ...prev, vendorProfileImage: '' }));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (uploadingProfileImage) {
+      toast.error('Please wait for the profile image to finish uploading');
+      return;
+    }
+
     setLoading(true);
     try {
       const vendorType = form.vendorType === 'permanent' ? 'PERMANENT' : 'FREELANCER';
@@ -160,6 +204,12 @@ export default function EditVendorPage() {
         branchAddress: form.branchAddress,
       };
 
+      // vendorProfileImage is already an uploaded URL (uploaded on selection); only send it
+      // if it's set so we don't wipe out the existing image when nothing changed.
+      if (form.vendorProfileImage) {
+        payload.vendorProfileImage = form.vendorProfileImage;
+      }
+
       // Trade license/document only applies to PERMANENT vendors.
       // FREELANCER vendors must not send a tradeLicenseNumber.
       if (vendorType === 'PERMANENT') {
@@ -169,6 +219,10 @@ export default function EditVendorPage() {
       // Only send a password if the admin actually typed a new one.
       if (form.password) {
         payload.password = form.password;
+      }
+
+      if (form.agreementFile) {
+        payload.agreementFile = form.agreementFile;
       }
 
       await adminApi.vendors.update(id, payload);
@@ -238,6 +292,37 @@ export default function EditVendorPage() {
               </h2>
               <div className="p-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Profile Image - uploads immediately, shows preview, same pattern as blog cover image */}
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">Vendor Profile Image</label>
+                    <div className="flex items-center gap-4">
+                      <label className="flex flex-col items-center justify-center w-32 h-32 border-2 border-dashed border-gray-300 rounded-xl cursor-pointer hover:border-orange-400 transition-colors bg-gray-50 overflow-hidden">
+                        {profileImagePreview ? (
+                          <img src={profileImagePreview} alt="Profile preview" className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="flex flex-col items-center">
+                            <ImageIcon size={24} className="text-gray-400" />
+                            <span className="text-xs text-gray-500 mt-1">Upload</span>
+                          </div>
+                        )}
+                        <input type="file" accept="image/*" onChange={handleProfileImageUpload} className="hidden" />
+                      </label>
+                      {uploadingProfileImage && (
+                        <span className="text-xs text-gray-400">Uploading...</span>
+                      )}
+                      {profileImagePreview && !uploadingProfileImage && (
+                        <button
+                          type="button"
+                          onClick={removeProfileImage}
+                          className="p-1.5 rounded-full bg-red-100 text-red-600 hover:bg-red-200 transition-colors"
+                        >
+                          <X size={16} />
+                        </button>
+                      )}
+                    </div>
+                    <p className="text-xs text-gray-400 mt-2">Upload a new image to replace the existing one (JPG, PNG, WEBP)</p>
+                  </div>
+
                   <Input 
                     label="First Name *" 
                     value={form.firstName} 
@@ -644,7 +729,7 @@ export default function EditVendorPage() {
 
             <div className="flex justify-end gap-3">
               <Button type="button" variant="secondary" onClick={() => router.back()}>Cancel</Button>
-              <Button type="submit" disabled={loading}>{loading ? 'Updating...' : 'Update Vendor'}</Button>
+              <Button type="submit" disabled={loading || uploadingProfileImage}>{loading ? 'Updating...' : 'Update Vendor'}</Button>
             </div>
           </div>
         </form>
