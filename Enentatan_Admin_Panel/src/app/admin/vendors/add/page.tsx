@@ -501,6 +501,12 @@ export default function AddVendorPage() {
       const fullMobile = form.primaryMobile ? `${form.countryCode}${form.primaryMobile}` : '';
       const fullTelephone = form.telephone ? `${form.telephoneCountryCode}${form.telephone}` : '';
 
+      const [tradeLicenseUpload, passportUpload, agreementUpload] = await Promise.all([
+        form.tradeLicenseFile ? adminApi.uploads.file(form.tradeLicenseFile, 'vendor-docs/trade-license') : null,
+        form.passportFile ? adminApi.uploads.file(form.passportFile, 'vendor-docs/passport') : null,
+        form.agreementFile ? adminApi.uploads.file(form.agreementFile, 'vendor-docs/agreements') : null,
+      ]);
+
       const payload: Record<string, unknown> = {
         companyName: form.userName || `${contactPerson} Events`,
         contactPerson,
@@ -546,12 +552,18 @@ export default function AddVendorPage() {
 
       // vendorProfileImage is already an uploaded URL (uploaded on selection), just send it along.
       if (form.vendorProfileImage) payload.vendorProfileImage = form.vendorProfileImage;
-
-      // Remaining files are still uploaded as multipart at submit time - adminApi.vendors.create
-      // is assumed to handle File values internally (converting to FormData) alongside the JSON fields above.
-      if (form.tradeLicenseFile) payload.tradeLicenseFile = form.tradeLicenseFile;
-      if (form.passportFile) payload.passportFile = form.passportFile;
-      if (form.agreementFile) payload.agreementFile = form.agreementFile;
+      if (tradeLicenseUpload) {
+        payload.tradeLicenseFileUrl = tradeLicenseUpload.url;
+        payload.tradeLicenseFileKey = tradeLicenseUpload.key;
+      }
+      if (passportUpload) {
+        payload.passportFileUrl = passportUpload.url;
+        payload.passportFileKey = passportUpload.key;
+      }
+      if (agreementUpload) {
+        payload.agreementFileUrl = agreementUpload.url;
+        payload.agreementFileKey = agreementUpload.key;
+      }
 
       const response = await adminApi.vendors.create(payload);
       toast.success(response.welcomeEmailSent ? 'Vendor created and welcome email sent!' : 'Vendor created, but welcome email could not be sent.');

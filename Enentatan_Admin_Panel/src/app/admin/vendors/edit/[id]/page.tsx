@@ -182,6 +182,10 @@ export default function EditVendorPage() {
       const vendorType = form.vendorType === 'permanent' ? 'PERMANENT' : 'FREELANCER';
       const id = params.id as string;
 
+      const agreementUpload = form.agreementFile
+        ? await adminApi.uploads.file(form.agreementFile, 'vendor-docs/agreements')
+        : null;
+
       const payload: Record<string, unknown> = {
         firstName: form.firstName,
         lastName: form.lastName,
@@ -221,8 +225,9 @@ export default function EditVendorPage() {
         payload.password = form.password;
       }
 
-      if (form.agreementFile) {
-        payload.agreementFile = form.agreementFile;
+      if (agreementUpload) {
+        payload.agreementFileUrl = agreementUpload.url;
+        payload.agreementFileKey = agreementUpload.key;
       }
 
       await adminApi.vendors.update(id, payload);

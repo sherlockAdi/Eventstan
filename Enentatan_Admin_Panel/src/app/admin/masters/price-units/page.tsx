@@ -149,10 +149,18 @@ export default function PriceUnitsPage() {
     },
     {
       key: 'requireRange',
-      label: 'Requires Range',
-      render: (value: boolean) => (
-        <span className="text-sm text-gray-600">{value ? 'Yes' : 'No'}</span>
-      ),
+      label: 'Range',
+      render: (_: unknown, row: PriceUnitRow) => {
+        return (
+          <span
+            className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${
+              row.requireRange ? 'bg-orange-50 text-orange-700' : 'bg-gray-100 text-gray-600'
+            }`}
+          >
+            {row.requireRange ? 'Required' : 'Optional'}
+          </span>
+        );
+      },
     },
     {
       key: 'isActive',
@@ -261,20 +269,15 @@ export default function PriceUnitsPage() {
               />
               Active
             </label>
-            <div className="rounded-xl border border-gray-100 bg-gray-50 p-4">
-              <p className="mb-3 text-sm font-semibold text-gray-800">Unit-specific rules</p>
-              <label className="flex items-center gap-2 text-sm text-gray-700">
-                <input
-                  type="checkbox"
-                  checked={form.requireRange}
-                  onChange={(event) =>
-                    setForm((current) => ({ ...current, requireRange: event.target.checked }))
-                  }
-                  className="h-4 w-4 rounded border-gray-300 text-orange-500 focus:ring-orange-400"
-                />
-                Requires range (e.g. hours, persons, pieces)
-              </label>
-            </div>
+            <label className="flex items-center gap-2 rounded-xl border border-gray-100 bg-gray-50 p-4 text-sm text-gray-700">
+              <input
+                type="checkbox"
+                checked={form.requireRange}
+                onChange={(event) => setForm((current) => ({ ...current, requireRange: event.target.checked }))}
+                className="h-4 w-4 rounded border-gray-300 text-orange-500 focus:ring-orange-400"
+              />
+              Required range
+            </label>
           </div>
 
           <div className="mt-6 flex justify-end gap-3">

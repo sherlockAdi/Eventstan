@@ -24,6 +24,11 @@ export class CreateVendorDto {
   @IsString()
   phone!: string;
 
+  @ApiProperty({ example: '+971', required: false })
+  @IsOptional()
+  @IsString()
+  countryCode?: string;
+
   @ApiProperty({ example: 'Premium wedding planning professional in Dubai.', required: false })
   @IsOptional()
   @IsString()
@@ -69,6 +74,11 @@ export class CreateVendorDto {
   @IsIn(['FREELANCER', 'PERMANENT'])
   vendorType?: string;
 
+  @ApiProperty({ example: 'EVT2026', required: false })
+  @IsOptional()
+  @IsString()
+  inviteCode?: string;
+
   @ApiProperty({ example: 'Dubai', required: false })
   @IsOptional()
   @IsString()
@@ -92,9 +102,10 @@ export class CreateVendorDto {
   @IsString()
   vendorProfileImage?: string;
 
-  @ApiProperty({ example: 'DXB-TL-10001' })
+  @ApiPropertyOptional({ example: 'DXB-TL-10001' })
+  @IsOptional()
   @IsString()
-  tradeLicenseNumber!: string;
+  tradeLicenseNumber?: string;
 
   @ApiPropertyOptional({ example: '2027-06-30' })
   @IsOptional()
@@ -111,6 +122,10 @@ export class CreateVendorDto {
   @IsString()
   tradeLicenseFileKey?: string;
 
+  @ApiPropertyOptional({ required: false })
+  @IsOptional()
+  tradeLicenseFile?: unknown;
+
   @ApiPropertyOptional({ example: '2028-01-15' })
   @IsOptional()
   @IsDateString()
@@ -125,6 +140,10 @@ export class CreateVendorDto {
   @IsOptional()
   @IsString()
   passportFileKey?: string;
+
+  @ApiPropertyOptional({ required: false })
+  @IsOptional()
+  passportFile?: unknown;
 
   @ApiPropertyOptional({ example: '2027-12-31' })
   @IsOptional()
@@ -172,6 +191,10 @@ export class CreateVendorDto {
   @IsOptional()
   @IsString()
   agreementFileKey?: string;
+
+  @ApiPropertyOptional({ required: false })
+  @IsOptional()
+  agreementFile?: unknown;
 
   @ApiProperty({ example: 'Emirates NBD', required: false })
   @IsOptional()

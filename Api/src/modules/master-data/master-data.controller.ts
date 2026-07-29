@@ -32,6 +32,7 @@ type PriceUnitPayload = {
   maxValue?: number | string | null;
   isActive?: boolean;
   sortOrder?: number;
+  requireRange?: boolean;
   requiresHourRange?: boolean;
   requiresPersonRange?: boolean;
   requiresPieceRange?: boolean;
@@ -363,9 +364,10 @@ export class MasterDataController {
   @Get('price-units')
   async listPriceUnits() {
     await this.ensureDefaultPriceUnits();
-    return this.prisma.priceUnitMaster.findMany({
+    const units = await this.prisma.priceUnitMaster.findMany({
       orderBy: [{ sortOrder: 'asc' }, { label: 'asc' }],
     });
+    return units.map((unit) => this.formatPriceUnit(unit));
   }
 
   @Post('price-units')
@@ -375,7 +377,8 @@ export class MasterDataController {
   async createPriceUnit(@Body() body: PriceUnitPayload) {
     const payload = this.normalizePriceUnitPayload(body);
     await this.ensurePriceUnitUnique(payload.code);
-    return this.prisma.priceUnitMaster.create({ data: payload });
+    const created = await this.prisma.priceUnitMaster.create({ data: payload });
+    return this.formatPriceUnit(created);
   }
 
   @Put('price-units/:id')
@@ -392,15 +395,17 @@ export class MasterDataController {
       label: body.label ?? existing.label,
       isActive: body.isActive ?? existing.isActive,
       sortOrder: body.sortOrder ?? existing.sortOrder,
+      requireRange: body.requireRange ?? this.formatPriceUnit(existing).requireRange,
       requiresHourRange: body.requiresHourRange ?? existing.requiresHourRange,
       requiresPersonRange: body.requiresPersonRange ?? existing.requiresPersonRange,
       requiresPieceRange: body.requiresPieceRange ?? existing.requiresPieceRange,
     });
     await this.ensurePriceUnitUnique(payload.code, id);
-    return this.prisma.priceUnitMaster.update({
+    const updated = await this.prisma.priceUnitMaster.update({
       where: { id },
       data: payload,
     });
+    return this.formatPriceUnit(updated);
   }
 
   @Delete('price-units/:id')
@@ -524,6 +529,30 @@ export class MasterDataController {
     return name;
   }
 
+  private formatPriceUnit(unit: {
+    id: string;
+    code: string;
+    label: string;
+    isActive: boolean;
+    sortOrder: number;
+    requiresHourRange: boolean;
+    requiresPersonRange: boolean;
+    requiresPieceRange: boolean;
+    createdAt: Date;
+    updatedAt: Date;
+  }) {
+    return {
+      id: unit.id,
+      code: unit.code,
+      label: unit.label,
+      isActive: unit.isActive,
+      sortOrder: unit.sortOrder,
+      requireRange: unit.requiresHourRange || unit.requiresPersonRange || unit.requiresPieceRange,
+      createdAt: unit.createdAt,
+      updatedAt: unit.updatedAt,
+    };
+  }
+
   private normalizePriceUnitPayload(body: PriceUnitPayload) {
     const code = body.code.trim();
     const label = body.label.trim();
@@ -536,6 +565,14 @@ export class MasterDataController {
       throw new BadRequestException('Minimum value cannot be greater than maximum value');
     }
 
+    const requireRange = body.requireRange;
+    const requiresHourRange =
+      requireRange !== undefined ? requireRange : body.requiresHourRange ?? false;
+    const requiresPersonRange =
+      requireRange !== undefined ? requireRange : body.requiresPersonRange ?? false;
+    const requiresPieceRange =
+      requireRange !== undefined ? requireRange : body.requiresPieceRange ?? false;
+
     return {
       code,
       label,
@@ -543,9 +580,9 @@ export class MasterDataController {
       maxValue,
       isActive: body.isActive ?? true,
       sortOrder: body.sortOrder ?? 0,
-      requiresHourRange: body.requiresHourRange ?? false,
-      requiresPersonRange: body.requiresPersonRange ?? false,
-      requiresPieceRange: body.requiresPieceRange ?? false,
+      requiresHourRange,
+      requiresPersonRange,
+      requiresPieceRange,
     };
   }
 

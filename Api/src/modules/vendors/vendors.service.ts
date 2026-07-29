@@ -37,7 +37,9 @@ export class VendorsService {
         contactPerson: dto.contactPerson,
         email: dto.email,
         phone: dto.phone,
-        tradeLicenseNumber: dto.tradeLicenseNumber,
+        countryCode: dto.countryCode,
+        inviteCode: dto.inviteCode,
+        tradeLicenseNumber: dto.tradeLicenseNumber?.trim() || null,
         tradeLicenseExpiry: dto.tradeLicenseExpiry ? new Date(dto.tradeLicenseExpiry) : undefined,
         tradeLicenseFileUrl: dto.tradeLicenseFileUrl,
         tradeLicenseFileKey: dto.tradeLicenseFileKey,
@@ -165,11 +167,12 @@ export class VendorsService {
   private vendorData(dto: Partial<CreateVendorDto>): Prisma.VendorUncheckedUpdateInput {
     const data: Record<string, string | string[] | number | Date | null> = {};
 
-    const stringFields: Array<keyof CreateVendorDto> = [
+    const stringFields = [
       'companyName',
       'contactPerson',
       'email',
       'phone',
+      'countryCode',
       'about',
       'firstName',
       'lastName',
@@ -179,6 +182,7 @@ export class VendorsService {
       'primaryMobile',
       'specialization',
       'vendorType',
+      'inviteCode',
       'businessLocation',
       'visaType',
       'address',
@@ -198,7 +202,7 @@ export class VendorsService {
       'accountNumber',
       'swift',
       'branchAddress',
-    ];
+    ] as const;
 
     for (const field of stringFields) {
       if (dto[field] !== undefined) data[field] = dto[field] || null;
