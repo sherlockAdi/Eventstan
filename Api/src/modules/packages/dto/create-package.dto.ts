@@ -89,6 +89,16 @@ export class CreatePackageDto {
   @IsNumber()
   durationHours?: number;
 
+  @ApiPropertyOptional({ example: 1 })
+  @IsOptional()
+  @IsNumber()
+  minDays?: number;
+
+  @ApiPropertyOptional({ example: 7 })
+  @IsOptional()
+  @IsNumber()
+  maxDays?: number;
+
   @ApiPropertyOptional({ example: 2 })
   @IsOptional()
   @IsNumber()

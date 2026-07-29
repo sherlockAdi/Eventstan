@@ -461,6 +461,8 @@ model EventPackage {
   vendorPhone String?
   maxGuests   Int?
   durationHours Int?
+  minDays     Int?
+  maxDays     Int?
   minHours    Int?
   maxHours    Int?
   minPersons  Int?

@@ -46,6 +46,8 @@ export class PackagesService {
     const common = {
       maxGuests: dto.maxGuests ?? null,
       durationHours: dto.durationHours ?? null,
+      minDays: dto.minDays ?? null,
+      maxDays: dto.maxDays ?? null,
     };
 
     if (priceUnitMaster?.requiresHourRange) {
@@ -144,6 +146,15 @@ export class PackagesService {
     }
     if (dto.durationHours !== undefined && dto.durationHours <= 0) {
       throw new BadRequestException('Duration hours must be greater than 0');
+    }
+    if (dto.minDays !== undefined && dto.minDays <= 0) {
+      throw new BadRequestException('Minimum days must be greater than 0');
+    }
+    if (dto.maxDays !== undefined && dto.maxDays <= 0) {
+      throw new BadRequestException('Maximum days must be greater than 0');
+    }
+    if (dto.minDays !== undefined && dto.maxDays !== undefined && dto.minDays > dto.maxDays) {
+      throw new BadRequestException('Minimum days cannot be greater than maximum days');
     }
 
     if (priceUnitMaster.requiresHourRange) {
@@ -414,6 +425,8 @@ export class PackagesService {
         rentalLocation: dto.rentalLocation ?? existingPackage.rentalLocation ?? undefined,
         requiresDeposit: dto.requiresDeposit ?? existingPackage.requiresDeposit ?? undefined,
         depositAmount: dto.depositAmount ?? existingPackage.depositAmount ?? undefined,
+        minDays: dto.minDays ?? existingPackage.minDays ?? undefined,
+        maxDays: dto.maxDays ?? existingPackage.maxDays ?? undefined,
       },
       priceUnitMaster,
     );
@@ -453,6 +466,8 @@ export class PackagesService {
         ...(
           dto.maxGuests !== undefined ||
           dto.durationHours !== undefined ||
+          dto.minDays !== undefined ||
+          dto.maxDays !== undefined ||
           dto.minHours !== undefined ||
           dto.maxHours !== undefined ||
           dto.minPersons !== undefined ||
@@ -462,6 +477,8 @@ export class PackagesService {
                 {
                   maxGuests: dto.maxGuests ?? existingPackage.maxGuests ?? undefined,
                   durationHours: dto.durationHours ?? existingPackage.durationHours ?? undefined,
+                  minDays: dto.minDays ?? existingPackage.minDays ?? undefined,
+                  maxDays: dto.maxDays ?? existingPackage.maxDays ?? undefined,
                   minHours: dto.minHours ?? existingPackage.minHours ?? undefined,
                   maxHours: dto.maxHours ?? existingPackage.maxHours ?? undefined,
                   minPersons: dto.minPersons ?? existingPackage.minPersons ?? undefined,
@@ -593,6 +610,10 @@ export class PackagesService {
       duration_hours: eventPackage.durationHours ?? 0,
       maxGuests: eventPackage.maxGuests,
       durationHours: eventPackage.durationHours,
+      min_days: eventPackage.minDays,
+      max_days: eventPackage.maxDays,
+      minDays: eventPackage.minDays,
+      maxDays: eventPackage.maxDays,
       min_hours: eventPackage.minHours,
       max_hours: eventPackage.maxHours,
       minHours: eventPackage.minHours,
