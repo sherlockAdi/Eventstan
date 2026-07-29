@@ -77,6 +77,19 @@ interface VendorProfile {
   capacityPerDay: number;
   status: string;
   vendorType?: string | null;
+  contractType?: string | null;
+  hourlyRate?: number | null;
+  availableHoursPerWeek?: number | null;
+  projectRate?: number | null;
+  salaryType?: string | null;
+  basicSalary?: number | null;
+  housingAllowance?: number | null;
+  transportationAllowance?: number | null;
+  otherAllowances?: number | null;
+  annualLeaves?: number | null;
+  workingHours?: number | null;
+  joiningDate?: string | null;
+  // Personal
   firstName?: string | null;
   lastName?: string | null;
   userName?: string | null;
@@ -1246,6 +1259,18 @@ export default function ProfilePage() {
         emiratesIdExpiry: profile.emiratesIdExpiry ?? "",
         vatNumber: profile.vatNumber ?? "",
         visaType: profile.visaType ?? "",
+        contractType: profile.contractType ?? "",
+        hourlyRate: profile.hourlyRate ?? undefined,
+        availableHoursPerWeek: profile.availableHoursPerWeek ?? undefined,
+        projectRate: profile.projectRate ?? undefined,
+        salaryType: profile.salaryType ?? "",
+        basicSalary: profile.basicSalary ?? undefined,
+        housingAllowance: profile.housingAllowance ?? undefined,
+        transportationAllowance: profile.transportationAllowance ?? undefined,
+        otherAllowances: profile.otherAllowances ?? undefined,
+        annualLeaves: profile.annualLeaves ?? undefined,
+        workingHours: profile.workingHours ?? undefined,
+        joiningDate: profile.joiningDate ?? "",
         planDetails: profile.planDetails ?? "",
         planExpiry: profile.planExpiry ?? "",
         commissionPercent: profile.commissionPercent
@@ -1898,6 +1923,106 @@ export default function ProfilePage() {
       </SectionCard>
 
       {/* ── 3. Legal & Compliance ── */}
+      <SectionCard title="Work & Compensation" icon={BadgeCheck}>
+        {profile.vendorType === "FREELANCER" ? (
+          <div className="grid sm:grid-cols-2 gap-4">
+            <SelectField
+              label="Contract Type"
+              value={profile.contractType ?? ""}
+              onChange={(v) => update("contractType", v)}
+              options={[
+                { value: "hourly", label: "Hourly" },
+                { value: "monthly", label: "Monthly" },
+                { value: "project", label: "Per Project" },
+              ]}
+              placeholder="Select contract type"
+            />
+            <Field
+              label="Hourly / Monthly Rate (AED)"
+              value={profile.hourlyRate?.toString() ?? ""}
+              onChange={(v) => update("hourlyRate", v === "" ? null : Number(v))}
+              type="number"
+              icon={CreditCard}
+            />
+            <Field
+              label="Available Hours per Week"
+              value={profile.availableHoursPerWeek?.toString() ?? ""}
+              onChange={(v) => update("availableHoursPerWeek", v === "" ? null : Number(v))}
+              type="number"
+              icon={CalendarClock}
+            />
+            <Field
+              label="Project Rate (AED)"
+              value={profile.projectRate?.toString() ?? ""}
+              onChange={(v) => update("projectRate", v === "" ? null : Number(v))}
+              type="number"
+              icon={CreditCard}
+            />
+          </div>
+        ) : (
+          <div className="grid sm:grid-cols-2 gap-4">
+            <SelectField
+              label="Salary Type"
+              value={profile.salaryType ?? ""}
+              onChange={(v) => update("salaryType", v)}
+              options={[
+                { value: "monthly", label: "Monthly" },
+                { value: "yearly", label: "Yearly" },
+              ]}
+              placeholder="Select salary type"
+            />
+            <Field
+              label="Basic Salary (AED)"
+              value={profile.basicSalary?.toString() ?? ""}
+              onChange={(v) => update("basicSalary", v === "" ? null : Number(v))}
+              type="number"
+              icon={CreditCard}
+            />
+            <Field
+              label="Housing Allowance (AED)"
+              value={profile.housingAllowance?.toString() ?? ""}
+              onChange={(v) => update("housingAllowance", v === "" ? null : Number(v))}
+              type="number"
+              icon={Landmark}
+            />
+            <Field
+              label="Transportation Allowance (AED)"
+              value={profile.transportationAllowance?.toString() ?? ""}
+              onChange={(v) => update("transportationAllowance", v === "" ? null : Number(v))}
+              type="number"
+              icon={MapPin}
+            />
+            <Field
+              label="Other Allowances (AED)"
+              value={profile.otherAllowances?.toString() ?? ""}
+              onChange={(v) => update("otherAllowances", v === "" ? null : Number(v))}
+              type="number"
+              icon={BadgeCheck}
+            />
+            <Field
+              label="Annual Leaves (days)"
+              value={profile.annualLeaves?.toString() ?? ""}
+              onChange={(v) => update("annualLeaves", v === "" ? null : Number(v))}
+              type="number"
+              icon={CalendarClock}
+            />
+            <Field
+              label="Working Hours per Week"
+              value={profile.workingHours?.toString() ?? ""}
+              onChange={(v) => update("workingHours", v === "" ? null : Number(v))}
+              type="number"
+              icon={CalendarClock}
+            />
+            <DateField
+              label="Joining Date"
+              value={profile.joiningDate?.slice(0, 10) ?? ""}
+              onChange={(v) => update("joiningDate", v)}
+              icon={CalendarClock}
+            />
+          </div>
+        )}
+      </SectionCard>
+
       <SectionCard title="Legal & Compliance" icon={FileText}>
         <div className="grid sm:grid-cols-2 gap-4">
           {profile.vendorType !== "FREELANCER" && (

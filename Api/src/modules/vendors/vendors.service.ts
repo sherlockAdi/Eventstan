@@ -59,6 +59,18 @@ export class VendorsService {
         primaryMobile: dto.primaryMobile,
         specialization: dto.specialization,
         vendorType: dto.vendorType,
+        contractType: dto.contractType,
+        hourlyRate: dto.hourlyRate,
+        availableHoursPerWeek: dto.availableHoursPerWeek,
+        projectRate: dto.projectRate,
+        salaryType: dto.salaryType,
+        basicSalary: dto.basicSalary,
+        housingAllowance: dto.housingAllowance,
+        transportationAllowance: dto.transportationAllowance,
+        otherAllowances: dto.otherAllowances,
+        annualLeaves: dto.annualLeaves,
+        workingHours: dto.workingHours,
+        joiningDate: dto.joiningDate ? new Date(dto.joiningDate) : undefined,
         businessLocation: dto.businessLocation,
         visaType: dto.visaType,
         address: dto.address,
@@ -182,6 +194,8 @@ export class VendorsService {
       'primaryMobile',
       'specialization',
       'vendorType',
+      'contractType',
+      'salaryType',
       'inviteCode',
       'businessLocation',
       'visaType',
@@ -211,6 +225,16 @@ export class VendorsService {
     if (dto.cities !== undefined) data.cities = dto.cities;
     if (dto.capacityPerDay !== undefined) data.capacityPerDay = dto.capacityPerDay;
     if (dto.commissionPercent !== undefined) data.commissionPercent = dto.commissionPercent;
+    if (dto.hourlyRate !== undefined) data.hourlyRate = dto.hourlyRate;
+    if (dto.availableHoursPerWeek !== undefined) data.availableHoursPerWeek = dto.availableHoursPerWeek;
+    if (dto.projectRate !== undefined) data.projectRate = dto.projectRate;
+    if (dto.basicSalary !== undefined) data.basicSalary = dto.basicSalary;
+    if (dto.housingAllowance !== undefined) data.housingAllowance = dto.housingAllowance;
+    if (dto.transportationAllowance !== undefined) data.transportationAllowance = dto.transportationAllowance;
+    if (dto.otherAllowances !== undefined) data.otherAllowances = dto.otherAllowances;
+    if (dto.annualLeaves !== undefined) data.annualLeaves = dto.annualLeaves;
+    if (dto.workingHours !== undefined) data.workingHours = dto.workingHours;
+    if (dto.joiningDate !== undefined) data.joiningDate = dto.joiningDate ? new Date(dto.joiningDate) : null;
     if (dto.planExpiry !== undefined) data.planExpiry = dto.planExpiry ? new Date(dto.planExpiry) : null;
     if (dto.tradeLicenseExpiry !== undefined) data.tradeLicenseExpiry = dto.tradeLicenseExpiry ? new Date(dto.tradeLicenseExpiry) : null;
     if (dto.passportExpiry !== undefined) data.passportExpiry = dto.passportExpiry ? new Date(dto.passportExpiry) : null;

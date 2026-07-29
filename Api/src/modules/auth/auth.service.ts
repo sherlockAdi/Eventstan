@@ -227,7 +227,26 @@ export class AuthService {
     email: string;
     phone: string | null;
     role: UserRole;
-    vendor?: { id: string; status: string; companyName: string; updatedProfile: boolean; vendorProfileImage: string | null; vendorType: string | null } | null;
+    vendor?: {
+      id: string;
+      status: string;
+      companyName: string;
+      updatedProfile: boolean;
+      vendorProfileImage: string | null;
+      vendorType: string | null;
+      contractType: string | null;
+      hourlyRate: number | null;
+      availableHoursPerWeek: number | null;
+      projectRate: number | null;
+      salaryType: string | null;
+      basicSalary: number | null;
+      housingAllowance: number | null;
+      transportationAllowance: number | null;
+      otherAllowances: number | null;
+      annualLeaves: number | null;
+      workingHours: number | null;
+      joiningDate: Date | null;
+    } | null;
   }) {
     return {
       ...this.tokens.issue({ id: user.id, email: user.email, role: user.role }),
@@ -241,7 +260,26 @@ export class AuthService {
     email: string;
     phone: string | null;
     role: UserRole;
-    vendor?: { id: string; status: string; companyName: string; updatedProfile: boolean; vendorProfileImage: string | null; vendorType: string | null } | null;
+    vendor?: {
+      id: string;
+      status: string;
+      companyName: string;
+      updatedProfile: boolean;
+      vendorProfileImage: string | null;
+      vendorType: string | null;
+      contractType: string | null;
+      hourlyRate: number | null;
+      availableHoursPerWeek: number | null;
+      projectRate: number | null;
+      salaryType: string | null;
+      basicSalary: number | null;
+      housingAllowance: number | null;
+      transportationAllowance: number | null;
+      otherAllowances: number | null;
+      annualLeaves: number | null;
+      workingHours: number | null;
+      joiningDate: Date | null;
+    } | null;
   }) {
     const permissions = await this.rolePermissions.getForRole(user.role);
     return {
@@ -256,6 +294,18 @@ export class AuthService {
       updatedProfile: user.vendor?.updatedProfile ?? null,
       vendorProfileImage: user.vendor?.vendorProfileImage ?? null,
       vendorType: user.vendor?.vendorType ?? null,
+      contractType: user.vendor?.contractType ?? null,
+      hourlyRate: user.vendor?.hourlyRate ?? null,
+      availableHoursPerWeek: user.vendor?.availableHoursPerWeek ?? null,
+      projectRate: user.vendor?.projectRate ?? null,
+      salaryType: user.vendor?.salaryType ?? null,
+      basicSalary: user.vendor?.basicSalary ?? null,
+      housingAllowance: user.vendor?.housingAllowance ?? null,
+      transportationAllowance: user.vendor?.transportationAllowance ?? null,
+      otherAllowances: user.vendor?.otherAllowances ?? null,
+      annualLeaves: user.vendor?.annualLeaves ?? null,
+      workingHours: user.vendor?.workingHours ?? null,
+      joiningDate: user.vendor?.joiningDate?.toISOString?.() ?? null,
       permissions,
     };
   }

@@ -167,6 +167,18 @@ model Vendor {
   primaryMobile      String?
   specialization     String?
   vendorType         String?
+  contractType       String?
+  hourlyRate         Int?
+  availableHoursPerWeek Int?
+  projectRate        Int?
+  salaryType         String?
+  basicSalary        Int?
+  housingAllowance   Int?
+  transportationAllowance Int?
+  otherAllowances    Int?
+  annualLeaves       Int?
+  workingHours       Int?
+  joiningDate        DateTime?
   businessLocation   String?
   visaType           String?
   address            String?

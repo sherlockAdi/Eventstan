@@ -1,5 +1,18 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { ArrayNotEmpty, IsArray, IsDateString, IsEmail, IsIn, IsInt, IsOptional, IsString, Max, Min, MinLength } from 'class-validator';
+import {
+  ArrayNotEmpty,
+  IsArray,
+  IsDateString,
+  IsEmail,
+  IsIn,
+  IsInt,
+  IsNumber,
+  IsOptional,
+  IsString,
+  Max,
+  Min,
+  MinLength,
+} from 'class-validator';
 
 export class CreateVendorDto {
   @ApiProperty({ example: 'TemporaryPassword123!', required: false })
@@ -73,6 +86,66 @@ export class CreateVendorDto {
   @IsOptional()
   @IsIn(['FREELANCER', 'PERMANENT'])
   vendorType?: string;
+
+  @ApiProperty({ example: 'hourly', required: false, enum: ['hourly', 'monthly', 'project'] })
+  @IsOptional()
+  @IsIn(['hourly', 'monthly', 'project'])
+  contractType?: string;
+
+  @ApiProperty({ example: 120, required: false })
+  @IsOptional()
+  @IsNumber()
+  hourlyRate?: number;
+
+  @ApiProperty({ example: 40, required: false })
+  @IsOptional()
+  @IsInt()
+  availableHoursPerWeek?: number;
+
+  @ApiProperty({ example: 2500, required: false })
+  @IsOptional()
+  @IsNumber()
+  projectRate?: number;
+
+  @ApiProperty({ example: 'monthly', required: false, enum: ['monthly', 'yearly'] })
+  @IsOptional()
+  @IsIn(['monthly', 'yearly'])
+  salaryType?: string;
+
+  @ApiProperty({ example: 12000, required: false })
+  @IsOptional()
+  @IsNumber()
+  basicSalary?: number;
+
+  @ApiProperty({ example: 2000, required: false })
+  @IsOptional()
+  @IsNumber()
+  housingAllowance?: number;
+
+  @ApiProperty({ example: 1000, required: false })
+  @IsOptional()
+  @IsNumber()
+  transportationAllowance?: number;
+
+  @ApiProperty({ example: 500, required: false })
+  @IsOptional()
+  @IsNumber()
+  otherAllowances?: number;
+
+  @ApiProperty({ example: 30, required: false })
+  @IsOptional()
+  @IsInt()
+  annualLeaves?: number;
+
+  @ApiProperty({ example: 48, required: false })
+  @IsOptional()
+  @IsInt()
+  workingHours?: number;
+
+  @ApiProperty({ example: '2026-08-01', required: false })
+  @IsOptional()
+  @IsDateString()
+  joiningDate?: string;
 
   @ApiProperty({ example: 'EVT2026', required: false })
   @IsOptional()
