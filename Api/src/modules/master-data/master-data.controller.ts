@@ -53,10 +53,11 @@ export class MasterDataController {
   }
 
   private readonly defaultPriceUnits: PriceUnitPayload[] = [
-    { code: 'per event', label: 'Per Event', sortOrder: 1 },
-    { code: 'per day', label: 'Per Day', sortOrder: 2 },
-    { code: 'per hour', label: 'Per Hour', sortOrder: 3, requiresHourRange: true },
-    { code: 'per person', label: 'Per Person', sortOrder: 4, requiresPersonRange: true },
+    { code: 'per event', label: 'Per Event', sortOrder: 1, isActive: true },
+    { code: 'per day', label: 'Per Day', sortOrder: 2, isActive: true },
+    { code: 'per hour', label: 'Per Hour', sortOrder: 3, isActive: true, requiresHourRange: true },
+    { code: 'per person', label: 'Per Person', sortOrder: 4, isActive: true, requiresPersonRange: true },
+    { code: 'per piece', label: 'Per Piece', sortOrder: 5, isActive: true, requiresPieceRange: true },
   ];
 
   private readonly defaultVisaTypes: VisaTypePayload[] = [
@@ -716,20 +717,19 @@ export class MasterDataController {
             requiresPieceRange: unit.requiresPieceRange ?? false,
           },
         });
+      } else {
+        await this.prisma.priceUnitMaster.update({
+          where: { id: match.id },
+          data: {
+            label: unit.label,
+            isActive: true,
+            sortOrder: unit.sortOrder ?? 0,
+            requiresHourRange: unit.requiresHourRange ?? false,
+            requiresPersonRange: unit.requiresPersonRange ?? false,
+            requiresPieceRange: unit.requiresPieceRange ?? false,
+          },
+        });
       }
-    }
-
-    const perPieceUnit = await this.prisma.priceUnitMaster.findMany({
-      where: {
-        OR: [{ code: 'per piece' }, { label: 'Per Piece' }],
-      },
-      select: { id: true },
-    });
-    for (const unit of perPieceUnit) {
-      await this.prisma.priceUnitMaster.update({
-        where: { id: unit.id },
-        data: { isActive: false, requiresPieceRange: false },
-      });
     }
   }
 
