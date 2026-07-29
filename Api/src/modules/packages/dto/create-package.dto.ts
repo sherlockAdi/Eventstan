@@ -119,6 +119,16 @@ export class CreatePackageDto {
   @IsNumber()
   maxPersons?: number;
 
+  @ApiPropertyOptional({ example: 2 })
+  @IsOptional()
+  @IsNumber()
+  minPieces?: number;
+
+  @ApiPropertyOptional({ example: 10 })
+  @IsOptional()
+  @IsNumber()
+  maxPieces?: number;
+
   @ApiPropertyOptional({ example: false })
   @IsOptional()
   @IsBoolean()

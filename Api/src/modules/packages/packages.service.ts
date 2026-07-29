@@ -41,41 +41,18 @@ export class PackagesService {
 
   private normalizeUnitFields(
     dto: Partial<CreatePackageDto>,
-    priceUnitMaster?: Pick<PriceUnitMaster, 'requiresHourRange' | 'requiresPersonRange'>,
   ) {
-    const common = {
+    return {
       maxGuests: dto.maxGuests ?? null,
       durationHours: dto.durationHours ?? null,
       minDays: dto.minDays ?? null,
       maxDays: dto.maxDays ?? null,
-    };
-
-    if (priceUnitMaster?.requiresHourRange) {
-      return {
-        ...common,
-        minHours: dto.minHours ?? null,
-        maxHours: dto.maxHours ?? null,
-        minPersons: null,
-        maxPersons: null,
-      };
-    }
-
-    if (priceUnitMaster?.requiresPersonRange) {
-      return {
-        ...common,
-        minHours: null,
-        maxHours: null,
-        minPersons: dto.minPersons ?? null,
-        maxPersons: dto.maxPersons ?? null,
-      };
-    }
-
-    return {
-      ...common,
-      minHours: null,
-      maxHours: null,
-      minPersons: null,
-      maxPersons: null,
+      minHours: dto.minHours ?? null,
+      maxHours: dto.maxHours ?? null,
+      minPersons: dto.minPersons ?? null,
+      maxPersons: dto.maxPersons ?? null,
+      minPieces: dto.minPieces ?? null,
+      maxPieces: dto.maxPieces ?? null,
     };
   }
 
@@ -127,16 +104,16 @@ export class PackagesService {
   }
 
   private validateUnitFields(dto: Partial<CreatePackageDto>, priceUnitMaster: Pick<PriceUnitMaster, 'requiresHourRange' | 'requiresPersonRange'>) {
-    const ensurePositive = (value: number | undefined, label: string) => {
-      if (value === undefined || value === null || value <= 0) {
+    const ensurePositiveIfProvided = (value: number | undefined, label: string) => {
+      if (value !== undefined && value !== null && value <= 0) {
         throw new BadRequestException(`${label} must be greater than 0`);
       }
     };
 
-    const ensureRange = (min: number | undefined, max: number | undefined, minLabel: string, maxLabel: string) => {
-      ensurePositive(min, minLabel);
-      ensurePositive(max, maxLabel);
-      if ((min ?? 0) > (max ?? 0)) {
+    const ensureRangeIfProvided = (min: number | undefined, max: number | undefined, minLabel: string, maxLabel: string) => {
+      ensurePositiveIfProvided(min, minLabel);
+      ensurePositiveIfProvided(max, maxLabel);
+      if (min !== undefined && max !== undefined && min > max) {
         throw new BadRequestException(`${minLabel} cannot be greater than ${maxLabel}`);
       }
     };
@@ -147,22 +124,13 @@ export class PackagesService {
     if (dto.durationHours !== undefined && dto.durationHours <= 0) {
       throw new BadRequestException('Duration hours must be greater than 0');
     }
-    if (dto.minDays !== undefined && dto.minDays <= 0) {
-      throw new BadRequestException('Minimum days must be greater than 0');
-    }
-    if (dto.maxDays !== undefined && dto.maxDays <= 0) {
-      throw new BadRequestException('Maximum days must be greater than 0');
-    }
-    if (dto.minDays !== undefined && dto.maxDays !== undefined && dto.minDays > dto.maxDays) {
-      throw new BadRequestException('Minimum days cannot be greater than maximum days');
-    }
-
-    if (priceUnitMaster.requiresHourRange) {
-      ensureRange(dto.minHours, dto.maxHours, 'Minimum hours', 'Maximum hours');
-    }
-
-    if (priceUnitMaster.requiresPersonRange) {
-      ensureRange(dto.minPersons, dto.maxPersons, 'Minimum persons', 'Maximum persons');
+    ensureRangeIfProvided(dto.minDays, dto.maxDays, 'Minimum days', 'Maximum days');
+    ensureRangeIfProvided(dto.minHours, dto.maxHours, 'Minimum hours', 'Maximum hours');
+    ensureRangeIfProvided(dto.minPersons, dto.maxPersons, 'Minimum persons', 'Maximum persons');
+    ensurePositiveIfProvided(dto.minPieces, 'Minimum pieces');
+    ensurePositiveIfProvided(dto.maxPieces, 'Maximum pieces');
+    if (dto.minPieces !== undefined && dto.maxPieces !== undefined && dto.minPieces > dto.maxPieces) {
+      throw new BadRequestException('Minimum pieces cannot be greater than maximum pieces');
     }
 
     if (dto.isPromotional) {
@@ -359,7 +327,7 @@ export class PackagesService {
         features: this.normalizeFeatures(dto),
         imageUrl: dto.imageUrl ?? null,
         vendorPhone: dto.vendorPhone ?? null,
-        ...this.normalizeUnitFields(dto, priceUnitMaster),
+        ...this.normalizeUnitFields(dto),
         ...this.normalizeRentalFields(dto),
         status: ListingStatus.ACTIVE,
         ...(serviceId
@@ -427,6 +395,12 @@ export class PackagesService {
         depositAmount: dto.depositAmount ?? existingPackage.depositAmount ?? undefined,
         minDays: dto.minDays ?? existingPackage.minDays ?? undefined,
         maxDays: dto.maxDays ?? existingPackage.maxDays ?? undefined,
+        minHours: dto.minHours ?? existingPackage.minHours ?? undefined,
+        maxHours: dto.maxHours ?? existingPackage.maxHours ?? undefined,
+        minPersons: dto.minPersons ?? existingPackage.minPersons ?? undefined,
+        maxPersons: dto.maxPersons ?? existingPackage.maxPersons ?? undefined,
+        minPieces: dto.minPieces ?? existingPackage.minPieces ?? undefined,
+        maxPieces: dto.maxPieces ?? existingPackage.maxPieces ?? undefined,
       },
       priceUnitMaster,
     );
@@ -483,8 +457,9 @@ export class PackagesService {
                   maxHours: dto.maxHours ?? existingPackage.maxHours ?? undefined,
                   minPersons: dto.minPersons ?? existingPackage.minPersons ?? undefined,
                   maxPersons: dto.maxPersons ?? existingPackage.maxPersons ?? undefined,
+                  minPieces: dto.minPieces ?? existingPackage.minPieces ?? undefined,
+                  maxPieces: dto.maxPieces ?? existingPackage.maxPieces ?? undefined,
                 },
-                priceUnitMaster,
               )
             : {}
         ),
