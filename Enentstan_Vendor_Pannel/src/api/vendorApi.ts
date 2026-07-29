@@ -35,6 +35,36 @@ function jsonOptions(method: string, body?: JsonBody): RequestInit {
   };
 }
 
+function generateImageUrl(filename: string, folder: string): string {
+  const today = new Date().toISOString().split('T')[0];
+  return `https://api.eventstan.com/api/v1/uploads/images/${folder}/${today}/${filename}`;
+}
+
+const masterDataCache = new Map<string, Promise<unknown>>();
+
+function cachedRequest<T>(cacheKey: string, path: string): Promise<T> {
+  const existing = masterDataCache.get(cacheKey);
+  if (existing) return existing as Promise<T>;
+
+  const promise = request<T>(path).catch((error) => {
+    masterDataCache.delete(cacheKey);
+    throw error;
+  });
+
+  masterDataCache.set(cacheKey, promise);
+  return promise;
+}
+
+function clearMasterDataCache(prefix?: string) {
+  if (!prefix) {
+    masterDataCache.clear();
+    return;
+  }
+  for (const key of masterDataCache.keys()) {
+    if (key.startsWith(prefix)) masterDataCache.delete(key);
+  }
+}
+
 export const vendorApi = {
   uploads: {
     image: async (file: File, folder = 'vendors') => {
@@ -48,7 +78,29 @@ export const vendorApi = {
       });
 
       if (!response.ok) throw new Error(`Image upload failed: ${response.status}`);
-      return response.json() as Promise<{ bucket: string; key: string; url: string; contentType: string; size: number }>;
+
+      const result = await response.json() as { bucket: string; key: string; url: string; contentType: string; size: number };
+
+      let filename = '';
+      if (result.url) {
+        const urlParts = result.url.split('/');
+        filename = urlParts[urlParts.length - 1];
+      } else if (result.key) {
+        const keyParts = result.key.split('/');
+        filename = keyParts[keyParts.length - 1];
+      } else {
+        const extension = file.name.split('.').pop();
+        const uniqueId = crypto.randomUUID?.() || Date.now().toString();
+        filename = `${uniqueId}.${extension}`;
+      }
+
+      const imageUrl = generateImageUrl(filename, folder);
+
+      return {
+        ...result,
+        url: imageUrl,
+        filename: filename,
+      };
     },
   },
 
@@ -125,18 +177,25 @@ export const vendorApi = {
   },
 
   masterData: {
-    countries: <T = unknown[]>() => request<T>('master-data/countries'),
-    categories: <T = unknown[]>() => request<T>('master-data/categories'),
-    priceUnits: <T = unknown[]>() => request<T>('master-data/price-units'),
-    visaTypes: <T = unknown[]>() => request<T>('master-data/visa-types'),
+    countries: <T = unknown[]>() => cachedRequest<T>('countries', 'master-data/countries'),
+    categories: <T = unknown[]>() => cachedRequest<T>('categories', 'master-data/categories'),
+    priceUnits: <T = unknown[]>() => cachedRequest<T>('price-units', 'master-data/price-units'),
+    visaTypes: <T = unknown[]>() => cachedRequest<T>('visa-types', 'master-data/visa-types'),
     states: <T = unknown[]>(countryId?: number) =>
-      request<T>(`master-data/states${countryId ? `?countryId=${countryId}` : ''}`),
+      cachedRequest<T>(
+        `states:${countryId ?? 'all'}`,
+        `master-data/states${countryId ? `?countryId=${countryId}` : ''}`,
+      ),
     cities: <T = unknown[]>(countryId?: number, stateId?: string) => {
       const params = new URLSearchParams();
       if (countryId) params.set('countryId', String(countryId));
       if (stateId) params.set('stateId', stateId);
       const query = params.toString();
-      return request<T>(`master-data/cities${query ? `?${query}` : ''}`);
+      return cachedRequest<T>(
+        `cities:${countryId ?? 'all'}:${stateId ?? 'all'}`,
+        `master-data/cities${query ? `?${query}` : ''}`,
+      );
     },
+    clearCache: clearMasterDataCache,
   },
 };

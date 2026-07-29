@@ -763,7 +763,7 @@ export default function ServiceDetailPage() {
       </div>
 
       {/* Vendor Info */}
-      {(service.vendor_name || service.vendor_email || service.vendor_phone) && (
+      {/* {(service.vendor_name || service.vendor_email || service.vendor_phone) && (
         <div className="bg-white rounded-2xl border border-gray-100 p-5">
           <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Vendor Information</p>
           <div className="space-y-2 text-sm">
@@ -772,7 +772,7 @@ export default function ServiceDetailPage() {
             {service.vendor_phone && <p><span className="font-medium text-gray-600">Phone:</span> {service.vendor_phone}</p>}
           </div>
         </div>
-      )}
+      )} */}
 
       {/* Back Link */}
       <div className="pb-4">

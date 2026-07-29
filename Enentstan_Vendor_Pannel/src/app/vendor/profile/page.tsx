@@ -34,21 +34,19 @@ import {
 } from "lucide-react";
 import { vendorApi } from "@/api/vendorApi";
 import { updateSessionUser } from "@/lib/auth";
-
-// Country dialing codes for the phone fields' country-code selector.
-// Loaded at runtime from the master-data/countries API (see `countryCodes`
-// state in ProfilePage) instead of being hardcoded here.
 interface CountryOption {
   id: number | string; // unique id from master-data, used as the React key
   code: string; // phoneCode, e.g. "+971"
   country: string; // name, e.g. "United Arab Emirates (UAE)"
   flag: string;
 }
-
-// Sensible fallback shown until the master-data/countries API responds
-// (or if that call fails), so the phone fields never render empty.
 const DEFAULT_COUNTRY_CODES: CountryOption[] = [
-  { id: "default-ae", code: "+971", country: "United Arab Emirates (UAE)", flag: "🇦🇪" },
+  {
+    id: "default-ae",
+    code: "+971",
+    country: "United Arab Emirates (UAE)",
+    flag: "🇦🇪",
+  },
 ];
 
 interface CityOption {
@@ -58,20 +56,17 @@ interface CityOption {
   countryName?: string;
   status: string;
 }
-
-// Extended CityOption with country name resolved from the countries list
 interface CityWithCountry extends CityOption {
   countryName: string;
 }
 
 interface VendorProfile {
   id: string;
-  // Business
   companyName: string;
   contactPerson: string;
   email: string;
   phone: string;
-  phoneCountryCode?: string | null; 
+  phoneCountryCode?: string | null;
   vendorProfileImage?: string | null;
   about?: string | null;
   businessLocation?: string | null;
@@ -82,7 +77,6 @@ interface VendorProfile {
   capacityPerDay: number;
   status: string;
   vendorType?: string | null;
-  // Personal
   firstName?: string | null;
   lastName?: string | null;
   userName?: string | null;
@@ -90,7 +84,6 @@ interface VendorProfile {
   telephone?: string | null;
   telephoneCountryCode?: string | null;
   primaryMobileCountryCode?: string | null;
-  // Legal / Business
   tradeLicenseNumber?: string | null;
   tradeLicenseExpiry?: string | null;
   tradeLicenseFileUrl?: string | null;
@@ -101,13 +94,11 @@ interface VendorProfile {
   emiratesIdExpiry?: string | null;
   vatNumber?: string | null;
   visaType?: string | null;
-  // Plan
   planDetails?: string | null;
   planExpiry?: string | null;
   commissionPercent?: string | null;
   agreementFileUrl?: string | null;
   agreementFileKey?: string | null;
-  // Bank
   bankName?: string | null;
   accountFullName?: string | null;
   ibanNo?: string | null;
@@ -116,7 +107,6 @@ interface VendorProfile {
   branchAddress?: string | null;
 }
 
-// Shape of a row returned by GET /master-data/countries
 interface CountryMasterRow {
   id: number;
   code: string;
@@ -130,7 +120,6 @@ interface CountryMasterRow {
   updatedAt: string;
 }
 
-// Shape of a row returned by GET /master-data/visa-types
 interface VisaTypeMasterRow {
   id: string;
   name: string;
@@ -139,7 +128,6 @@ interface VisaTypeMasterRow {
   updatedAt: string;
 }
 
-// Shape of a row returned by GET /master-data/cities
 interface CityMasterRow {
   id: number | string;
   name: string;
@@ -149,8 +137,6 @@ interface CityMasterRow {
   createdAt?: string;
   updatedAt?: string;
 }
-
-/* ─── helpers ──────────────────────────────────────────────── */
 function formatDate(iso?: string | null) {
   if (!iso) return "—";
   return new Date(iso).toLocaleDateString("en-GB", {
@@ -181,20 +167,16 @@ function hasValue(value: string | number | string[] | null | undefined) {
   return Boolean(value && String(value).trim());
 }
 
-// Strips anything that isn't a letter, space, apostrophe or hyphen — used to
-// keep numbers/symbols out of name fields.
 function sanitizeNameInput(value: string) {
   return value.replace(/[^A-Za-z\s'-]/g, "");
 }
 
-// Keeps digits only — used for the telephone number input.
 function sanitizeDigitsInput(value: string) {
   return value.replace(/\D/g, "");
 }
 
 const NAME_MAX_LENGTH = 40;
 
-/* ─── sub-components ───────────────────────────────────────── */
 function SectionCard({
   title,
   icon: Icon,
@@ -320,7 +302,11 @@ function NameField({
           type="text"
           value={value}
           maxLength={NAME_MAX_LENGTH}
-          onChange={(e) => onChange(sanitizeNameInput(e.target.value).slice(0, NAME_MAX_LENGTH))}
+          onChange={(e) =>
+            onChange(
+              sanitizeNameInput(e.target.value).slice(0, NAME_MAX_LENGTH),
+            )
+          }
           className="w-full py-2.5 pl-9 pr-4 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-orange-400 bg-white text-gray-800"
         />
       </div>
@@ -329,8 +315,18 @@ function NameField({
 }
 
 const MONTH_NAMES = [
-  "January", "February", "March", "April", "May", "June",
-  "July", "August", "September", "October", "November", "December",
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
 ];
 const WEEKDAY_LABELS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
 
@@ -361,12 +357,17 @@ function DateField({
   today.setHours(0, 0, 0, 0);
 
   const parsed = value ? new Date(`${value}T00:00:00`) : null;
-  const [viewYear, setViewYear] = useState(parsed ? parsed.getFullYear() : today.getFullYear());
-  const [viewMonth, setViewMonth] = useState(parsed ? parsed.getMonth() : today.getMonth());
+  const [viewYear, setViewYear] = useState(
+    parsed ? parsed.getFullYear() : today.getFullYear(),
+  );
+  const [viewMonth, setViewMonth] = useState(
+    parsed ? parsed.getMonth() : today.getMonth(),
+  );
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+      if (ref.current && !ref.current.contains(e.target as Node))
+        setOpen(false);
     }
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
@@ -378,10 +379,18 @@ function DateField({
 
   const cells: { day: number; date: Date; inMonth: boolean }[] = [];
   for (let i = firstWeekday - 1; i >= 0; i--) {
-    cells.push({ day: daysInPrevMonth - i, date: new Date(viewYear, viewMonth - 1, daysInPrevMonth - i), inMonth: false });
+    cells.push({
+      day: daysInPrevMonth - i,
+      date: new Date(viewYear, viewMonth - 1, daysInPrevMonth - i),
+      inMonth: false,
+    });
   }
   for (let d = 1; d <= daysInMonth; d++) {
-    cells.push({ day: d, date: new Date(viewYear, viewMonth, d), inMonth: true });
+    cells.push({
+      day: d,
+      date: new Date(viewYear, viewMonth, d),
+      inMonth: true,
+    });
   }
   while (cells.length < 42) {
     const last = cells[cells.length - 1].date;
@@ -391,7 +400,8 @@ function DateField({
   }
 
   // Prevent navigating into any month before the current one.
-  const isCurrentViewMonth = viewYear === today.getFullYear() && viewMonth === today.getMonth();
+  const isCurrentViewMonth =
+    viewYear === today.getFullYear() && viewMonth === today.getMonth();
 
   const goPrevMonth = () => {
     if (isCurrentViewMonth) return;
@@ -420,19 +430,30 @@ function DateField({
   };
 
   const displayLabel = parsed
-    ? parsed.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })
+    ? parsed.toLocaleDateString("en-GB", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+      })
     : "Select date";
 
   return (
     <div className="relative" ref={ref}>
-      <label className="text-xs font-medium text-gray-500 mb-1 block">{label}</label>
+      <label className="text-xs font-medium text-gray-500 mb-1 block">
+        {label}
+      </label>
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
         className="relative w-full flex items-center py-2.5 pl-9 pr-4 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-orange-400 bg-white text-left"
       >
-        <Icon size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-        <span className={parsed ? "text-gray-800" : "text-gray-400"}>{displayLabel}</span>
+        <Icon
+          size={13}
+          className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+        />
+        <span className={parsed ? "text-gray-800" : "text-gray-400"}>
+          {displayLabel}
+        </span>
       </button>
 
       {open && (
@@ -447,7 +468,11 @@ function DateField({
                 onClick={goPrevMonth}
                 disabled={isCurrentViewMonth}
                 className="p-1.5 rounded-lg hover:bg-gray-100 disabled:opacity-25 disabled:cursor-not-allowed text-gray-500"
-                title={isCurrentViewMonth ? "Past months aren't available" : "Previous month"}
+                title={
+                  isCurrentViewMonth
+                    ? "Past months aren't available"
+                    : "Previous month"
+                }
               >
                 <ChevronLeft size={14} />
               </button>
@@ -463,7 +488,10 @@ function DateField({
 
           <div className="grid grid-cols-7 gap-1 mb-1">
             {WEEKDAY_LABELS.map((w) => (
-              <div key={w} className="text-center text-[11px] font-medium text-gray-400 py-1">
+              <div
+                key={w}
+                className="text-center text-[11px] font-medium text-gray-400 py-1"
+              >
                 {w}
               </div>
             ))}
@@ -473,7 +501,8 @@ function DateField({
             {cells.map((cell, idx) => {
               const isPast = cell.date < today;
               const isToday = cell.date.getTime() === today.getTime();
-              const isSelected = parsed && cell.date.getTime() === parsed.getTime();
+              const isSelected =
+                parsed && cell.date.getTime() === parsed.getTime();
               return (
                 <button
                   key={idx}
@@ -621,9 +650,14 @@ function SearchableSelectField({
         className="relative w-full flex items-center gap-2 py-2.5 pl-9 pr-9 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-orange-400 bg-white text-left hover:border-orange-300 transition-colors"
       >
         {Icon && (
-          <Icon size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          <Icon
+            size={13}
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+          />
         )}
-        <span className={`truncate ${selected ? "text-gray-800" : "text-gray-400"}`}>
+        <span
+          className={`truncate ${selected ? "text-gray-800" : "text-gray-400"}`}
+        >
           {selected ? selected.label : placeholder}
         </span>
         <ChevronDown
@@ -646,7 +680,9 @@ function SearchableSelectField({
           </div>
           <div className="max-h-56 overflow-y-auto py-1">
             {filtered.length === 0 && (
-              <p className="px-3 py-2 text-xs text-gray-400">No matches found</p>
+              <p className="px-3 py-2 text-xs text-gray-400">
+                No matches found
+              </p>
             )}
             {filtered.map((opt) => {
               const isSelected = opt.value === value;
@@ -663,7 +699,12 @@ function SearchableSelectField({
                     ${isSelected ? "text-orange-600 font-medium bg-orange-50/60" : "text-gray-700"}`}
                 >
                   <span className="truncate">{opt.label}</span>
-                  {isSelected && <CheckCircle2 size={14} className="text-orange-500 shrink-0" />}
+                  {isSelected && (
+                    <CheckCircle2
+                      size={14}
+                      className="text-orange-500 shrink-0"
+                    />
+                  )}
                 </button>
               );
             })}
@@ -754,7 +795,9 @@ function PhoneField({
           inputMode="numeric"
           value={number}
           placeholder={placeholder}
-          onChange={(e) => onNumberChange(sanitizeDigitsInput(e.target.value).slice(0, 15))}
+          onChange={(e) =>
+            onNumberChange(sanitizeDigitsInput(e.target.value).slice(0, 15))
+          }
           className="flex-1 min-w-0 py-2.5 px-3 text-sm rounded-r-xl focus:outline-none bg-white text-gray-800"
         />
       </div>
@@ -847,8 +890,9 @@ function FileUploadField({
       <p className="text-xs text-gray-400 mt-1">
         {fileUrl
           ? "File uploaded. The link updates once you replace it."
-          : "No file uploaded yet."}
-        {" "}Max file size: <span className="font-medium text-gray-500">{maxSizeMb}MB</span>.
+          : "No file uploaded yet."}{" "}
+        Max file size:{" "}
+        <span className="font-medium text-gray-500">{maxSizeMb}MB</span>.
       </p>
     </div>
   );
@@ -976,7 +1020,8 @@ function ChangePasswordCard() {
         <p className="text-xs text-gray-400">
           Use at least 8 characters. You'll stay signed in on this device.
         </p>
-        <button          type="button"
+        <button
+          type="button"
           onClick={handleChangePassword}
           disabled={saving}
           className="flex items-center justify-center gap-2 bg-gray-900 hover:bg-gray-800 disabled:opacity-60 text-white px-5 py-2.5 rounded-xl text-sm font-semibold transition-colors"
@@ -1007,29 +1052,36 @@ export default function ProfilePage() {
   const [categories, setCategories] = useState<
     Array<{ id: string; name: string }>
   >([]);
-  // Country dialing codes, sourced from GET /master-data/countries.
-  // Starts with a safe default so the phone-code dropdown is never empty
-  // while the request is in flight (or if it fails).
-  const [countryCodes, setCountryCodes] = useState<CountryOption[]>(DEFAULT_COUNTRY_CODES);
-  // Visa types, sourced from GET /master-data/visa-types, used to populate
-  // the Visa Type dropdown in the Legal & Compliance section.
-  const [visaTypes, setVisaTypes] = useState<Array<{ value: string; label: string }>>([]);
-  // Cities state — now sourced from the real GET /master-data/cities API
-  // (same source admin uses), not faked from the countries list.
+  const [countryCodes, setCountryCodes] = useState<CountryOption[]>(
+    DEFAULT_COUNTRY_CODES,
+  );
+  const [visaTypes, setVisaTypes] = useState<
+    Array<{ value: string; label: string }>
+  >([]);
   const [allCities, setAllCities] = useState<CityWithCountry[]>([]);
   const [citiesLoading, setCitiesLoading] = useState(true);
   const [citySearchQuery, setCitySearchQuery] = useState("");
   const [citiesMenuOpen, setCitiesMenuOpen] = useState(false);
+  const [visibleCityCount, setVisibleCityCount] = useState(10);
+  const citiesListRef = useRef<HTMLDivElement | null>(null);
   const avatarMenuRef = useRef<HTMLDivElement | null>(null);
   const avatarInputRef = useRef<HTMLInputElement | null>(null);
   const citiesMenuRef = useRef<HTMLDivElement | null>(null);
-
+  useEffect(() => {
+    setVisibleCityCount(10);
+  }, [citySearchQuery, citiesMenuOpen]);
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
-      if (avatarMenuRef.current && !avatarMenuRef.current.contains(e.target as Node)) {
+      if (
+        avatarMenuRef.current &&
+        !avatarMenuRef.current.contains(e.target as Node)
+      ) {
         setAvatarMenuOpen(false);
       }
-      if (citiesMenuRef.current && !citiesMenuRef.current.contains(e.target as Node)) {
+      if (
+        citiesMenuRef.current &&
+        !citiesMenuRef.current.contains(e.target as Node)
+      ) {
         setCitiesMenuOpen(false);
         setCitySearchQuery("");
       }
@@ -1068,7 +1120,7 @@ export default function ProfilePage() {
         const mapped = data
           .filter((c) => c.status === "Active" && c.phoneCode)
           .map((c) => ({
-            id: c.id, 
+            id: c.id,
             code: c.phoneCode,
             country: c.name,
             flag: c.flag,
@@ -1092,7 +1144,8 @@ export default function ProfilePage() {
     (async () => {
       setCitiesLoading(true);
       try {
-        const countries = await vendorApi.masterData.countries<CountryMasterRow[]>();
+        const countries =
+          await vendorApi.masterData.countries<CountryMasterRow[]>();
         const activeCountries = countries.filter((c) => c.status === "Active");
         const countryMap = new Map(activeCountries.map((c) => [c.id, c.name]));
         let cities = await vendorApi.masterData
@@ -1152,7 +1205,7 @@ export default function ProfilePage() {
 
   const filteredCities = citySearchQuery
     ? allCities.filter((city) =>
-        city.name.toLowerCase().includes(citySearchQuery.toLowerCase())
+        city.name.toLowerCase().includes(citySearchQuery.toLowerCase()),
       )
     : allCities;
 
@@ -1261,8 +1314,14 @@ export default function ProfilePage() {
     ...(isFreelancer
       ? []
       : [
-          { label: "Trade license", done: hasValue(profile.tradeLicenseNumber) },
-          { label: "Trade license expiry", done: hasValue(profile.tradeLicenseExpiry) },
+          {
+            label: "Trade license",
+            done: hasValue(profile.tradeLicenseNumber),
+          },
+          {
+            label: "Trade license expiry",
+            done: hasValue(profile.tradeLicenseExpiry),
+          },
         ]),
     { label: "VAT number", done: hasValue(profile.vatNumber) },
     { label: "Primary mobile", done: hasValue(profile.primaryMobile) },
@@ -1450,7 +1509,8 @@ export default function ProfilePage() {
             {profile.companyName}
           </p>
           <p className="text-xs text-gray-500 mt-0.5 truncate">
-            {[profile.firstName, profile.lastName].filter(Boolean).join(" ") || "—"}
+            {[profile.firstName, profile.lastName].filter(Boolean).join(" ") ||
+              "—"}
           </p>
           <p className="text-xs text-gray-400 truncate">{profile.email}</p>
           <div className="flex items-center gap-2 mt-1.5">
@@ -1549,7 +1609,7 @@ export default function ProfilePage() {
             type="email"
             readOnly
           />
-          
+
           {/* ✅ Replaced regular Field with PhoneField for Phone Number */}
           <PhoneField
             label="Phone Number"
@@ -1560,7 +1620,7 @@ export default function ProfilePage() {
             options={countryCodes}
             placeholder="Phone number"
           />
-          
+
           <SearchableSelectField
             label="Specialization"
             value={
@@ -1687,41 +1747,44 @@ export default function ProfilePage() {
             >
               <Globe size={13} className="text-gray-400 shrink-0" />
               {(!profile.cities || profile.cities.length === 0) && (
-                <span className="text-sm text-gray-400">Search and select service cities</span>
+                <span className="text-sm text-gray-400">
+                  Search and select service cities
+                </span>
               )}
-              {profile.cities && profile.cities.map((cityName) => {
-                const cityData = allCities.find((c) => c.name === cityName);
-                return (
-                  <span
-                    key={cityName}
-                    className="inline-flex items-center gap-1 pl-2.5 pr-1.5 py-1 rounded-full bg-orange-50 text-orange-700 text-xs font-medium"
-                  >
-                    {cityData?.countryName && (
-                      <span className="text-gray-400 text-[10px]">
-                        {cityData.countryName.substring(0, 3).toUpperCase()}
-                      </span>
-                    )}
-                    {cityName}
+              {profile.cities &&
+                profile.cities.map((cityName) => {
+                  const cityData = allCities.find((c) => c.name === cityName);
+                  return (
                     <span
-                      role="button"
-                      tabIndex={-1}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setProfile((prev) => {
-                          if (!prev) return prev;
-                          return {
-                            ...prev,
-                            cities: prev.cities.filter((c) => c !== cityName),
-                          };
-                        });
-                      }}
-                      className="text-orange-400 hover:text-orange-600"
+                      key={cityName}
+                      className="inline-flex items-center gap-1 pl-2.5 pr-1.5 py-1 rounded-full bg-orange-50 text-orange-700 text-xs font-medium"
                     >
-                      <X size={12} />
+                      {cityData?.countryName && (
+                        <span className="text-gray-400 text-[10px]">
+                          {cityData.countryName.substring(0, 3).toUpperCase()}
+                        </span>
+                      )}
+                      {cityName}
+                      <span
+                        role="button"
+                        tabIndex={-1}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setProfile((prev) => {
+                            if (!prev) return prev;
+                            return {
+                              ...prev,
+                              cities: prev.cities.filter((c) => c !== cityName),
+                            };
+                          });
+                        }}
+                        className="text-orange-400 hover:text-orange-600"
+                      >
+                        <X size={12} />
+                      </span>
                     </span>
-                  </span>
-                );
-              })}
+                  );
+                })}
               <ChevronDown
                 size={13}
                 className={`ml-auto text-gray-400 transition-transform shrink-0 ${
@@ -1742,22 +1805,29 @@ export default function ProfilePage() {
                       placeholder="Search cities..."
                       className="w-full px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-orange-400 pl-8"
                     />
-                    <Globe size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                    <Globe
+                      size={14}
+                      className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400"
+                    />
                   </div>
                 </div>
                 <div className="max-h-56 overflow-y-auto py-1">
                   {citiesLoading && (
                     <p className="px-3 py-2 text-xs text-gray-400 flex items-center gap-1.5">
-                      <Loader2 size={12} className="animate-spin" /> Loading cities...
+                      <Loader2 size={12} className="animate-spin" /> Loading
+                      cities...
                     </p>
                   )}
                   {!citiesLoading && filteredCities.length === 0 && (
                     <p className="px-3 py-2 text-xs text-gray-400">
-                      {citySearchQuery ? "No cities found" : "No cities available"}
+                      {citySearchQuery
+                        ? "No cities found"
+                        : "No cities available"}
                     </p>
                   )}
                   {filteredCities.map((city) => {
-                    const isSelected = profile.cities?.includes(city.name) || false;
+                    const isSelected =
+                      profile.cities?.includes(city.name) || false;
                     return (
                       <label
                         key={city.id}
@@ -1815,9 +1885,13 @@ export default function ProfilePage() {
             maxLength={500}
             className="w-full px-4 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-200 resize-none"
           />
-          <p className={`text-xs mt-1 text-right ${
-            (profile.about ?? "").length >= 500 ? "text-red-500" : "text-gray-400"
-          }`}>
+          <p
+            className={`text-xs mt-1 text-right ${
+              (profile.about ?? "").length >= 500
+                ? "text-red-500"
+                : "text-gray-400"
+            }`}
+          >
             {(profile.about ?? "").length}/500 characters
           </p>
         </div>
@@ -2007,7 +2081,10 @@ export default function ProfilePage() {
       {/* ── View Photo Modal ── */}
       {showPhoto && profile.vendorProfileImage && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowPhoto(false)} />
+          <div
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            onClick={() => setShowPhoto(false)}
+          />
           <div className="relative bg-white rounded-2xl shadow-xl p-3 max-w-sm w-full">
             <button
               onClick={() => setShowPhoto(false)}

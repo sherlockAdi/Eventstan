@@ -8,14 +8,11 @@ import {
   ArrowLeft,
   Calendar,
   CheckCircle2,
-  ChevronRight,
   Clock,
   Edit3,
-  Mail,
   MapPin,
   Package as PackageIcon,
   Phone,
-  Star,
   Tag,
   Truck,
   Users,
@@ -24,12 +21,9 @@ import {
   ToggleLeft,
   ToggleRight,
   Trash2,
-  Eye,
   Building2,
   Sparkles,
-  Layers,
   Info,
-  Image as ImageIcon,
   ChevronDown,
   ChevronUp,
 } from "lucide-react";
@@ -120,6 +114,10 @@ interface ApiPackage {
   maxHours?: number;
   minPersons?: number;
   maxPersons?: number;
+  minPieces?: number;
+  maxPieces?: number;
+  minDays?: number;
+  maxDays?: number;
   isRental?: boolean;
   is_rental?: boolean;
   rentalLocation?: string;
@@ -150,7 +148,6 @@ function packageCurrency(pkg: ApiPackage) {
   return pkg.money?.currency ?? pkg.currency ?? "AED";
 }
 
-// Formats any parseable date string into dd-mm-yyyy
 function formatDateDDMMYYYY(dateStr?: string | null) {
   if (!dateStr) return "";
   const d = new Date(dateStr);
@@ -311,7 +308,6 @@ export default function PackageViewPage() {
     pkg.showOnHomepage ??
     pkg.show_on_homepage ??
     false;
-  const createdAt = pkg.createdAt || pkg.created_at;
   
   const packageImage = pkg.imageUrl || pkg.image_url || null;
   const globalDefaultImage = `https://eventstancom.vercel.app/images/featured-services/featured-services-1.jpg`;
@@ -327,10 +323,16 @@ export default function PackageViewPage() {
   const requiresDeposit = pkg.requiresDeposit ?? pkg.requires_deposit ?? false;
   const depositAmount = pkg.depositAmount ?? pkg.deposit_amount ?? null;
   const vendorPhone = pkg.vendorPhone || "";
+  
   const minHours = pkg.minHours ?? null;
   const maxHours = pkg.maxHours ?? null;
   const minPersons = pkg.minPersons ?? null;
   const maxPersons = pkg.maxPersons ?? null;
+  const minPieces = pkg.minPieces ?? null;
+  const maxPieces = pkg.maxPieces ?? null;
+  const minDays = pkg.minDays ?? null;
+  const maxDays = pkg.maxDays ?? null;
+  
   const categoryName = pkg.category?.name || "";
 
   const getPromotionalPrice = () => {
@@ -379,16 +381,15 @@ export default function PackageViewPage() {
   const categoryImage = matchedCategory?.image || null;
   const defaultImage = categoryImage || globalDefaultImage;
 
-  // Show only 4 items initially, then "View More"
   const displayInclusions = showAllInclusions ? includedItems : includedItems.slice(0, 4);
   const hasMoreInclusions = includedItems.length > 4;
 
-  // Get service names for display - full names
   const serviceNames = services.map(item => item.service?.title || item.serviceId).filter(Boolean);
+
+  const hasMinMaxFields = !!(minHours || maxHours || minPersons || maxPersons || minPieces || maxPieces || minDays || maxDays);
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-6">
-      {/* Alerts */}
       {success && (
         <div className="flex items-center gap-2 bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-xl text-sm mb-4">
           <CheckCircle2 size={15} /> {success}
@@ -400,7 +401,6 @@ export default function PackageViewPage() {
         </div>
       )}
 
-      {/* Header Actions */}
       <div className="flex items-center justify-between mb-6">
         <Link 
           href="/vendor/packages"
@@ -435,10 +435,8 @@ export default function PackageViewPage() {
         </div>
       </div>
 
-      {/* ✅ SINGLE CARD */}
       <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
         
-        {/* 1. Package Image */}
         <div className="relative w-full h-56 md:h-72 bg-gradient-to-r from-orange-100 to-orange-200 overflow-hidden">
           <img
             src={packageImage || defaultImage}
@@ -472,7 +470,6 @@ export default function PackageViewPage() {
           </div>
         </div>
 
-        {/* 2. Quick Stats - Top par icons ke saath */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 p-4 md:p-5 bg-orange-50/50 border-b border-gray-100">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-lg bg-orange-100 flex items-center justify-center shrink-0">
@@ -482,16 +479,17 @@ export default function PackageViewPage() {
               <p className="text-[10px] text-gray-400 uppercase tracking-wider">Price</p>
               <p className="text-sm font-bold text-gray-900">
                 {promotionalPrice ? (
-                  <>
+                  <span className="flex items-center gap-1 flex-wrap">
                     <span className="text-green-600">{promotionalPrice.toLocaleString()} {currency}</span>
-                    <span className="text-xs text-gray-400 line-through ml-1">{amount.toLocaleString()} {currency}</span>
+                    <span className="text-xs text-gray-400 line-through">{originalPrice.toLocaleString()} {currency}</span>
                     {discountPercent != null && (
-                      <span className="ml-1 text-[10px] font-bold text-red-500">-{discountPercent}%</span>
+                      <span className="text-[10px] font-bold text-red-500">{discountPercent}%</span>
                     )}
-                  </>
+                  </span>
                 ) : (
-                  <>{amount.toLocaleString()} {currency}</>
+                  <span>{amount.toLocaleString()} {currency}</span>
                 )}
+                <span className="text-[10px] text-gray-400 font-normal ml-1">/ {priceUnit}</span>
               </p>
             </div>
           </div>
@@ -526,7 +524,6 @@ export default function PackageViewPage() {
           </div>
         </div>
 
-        {/* 3. Header Section - Package title ke saath */}
         <div className="p-5 md:p-6 border-b border-gray-100">
           <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
             <div className="flex-1">
@@ -558,39 +555,41 @@ export default function PackageViewPage() {
             <div className="text-right shrink-0">
               {promotionalPrice ? (
                 <>
+                  <div className="flex flex-col items-end">
+                    <div className="flex items-baseline gap-2 flex-wrap justify-end">
+                      <span className="text-2xl font-bold text-green-600">
+                        {promotionalPrice.toLocaleString()} {currency}
+                      </span>
+                      <span className="text-sm text-gray-400 line-through">
+                        {originalPrice.toLocaleString()} {currency}
+                      </span>
+                      {discountPercent != null && (
+                        <span className="text-sm font-bold text-red-500 bg-red-50 px-2 py-0.5 rounded-full">
+                          {discountPercent}%
+                        </span>
+                      )}
+                    </div>
+                    <span className="text-xs text-gray-400 capitalize mt-0.5">
+                      / {priceUnit}
+                    </span>
+                  </div>
+                  {discountAmount != null && (
+                    <p className="text-xs font-medium text-green-600 mt-0.5">
+                      You save {discountAmount.toLocaleString()} {currency}
+                    </p>
+                  )}
+                </>
+              ) : (
+                <div className="flex flex-col items-end">
                   <div className="flex items-baseline gap-1.5 justify-end flex-wrap">
                     <span className="text-2xl font-bold text-gray-900">
-                      {promotionalPrice.toLocaleString()} {currency}
+                      {amount.toLocaleString()} {currency}
                     </span>
                     <span className="text-xs text-gray-400 capitalize">
                       / {priceUnit}
                     </span>
                   </div>
-                  <div className="flex items-center gap-2 justify-end mt-0.5">
-                    <span className="text-sm text-gray-400 line-through">
-                      {originalPrice.toLocaleString()} {currency}
-                    </span>
-                    {discountPercent != null && (
-                      <span className="text-sm font-semibold text-orange-500">
-                        {discountPercent}% OFF
-                      </span>
-                    )}
-                  </div>
-                </>
-              ) : (
-                <div className="flex items-baseline gap-1.5 justify-end flex-wrap">
-                  <span className="text-2xl font-bold text-gray-900">
-                    {amount.toLocaleString()} {currency}
-                  </span>
-                  <span className="text-xs text-gray-400 capitalize">
-                    / {priceUnit}
-                  </span>
                 </div>
-              )}
-              {promotionalPrice && discountAmount != null && (
-                <p className="text-xs font-medium text-green-600 mt-0.5">
-                  You save {discountAmount.toLocaleString()} {currency}
-                </p>
               )}
               {maxGuests && (
                 <p className="text-xs text-gray-400 mt-0.5">
@@ -613,7 +612,6 @@ export default function PackageViewPage() {
           )}
         </div>
 
-        {/* 4. Description */}
         {pkg.description && (
           <div className="p-5 md:p-6 border-b border-gray-100">
             <div className="flex items-start gap-3">
@@ -628,10 +626,8 @@ export default function PackageViewPage() {
           </div>
         )}
 
-        {/* 5. What's Included + Features - Same row mein */}
         <div className="p-5 md:p-6">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* What's Included */}
             <div>
               <h2 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
                 <CheckCircle2 size={16} className="text-green-500" />
@@ -656,7 +652,7 @@ export default function PackageViewPage() {
                       {showAllInclusions ? (
                         <>Show Less <ChevronUp size={14} /></>
                       ) : (
-                        <>View More ({includedItems.length - 3} more) <ChevronDown size={14} /></>
+                        <>View More ({includedItems.length - 4} more) <ChevronDown size={14} /></>
                       )}
                     </button>
                   )}
@@ -666,7 +662,6 @@ export default function PackageViewPage() {
               )}
             </div>
 
-            {/* Features */}
             <div>
               <h2 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
                 <Sparkles size={16} className="text-purple-500" />
@@ -690,30 +685,83 @@ export default function PackageViewPage() {
           </div>
         </div>
 
-        {/* 6. Additional Details */}
-        {(vendorPhone || isRental || minHours || minPersons) && (
+        {(vendorPhone || isRental || hasMinMaxFields) && (
           <div className="p-5 md:p-6 border-t border-gray-100">
             <h2 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
               <Info size={16} className="text-orange-500" />
               Additional Details
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
-              {vendorPhone && (
-                <div className="flex items-center gap-2 text-gray-600">
-                  <Phone size={14} className="text-gray-400 shrink-0" />
-                  <span>{vendorPhone}</span>
-                </div>
-              )}
-              {(minHours || maxHours) && (
+              {minHours != null && maxHours != null && (
                 <div className="flex items-center gap-2 text-gray-600">
                   <Clock size={14} className="text-gray-400 shrink-0" />
-                  <span>{minHours || "—"}h – {maxHours || "—"}h</span>
+                  <span>Hours: {minHours}h – {maxHours}h</span>
                 </div>
               )}
-              {(minPersons || maxPersons) && (
+              {minHours != null && maxHours == null && (
+                <div className="flex items-center gap-2 text-gray-600">
+                  <Clock size={14} className="text-gray-400 shrink-0" />
+                  <span>Min Hours: {minHours}h</span>
+                </div>
+              )}
+              {minHours == null && maxHours != null && (
+                <div className="flex items-center gap-2 text-gray-600">
+                  <Clock size={14} className="text-gray-400 shrink-0" />
+                  <span>Max Hours: {maxHours}h</span>
+                </div>
+              )}
+              {minPersons != null && maxPersons != null && (
                 <div className="flex items-center gap-2 text-gray-600">
                   <Users size={14} className="text-gray-400 shrink-0" />
-                  <span>{minPersons || "—"} – {maxPersons || "—"} persons</span>
+                  <span>Persons: {minPersons} – {maxPersons}</span>
+                </div>
+              )}
+              {minPersons != null && maxPersons == null && (
+                <div className="flex items-center gap-2 text-gray-600">
+                  <Users size={14} className="text-gray-400 shrink-0" />
+                  <span>Min Persons: {minPersons}</span>
+                </div>
+              )}
+              {minPersons == null && maxPersons != null && (
+                <div className="flex items-center gap-2 text-gray-600">
+                  <Users size={14} className="text-gray-400 shrink-0" />
+                  <span>Max Persons: {maxPersons}</span>
+                </div>
+              )}
+              {minPieces != null && maxPieces != null && (
+                <div className="flex items-center gap-2 text-gray-600">
+                  <PackageIcon size={14} className="text-gray-400 shrink-0" />
+                  <span>Pieces: {minPieces} – {maxPieces}</span>
+                </div>
+              )}
+              {minPieces != null && maxPieces == null && (
+                <div className="flex items-center gap-2 text-gray-600">
+                  <PackageIcon size={14} className="text-gray-400 shrink-0" />
+                  <span>Min Pieces: {minPieces}</span>
+                </div>
+              )}
+              {minPieces == null && maxPieces != null && (
+                <div className="flex items-center gap-2 text-gray-600">
+                  <PackageIcon size={14} className="text-gray-400 shrink-0" />
+                  <span>Max Pieces: {maxPieces}</span>
+                </div>
+              )}
+              {minDays != null && maxDays != null && (
+                <div className="flex items-center gap-2 text-gray-600">
+                  <Calendar size={14} className="text-gray-400 shrink-0" />
+                  <span>Days: {minDays} – {maxDays}</span>
+                </div>
+              )}
+              {minDays != null && maxDays == null && (
+                <div className="flex items-center gap-2 text-gray-600">
+                  <Calendar size={14} className="text-gray-400 shrink-0" />
+                  <span>Min Days: {minDays}</span>
+                </div>
+              )}
+              {minDays == null && maxDays != null && (
+                <div className="flex items-center gap-2 text-gray-600">
+                  <Calendar size={14} className="text-gray-400 shrink-0" />
+                  <span>Max Days: {maxDays}</span>
                 </div>
               )}
               {isRental && rentalLocation && (
@@ -765,7 +813,6 @@ export default function PackageViewPage() {
         )}
       </div>
 
-      {/* Delete Confirmation Modal */}
       {deleteConfirm && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
           <button className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setDeleteConfirm(false)} aria-label="Close" />
@@ -793,7 +840,6 @@ export default function PackageViewPage() {
         </div>
       )}
 
-      {/* Toggle Confirmation Modal */}
       {toggleConfirm && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
           <button className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setToggleConfirm(false)} aria-label="Close" />
