@@ -8,6 +8,7 @@ import { ResetPasswordDto } from './dto/reset-password.dto';
 import { RequestOtpDto } from './dto/request-otp.dto';
 import { RegisterDto } from './dto/register.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
+import { AuthProfileDto } from './dto/auth-profile.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 
 @ApiTags('auth')
@@ -42,7 +43,7 @@ export class AuthController {
   @Get('me')
   @UseGuards(AuthGuard)
   @ApiBearerAuth()
-  @ApiOkResponse({ description: 'Returns the authenticated account.' })
+  @ApiOkResponse({ description: 'Returns the authenticated account.', type: AuthProfileDto })
   me(@Req() request: AuthenticatedRequest) {
     return this.auth.profile(request.user.id);
   }
