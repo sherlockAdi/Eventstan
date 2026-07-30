@@ -1,0 +1,10 @@
+---
+deployment:
+  tasks:
+    - export APP_ROOT=/home/eventstan/public_html/api.eventstan.com/Api
+    - 'cd $APP_ROOT && npm install'
+    - 'cd $APP_ROOT && npm run build'
+    - 'pkill -f "eventstan-api@0.1.0 start" || true'
+    - 'pkill -f "nest start" || true'
+    - 'pkill -f "node dist/src/main.js" || true'
+    - 'cd $APP_ROOT && nohup npm run start:prod >/home/eventstan/public_html/api.eventstan.com/Api/api-restart.log 2>&1 </dev/null &'
