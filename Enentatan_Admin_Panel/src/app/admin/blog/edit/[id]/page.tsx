@@ -373,6 +373,8 @@ export default function EditBlogPost() {
                 value={form.content}
                 onChange={handleContentChange}
                 placeholder="Write your blog content here..."
+                onImageUpload={(file) => adminApi.uploads.image(file, 'blogs/content')}
+                onVideoUpload={(file) => adminApi.uploads.video(file, 'blogs/content')}
               />
               <p className="text-xs text-gray-400 mt-1">Read time: {form.read_time} minutes (auto-calculated)</p>
             </div>

@@ -44,6 +44,35 @@ function jsonOptions(method: string, body?: JsonBody, token?: string | null): Re
   };
 }
 
+// Helper function to generate a public asset URL with a date-based folder
+// structure. Used for BOTH images and videos so that every uploaded asset
+// (cover images, in-content images, in-content videos) ends up with the
+// same consistent, production-safe URL — regardless of what host the
+// upload API itself happens to be running on (e.g. localhost in dev).
+function generateAssetUrl(filename: string, folder: string): string {
+  const today = new Date().toISOString().split('T')[0];
+  return `https://api.eventstan.com/api/v1/uploads/images/${folder}/${today}/${filename}`;
+}
+
+// Extracts a filename from an upload API response, falling back to a
+// generated unique name if the response doesn't give us one.
+function resolveUploadedFilename(
+  result: { url?: string; key?: string },
+  file: File,
+): string {
+  if (result.url) {
+    const urlParts = result.url.split('/');
+    return urlParts[urlParts.length - 1];
+  }
+  if (result.key) {
+    const keyParts = result.key.split('/');
+    return keyParts[keyParts.length - 1];
+  }
+  const extension = file.name.split('.').pop();
+  const uniqueId = crypto.randomUUID?.() || Date.now().toString();
+  return `${uniqueId}.${extension}`;
+}
+
 export const adminApi = {
   uploads: {
     image: async (file: File, folder = 'admin') => {
@@ -57,8 +86,46 @@ export const adminApi = {
       });
 
       if (!response.ok) throw new Error(`Image upload failed: ${response.status}`);
-      return response.json() as Promise<{ bucket: string; key: string; url: string; contentType: string; size: number }>;
+
+      const result = await response.json() as { bucket: string; key: string; url: string; contentType: string; size: number };
+
+      const filename = resolveUploadedFilename(result, file);
+      const imageUrl = generateAssetUrl(filename, folder);
+
+      return {
+        ...result,
+        url: imageUrl,
+        filename,
+      };
     },
+
+    // Dedicated video uploader. Mirrors `image()` so that in-content videos
+    // (e.g. from RichTextEditor's onVideoUpload) get the same consistent,
+    // production-safe URL rewrite as images do.
+    video: async (file: File, folder = 'blogs/videos') => {
+      const body = new FormData();
+      body.append('file', file);
+
+      const response = await fetch(`${BASE_API_URL}uploads/files?folder=${encodeURIComponent(folder)}`, {
+        method: 'POST',
+        body,
+        headers: getToken() ? { Authorization: `Bearer ${getToken()}` } : undefined,
+      });
+
+      if (!response.ok) throw new Error(`Video upload failed: ${response.status}`);
+
+      const result = await response.json() as { bucket: string; key: string; url: string; contentType: string; size: number };
+
+      const filename = resolveUploadedFilename(result, file);
+      const videoUrl = generateAssetUrl(filename, folder);
+
+      return {
+        ...result,
+        url: videoUrl,
+        filename,
+      };
+    },
+
     file: async (file: File, folder = 'files') => {
       const body = new FormData();
       body.append('file', file);

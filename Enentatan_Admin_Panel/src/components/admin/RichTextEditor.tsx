@@ -99,7 +99,6 @@ const DeletableImage = Image.extend({
       removeBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`;
       removeBtn.title = 'Remove image';
       removeBtn.className = 'rte-image-remove-btn';
-      // Always visible (not hover-only) so it also works on touch devices.
       removeBtn.style.cssText = `
         position: absolute;
         top: 10px;
@@ -274,10 +273,6 @@ const Video = Node.create({
         video.style.width = '100%';
         video.style.background = '#000';
         video.src = node.attrs.src;
-        // Some browsers need an explicit load() call when src is assigned
-        // programmatically (as opposed to via the initial HTML attribute),
-        // otherwise metadata/duration never resolves and playback silently
-        // fails.
         video.load();
         video.addEventListener('error', () => {
           console.error('Video failed to load:', node.attrs.src);
@@ -358,6 +353,14 @@ export default function RichTextEditor({
   const [uploadingVideo, setUploadingVideo] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const isInternalUpdate = useRef(false);
+  // Remembers where the cursor was right before the native file picker
+  // opened. Opening the OS file dialog (and interacting with it) steals
+  // focus/selection from the editor, so by the time the upload finishes
+  // and we're ready to insert, TipTap's "current" selection can no longer
+  // be trusted — it may have collapsed back to the end of the doc. We
+  // restore this saved position before inserting so the image/video lands
+  // exactly where the user's cursor was, not always at the bottom.
+  const savedSelectionRef = useRef<number | null>(null);
 
   const editor = useEditor({
     extensions: [
@@ -434,7 +437,24 @@ export default function RichTextEditor({
     editor.chain().focus().setImage({ src: url }).run();
   };
 
+  // Runs an insert command at the cursor position that was saved right
+  // before the file picker opened (falls back to current selection if we
+  // don't have a valid saved position).
+  const insertAtSavedSelection = (run: () => void) => {
+    if (!editor) return;
+    const pos = savedSelectionRef.current;
+    if (pos !== null && pos >= 0 && pos <= editor.state.doc.content.size) {
+      editor.chain().focus().setTextSelection(pos).run();
+    } else {
+      editor.chain().focus().run();
+    }
+    run();
+    savedSelectionRef.current = null;
+  };
+
   const triggerLocalImage = () => {
+    // Capture cursor position BEFORE the native file picker steals focus.
+    savedSelectionRef.current = editor ? editor.state.selection.to : null;
     fileInputRef.current?.click();
   };
 
@@ -445,7 +465,9 @@ export default function RichTextEditor({
       if (onImageUpload) {
         onImageUpload(file)
           .then((result) => {
-            editor.chain().focus('end').setImage({ src: result.url }).run();
+            insertAtSavedSelection(() => {
+              editor.chain().focus().setImage({ src: result.url }).run();
+            });
             resolve();
           })
           .catch(reject);
@@ -456,7 +478,9 @@ export default function RichTextEditor({
       const reader = new FileReader();
       reader.onload = () => {
         const base64 = reader.result as string;
-        editor.chain().focus('end').setImage({ src: base64 }).run();
+        insertAtSavedSelection(() => {
+          editor.chain().focus().setImage({ src: base64 }).run();
+        });
         resolve();
       };
       reader.onerror = () => reject(new Error('Failed to read file'));
@@ -505,6 +529,8 @@ export default function RichTextEditor({
   };
 
   const triggerLocalVideo = () => {
+    // Capture cursor position BEFORE the native file picker steals focus.
+    savedSelectionRef.current = editor ? editor.state.selection.to : null;
     videoInputRef.current?.click();
   };
 
@@ -515,11 +541,13 @@ export default function RichTextEditor({
       if (onVideoUpload) {
         onVideoUpload(file)
           .then((result) => {
-            editor
-              .chain()
-              .focus('end')
-              .insertContent({ type: 'video', attrs: { src: result.url } })
-              .run();
+            insertAtSavedSelection(() => {
+              editor
+                .chain()
+                .focus()
+                .insertContent({ type: 'video', attrs: { src: result.url } })
+                .run();
+            });
             resolve();
           })
           .catch(reject);
@@ -530,11 +558,13 @@ export default function RichTextEditor({
       const reader = new FileReader();
       reader.onload = () => {
         const base64 = reader.result as string;
-        editor
-          .chain()
-          .focus('end')
-          .insertContent({ type: 'video', attrs: { src: base64 } })
-          .run();
+        insertAtSavedSelection(() => {
+          editor
+            .chain()
+            .focus()
+            .insertContent({ type: 'video', attrs: { src: base64 } })
+            .run();
+        });
         resolve();
       };
       reader.onerror = () => reject(new Error('Failed to read file'));

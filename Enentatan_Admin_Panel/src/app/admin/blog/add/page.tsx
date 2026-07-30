@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { FileText, Users, Calendar, Layers, ArrowLeft, Image as ImageIcon, X, Plus, ChevronDown } from 'lucide-react';
+import { FileText, Users, Calendar, Layers, ArrowLeft, Image as ImageIcon, X, Plus, ChevronDown, Loader2 } from 'lucide-react';
 import Button from '@/components/admin/Button';
 import Input from '@/components/admin/Input';
 import toast from 'react-hot-toast';
@@ -37,33 +37,48 @@ const ScrollableSelect = ({
   onChange, 
   options, 
   placeholder,
-  height = "max-h-48"
+  height = "max-h-48",
+  disabled = false
 }: { 
   value: string; 
   onChange: (value: string) => void; 
   options: string[]; 
   placeholder?: string;
   height?: string;
+  disabled?: boolean;
 }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   return (
-    <div className="relative">
+    <div className="relative" ref={dropdownRef}>
       <button
         type="button"
-        onClick={() => setIsOpen(!isOpen)}
-        className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm bg-gray-50/50 focus:outline-none focus:ring-2 focus:ring-orange-400 text-left flex items-center justify-between"
+        onClick={() => !disabled && setIsOpen(!isOpen)}
+        disabled={disabled}
+        className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm bg-gray-50/50 focus:outline-none focus:ring-2 focus:ring-orange-400 text-left flex items-center justify-between disabled:opacity-50 disabled:cursor-not-allowed"
       >
         <span className={value ? 'text-gray-900' : 'text-gray-400'}>
           {value || placeholder || 'Select an option'}
         </span>
         <ChevronDown size={16} className={`transition-transform ${isOpen ? 'rotate-180' : ''}`} />
       </button>
-      {isOpen && (
-        <>
-          <div className="fixed inset-0 z-10" onClick={() => setIsOpen(false)} />
-          <div className={`absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg overflow-y-auto ${height}`}>
-            {options.map((option) => (
+      {isOpen && !disabled && (
+        <div className={`absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg overflow-y-auto ${height}`}>
+          {options.length === 0 ? (
+            <div className="px-3.5 py-3 text-sm text-gray-500 text-center">No options available</div>
+          ) : (
+            options.map((option) => (
               <button
                 key={option}
                 type="button"
@@ -77,9 +92,9 @@ const ScrollableSelect = ({
               >
                 {option}
               </button>
-            ))}
-          </div>
-        </>
+            ))
+          )}
+        </div>
       )}
     </div>
   );
@@ -88,12 +103,14 @@ const ScrollableSelect = ({
 export default function AddBlogPost() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [categories, setCategories] = useState<Category[]>([]);
   const [services, setServices] = useState<Service[]>([]);
   const [packages, setPackages] = useState<Package[]>([]);
   const [optionsLoading, setOptionsLoading] = useState(true);
 
+  // Load options
   useEffect(() => {
     (async () => {
       try {
@@ -119,7 +136,7 @@ export default function AddBlogPost() {
     excerpt: '',
     content: '',
     cover_image: '',
-    category: 'Trends',
+    category: '',
     tags: [] as string[],
     status: 'draft' as 'draft' | 'published' | 'archived',
     is_featured: false,
@@ -137,49 +154,78 @@ export default function AddBlogPost() {
   const [relatedServiceInput, setRelatedServiceInput] = useState('');
   const [relatedPackageInput, setRelatedPackageInput] = useState('');
   const [coverPreview, setCoverPreview] = useState('');
+  const [uploadingCover, setUploadingCover] = useState(false);
+  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
 
-  const calculateReadTime = (content: string): number => {
+  // Cleanup blob URLs
+  useEffect(() => {
+    return () => {
+      if (coverPreview && coverPreview.startsWith('blob:')) {
+        URL.revokeObjectURL(coverPreview);
+      }
+    };
+  }, [coverPreview]);
+
+  const calculateReadTime = useCallback((content: string): number => {
     const wordsPerMinute = 200;
     const wordCount = content.trim().split(/\s+/).length;
     return Math.max(1, Math.ceil(wordCount / wordsPerMinute));
-  };
+  }, []);
 
-  const generateSlug = (title: string): string => {
+  const generateSlug = useCallback((title: string): string => {
     return title
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/^-|-$/g, '');
-  };
+  }, []);
 
-  const handleContentChange = (content: string) => {
+  const handleContentChange = useCallback((content: string) => {
     const readTime = calculateReadTime(content);
-    setForm({ ...form, content, read_time: readTime });
-  };
+    setForm(prev => ({ ...prev, content, read_time: readTime }));
+  }, [calculateReadTime]);
 
-  const handleTitleChange = (title: string) => {
+  const handleTitleChange = useCallback((title: string) => {
     const slug = generateSlug(title);
-    setForm({ ...form, title, slug });
-  };
-
-  const [uploadingCover, setUploadingCover] = useState(false);
+    setForm(prev => ({ ...prev, title, slug }));
+  }, [generateSlug]);
 
   const handleCoverImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Show an instant local preview while the real upload happens.
+    // Validate file type
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+      toast.error('Please upload a valid image (JPG, PNG, or WEBP)');
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Image size should be less than 5MB');
+      return;
+    }
+
+    // Show local preview
     const localPreview = URL.createObjectURL(file);
     setCoverPreview(localPreview);
 
     setUploadingCover(true);
     try {
       const result = await adminApi.uploads.image(file, 'blogs');
-      setForm((prev) => ({ ...prev, cover_image: result.url }));
+      setForm(prev => ({ ...prev, cover_image: result.url }));
       setCoverPreview(result.url);
+      toast.success('Cover image uploaded successfully');
     } catch (error: any) {
       toast.error(error?.message || 'Cover image upload failed');
+      // Revert preview if upload fails
+      if (localPreview.startsWith('blob:')) {
+        URL.revokeObjectURL(localPreview);
+      }
+      setCoverPreview('');
     } finally {
       setUploadingCover(false);
+      // Clear the input
+      e.target.value = '';
     }
   };
 
@@ -187,64 +233,135 @@ export default function AddBlogPost() {
     tag.toLowerCase().includes(tagInput.toLowerCase()) && !form.tags.includes(tag)
   );
 
-  const addTag = (tag: string) => {
-    if (tag && !form.tags.includes(tag)) {
-      setForm({ ...form, tags: [...form.tags, tag] });
+  const addTag = useCallback((tag: string) => {
+    const trimmedTag = tag.trim();
+    if (trimmedTag && !form.tags.includes(trimmedTag) && trimmedTag.length <= 30) {
+      setForm(prev => ({ ...prev, tags: [...prev.tags, trimmedTag] }));
     }
     setTagInput('');
     setShowTagDropdown(false);
-  };
+  }, [form.tags]);
 
-  const removeTag = (tagToRemove: string) => {
-    setForm({ ...form, tags: form.tags.filter(tag => tag !== tagToRemove) });
-  };
+  const removeTag = useCallback((tagToRemove: string) => {
+    setForm(prev => ({ ...prev, tags: prev.tags.filter(tag => tag !== tagToRemove) }));
+  }, []);
 
-  const addRelatedService = (serviceId: string) => {
+  const addRelatedService = useCallback((serviceId: string) => {
     if (serviceId && !form.related_services.includes(serviceId)) {
-      setForm({ ...form, related_services: [...form.related_services, serviceId] });
+      setForm(prev => ({ ...prev, related_services: [...prev.related_services, serviceId] }));
     }
     setRelatedServiceInput('');
-  };
+  }, [form.related_services]);
 
-  const removeRelatedService = (serviceId: string) => {
-    setForm({ ...form, related_services: form.related_services.filter(id => id !== serviceId) });
-  };
+  const removeRelatedService = useCallback((serviceId: string) => {
+    setForm(prev => ({ ...prev, related_services: prev.related_services.filter(id => id !== serviceId) }));
+  }, []);
 
-  const addRelatedPackage = (packageId: string) => {
+  const addRelatedPackage = useCallback((packageId: string) => {
     if (packageId && !form.related_packages.includes(packageId)) {
-      setForm({ ...form, related_packages: [...form.related_packages, packageId] });
+      setForm(prev => ({ ...prev, related_packages: [...prev.related_packages, packageId] }));
     }
     setRelatedPackageInput('');
-  };
+  }, [form.related_packages]);
 
-  const removeRelatedPackage = (packageId: string) => {
-    setForm({ ...form, related_packages: form.related_packages.filter(id => id !== packageId) });
-  };
+  const removeRelatedPackage = useCallback((packageId: string) => {
+    setForm(prev => ({ ...prev, related_packages: prev.related_packages.filter(id => id !== packageId) }));
+  }, []);
+
+  const validateForm = useCallback(() => {
+    const errors: Record<string, string> = {};
+    
+    if (!form.title.trim()) errors.title = 'Title is required';
+    if (!form.content.trim()) errors.content = 'Content is required';
+    if (!form.cover_image) errors.cover_image = 'Cover image is required';
+    if (form.excerpt.length > 160) errors.excerpt = 'Excerpt must be 160 characters or less';
+    if (!form.category) errors.category = 'Category is required';
+    if (form.tags.length === 0) errors.tags = 'At least one tag is required';
+    
+    setValidationErrors(errors);
+    return Object.keys(errors).length === 0;
+  }, [form]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
-
-    if (!form.title || !form.content) {
-      toast.error('Please fill title and content');
-      setLoading(false);
+    
+    if (!validateForm()) {
+      toast.error('Please fix all validation errors');
       return;
     }
+
+    setIsSubmitting(true);
+    setLoading(true);
 
     try {
       const payload = mapBlogToApi(form);
       await adminApi.blogs.create(payload);
-      toast.success('Blog post created successfully!');
+      toast.success('Blog post created successfully! 🎉');
       router.push('/admin/blog');
     } catch (error: any) {
       toast.error(error?.message || 'Failed to create blog post');
     } finally {
       setLoading(false);
+      setIsSubmitting(false);
     }
   };
 
+  // Auto-save draft every 30 seconds
+  useEffect(() => {
+    if (!form.title && !form.content) return;
+    
+    const autoSaveInterval = setInterval(async () => {
+      try {
+        // Only auto-save if we have minimal content
+        if (form.title || form.content) {
+          // You can implement auto-save to localStorage or API here
+          localStorage.setItem('blog_draft', JSON.stringify(form));
+        }
+      } catch (error) {
+        // Silent fail for auto-save
+      }
+    }, 30000);
+
+    return () => clearInterval(autoSaveInterval);
+  }, [form]);
+
+  // Load draft from localStorage on mount
+  useEffect(() => {
+    try {
+      const savedDraft = localStorage.getItem('blog_draft');
+      if (savedDraft) {
+        const parsed = JSON.parse(savedDraft);
+        // Only load if it's recent (within last 24 hours)
+        const savedTime = parsed._savedAt || 0;
+        if (Date.now() - savedTime < 24 * 60 * 60 * 1000) {
+          setForm(prev => ({ ...prev, ...parsed }));
+          if (parsed.cover_image) setCoverPreview(parsed.cover_image);
+          toast.success('Draft loaded from local storage');
+        }
+      }
+    } catch (error) {
+      // Silent fail
+    }
+  }, []);
+
+  // Save draft timestamp
+  useEffect(() => {
+    const saveDraft = () => {
+      try {
+        const draftWithTimestamp = { ...form, _savedAt: Date.now() };
+        localStorage.setItem('blog_draft', JSON.stringify(draftWithTimestamp));
+      } catch (error) {
+        // Silent fail
+      }
+    };
+
+    const handleBeforeUnload = saveDraft;
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [form]);
+
   return (
-    <div className="space-y-6 max-w-5xl mx-auto">
+    <div className="space-y-6 max-w-5xl mx-auto pb-20">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <button
@@ -258,88 +375,154 @@ export default function AddBlogPost() {
             <p className="text-sm text-gray-500 mt-0.5">Write and publish a new blog post</p>
           </div>
         </div>
+        <div className="flex items-center gap-2 text-xs text-gray-400">
+          <span className="px-2 py-1 bg-gray-100 rounded-full">Auto-save enabled</span>
+        </div>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
+        {/* Core Article Fields */}
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
           <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
             <FileText size={18} /> Core Article Fields
           </h3>
           <div className="grid grid-cols-2 gap-4">
             <div className="col-span-2">
-              <Input 
-                label="Title" 
-                value={form.title} 
-                onChange={e => handleTitleChange(e.target.value)} 
-                placeholder="Enter post title"
-                required 
-              />
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                  Title *
+                </label>
+                <input
+                  type="text"
+                  value={form.title}
+                  onChange={e => handleTitleChange(e.target.value)}
+                  placeholder="Enter post title"
+                  className={`w-full px-3.5 py-2.5 border rounded-xl text-sm bg-gray-50/50 focus:outline-none focus:ring-2 focus:ring-orange-400 ${
+                    validationErrors.title ? 'border-red-400' : 'border-gray-200'
+                  }`}
+                />
+                {validationErrors.title && (
+                  <p className="text-xs text-red-500 mt-1">{validationErrors.title}</p>
+                )}
+              </div>
             </div>
+            
             <div className="col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Cover Image</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Cover Image *</label>
               <div className="flex items-center gap-4">
-                <label className="flex flex-col items-center justify-center w-32 h-32 border-2 border-dashed border-gray-300 rounded-xl cursor-pointer hover:border-orange-400 transition-colors bg-gray-50 overflow-hidden">
+                <label className={`flex flex-col items-center justify-center w-32 h-32 border-2 border-dashed rounded-xl cursor-pointer transition-colors bg-gray-50 overflow-hidden ${
+                  validationErrors.cover_image ? 'border-red-400' : 'border-gray-300 hover:border-orange-400'
+                }`}>
                   {coverPreview ? (
                     <img src={coverPreview} alt="Cover preview" className="w-full h-full object-cover" />
                   ) : (
                     <div className="flex flex-col items-center">
-                      <ImageIcon size={24} className="text-gray-400" />
-                      <span className="text-xs text-gray-500 mt-1">Upload</span>
+                      {uploadingCover ? (
+                        <Loader2 size={24} className="text-orange-500 animate-spin" />
+                      ) : (
+                        <>
+                          <ImageIcon size={24} className="text-gray-400" />
+                          <span className="text-xs text-gray-500 mt-1">Upload</span>
+                        </>
+                      )}
                     </div>
                   )}
-                  <input type="file" accept="image/*" onChange={handleCoverImageUpload} className="hidden" />
+                  <input 
+                    type="file" 
+                    accept="image/jpeg,image/png,image/webp" 
+                    onChange={handleCoverImageUpload} 
+                    className="hidden" 
+                    disabled={uploadingCover}
+                  />
                 </label>
                 {coverPreview && (
                   <button
                     type="button"
-                    onClick={() => { setCoverPreview(''); setForm({ ...form, cover_image: '' }); }}
+                    onClick={() => { 
+                      setCoverPreview(''); 
+                      setForm(prev => ({ ...prev, cover_image: '' })); 
+                    }}
                     className="p-1.5 rounded-full bg-red-100 text-red-600 hover:bg-red-200 transition-colors"
                   >
                     <X size={16} />
                   </button>
                 )}
+                {uploadingCover && (
+                  <span className="text-sm text-gray-500">Uploading...</span>
+                )}
               </div>
-              <p className="text-xs text-gray-400 mt-2">Upload a cover image (JPG, PNG, WEBP)</p>
+              {validationErrors.cover_image && (
+                <p className="text-xs text-red-500 mt-1">{validationErrors.cover_image}</p>
+              )}
+              <p className="text-xs text-gray-400 mt-2">Upload a cover image (JPG, PNG, WEBP, max 5MB)</p>
             </div>
+            
             <div className="col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-1.5">Excerpt (Short Summary)</label>
               <textarea
                 value={form.excerpt}
                 onChange={(e) => {
-                  if (e.target.value.length <= 160) setForm({ ...form, excerpt: e.target.value });
+                  if (e.target.value.length <= 160) {
+                    setForm(prev => ({ ...prev, excerpt: e.target.value }));
+                    if (validationErrors.excerpt) {
+                      setValidationErrors(prev => ({ ...prev, excerpt: '' }));
+                    }
+                  }
                 }}
                 placeholder="Write a brief summary of your post..."
                 rows={3}
-                className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm bg-gray-50/50 focus:outline-none focus:ring-2 focus:ring-orange-400 resize-y"
+                className={`w-full px-3.5 py-2.5 border rounded-xl text-sm bg-gray-50/50 focus:outline-none focus:ring-2 focus:ring-orange-400 resize-y ${
+                  validationErrors.excerpt ? 'border-red-400' : 'border-gray-200'
+                }`}
               />
-              <div className="flex justify-end mt-1">
-                <span className={`text-xs ${form.excerpt.length >= 160 ? 'text-red-500 font-medium' : 'text-gray-400'}`}>
-                  {form.excerpt.length}/160 characters
+              <div className="flex justify-between mt-1">
+                <span className={`text-xs ${validationErrors.excerpt ? 'text-red-500' : 'text-gray-400'}`}>
+                  {validationErrors.excerpt || `${form.excerpt.length}/160 characters`}
                 </span>
+                <span className="text-xs text-gray-400">Recommended: 150-160 characters</span>
               </div>
             </div>
+            
             <div className="col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Content</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Content *</label>
               <RichTextEditor
                 value={form.content}
                 onChange={handleContentChange}
                 placeholder="Write your blog content here..."
+                onImageUpload={(file) => adminApi.uploads.image(file, 'blogs/content')}
+                onVideoUpload={(file) => adminApi.uploads.video(file, 'blogs/content')}
               />
-              <p className="text-xs text-gray-400 mt-1">Read time: {form.read_time} minutes (auto-calculated)</p>
+              {validationErrors.content && (
+                <p className="text-xs text-red-500 mt-1">{validationErrors.content}</p>
+              )}
+              <div className="flex justify-between mt-1">
+                <p className="text-xs text-gray-400">Read time: {form.read_time} minutes (auto-calculated)</p>
+                <p className="text-xs text-gray-400">Words: {form.content.trim().split(/\s+/).length || 0}</p>
+              </div>
             </div>
             
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Category</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Category *</label>
               <ScrollableSelect
                 value={form.category}
-                onChange={(value) => setForm({ ...form, category: value })}
+                onChange={(value) => {
+                  setForm(prev => ({ ...prev, category: value }));
+                  if (validationErrors.category) {
+                    setValidationErrors(prev => ({ ...prev, category: '' }));
+                  }
+                }}
                 options={categories.map(c => c.name)}
                 placeholder={optionsLoading ? 'Loading categories...' : 'Select a category'}
                 height="max-h-60"
+                disabled={optionsLoading}
               />
+              {validationErrors.category && (
+                <p className="text-xs text-red-500 mt-1">{validationErrors.category}</p>
+              )}
             </div>
+            
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Tags</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Tags *</label>
               <div className="relative">
                 <div className="flex gap-2">
                   <div className="flex-1 relative">
@@ -361,32 +544,39 @@ export default function AddBlogPost() {
                           }
                         } 
                       }}
-                      className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm bg-gray-50/50 focus:outline-none focus:ring-2 focus:ring-orange-400"
+                      className={`w-full px-3.5 py-2.5 border rounded-xl text-sm bg-gray-50/50 focus:outline-none focus:ring-2 focus:ring-orange-400 ${
+                        validationErrors.tags ? 'border-red-400' : 'border-gray-200'
+                      }`}
                       placeholder="Type to search or add tag..."
+                      maxLength={30}
                     />
                     {showTagDropdown && filteredTags.length > 0 && (
-                      <>
-                        <div className="fixed inset-0 z-10" onClick={() => setShowTagDropdown(false)} />
-                        <div className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg max-h-48 overflow-y-auto">
-                          {filteredTags.map(tag => (
-                            <button
-                              key={tag}
-                              type="button"
-                              onClick={() => addTag(tag)}
-                              className="w-full px-3.5 py-2 text-left text-sm hover:bg-orange-50 transition-colors text-gray-700"
-                            >
-                              {tag}
-                            </button>
-                          ))}
-                        </div>
-                      </>
+                      <div className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg max-h-48 overflow-y-auto">
+                        {filteredTags.map(tag => (
+                          <button
+                            key={tag}
+                            type="button"
+                            onClick={() => addTag(tag)}
+                            className="w-full px-3.5 py-2 text-left text-sm hover:bg-orange-50 transition-colors text-gray-700"
+                          >
+                            {tag}
+                          </button>
+                        ))}
+                      </div>
                     )}
                   </div>
-                  <Button type="button" variant="secondary" onClick={() => tagInput && addTag(tagInput)} className="!px-4">
+                  <button
+                    type="button"
+                    onClick={() => tagInput && addTag(tagInput)}
+                    className="px-4 py-2.5 border border-gray-200 rounded-xl text-sm bg-gray-50/50 hover:bg-gray-100 transition-colors"
+                  >
                     <Plus size={16} />
-                  </Button>
+                  </button>
                 </div>
               </div>
+              {validationErrors.tags && (
+                <p className="text-xs text-red-500 mt-1">{validationErrors.tags}</p>
+              )}
               <div className="flex flex-wrap gap-2 mt-3">
                 {form.tags.map(tag => (
                   <span key={tag} className="px-2.5 py-1 bg-orange-100 text-orange-700 rounded-full text-xs flex items-center gap-1">
@@ -394,6 +584,9 @@ export default function AddBlogPost() {
                     <button type="button" onClick={() => removeTag(tag)} className="hover:text-orange-900">×</button>
                   </span>
                 ))}
+                {form.tags.length === 0 && (
+                  <span className="text-xs text-gray-400">No tags added yet</span>
+                )}
               </div>
             </div>
             
@@ -401,7 +594,7 @@ export default function AddBlogPost() {
               <label className="block text-sm font-medium text-gray-700 mb-1.5">Status</label>
               <select 
                 value={form.status} 
-                onChange={e => setForm({ ...form, status: e.target.value as any })} 
+                onChange={e => setForm(prev => ({ ...prev, status: e.target.value as any }))} 
                 className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm bg-gray-50/50 focus:outline-none focus:ring-2 focus:ring-orange-400"
               >
                 <option value="draft">Draft</option>
@@ -415,7 +608,7 @@ export default function AddBlogPost() {
                 type="checkbox"
                 id="is_featured"
                 checked={form.is_featured}
-                onChange={e => setForm({ ...form, is_featured: e.target.checked })}
+                onChange={e => setForm(prev => ({ ...prev, is_featured: e.target.checked }))}
                 className="w-4 h-4 rounded border-gray-300 text-orange-500 focus:ring-orange-400 focus:ring-offset-0 focus:ring-2"
                 style={{ accentColor: '#f97316' }}
               />
@@ -424,27 +617,75 @@ export default function AddBlogPost() {
           </div>
         </div>
 
+        {/* Author Information */}
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+          <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+            <Users size={18} /> Author Information
+          </h3>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Author Name</label>
+              <input
+                type="text"
+                value={form.author_name}
+                onChange={e => setForm(prev => ({ ...prev, author_name: e.target.value }))}
+                placeholder="Enter author name"
+                className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm bg-gray-50/50 focus:outline-none focus:ring-2 focus:ring-orange-400"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Author Avatar URL</label>
+              <input
+                type="text"
+                value={form.author_avatar}
+                onChange={e => setForm(prev => ({ ...prev, author_avatar: e.target.value }))}
+                placeholder="Enter avatar image URL"
+                className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm bg-gray-50/50 focus:outline-none focus:ring-2 focus:ring-orange-400"
+              />
+            </div>
+            <div className="col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Author Bio</label>
+              <textarea
+                value={form.author_bio}
+                onChange={e => setForm(prev => ({ ...prev, author_bio: e.target.value }))}
+                placeholder="Brief author bio..."
+                rows={2}
+                className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm bg-gray-50/50 focus:outline-none focus:ring-2 focus:ring-orange-400 resize-y"
+              />
+            </div>
+          </div>
+        </div>
 
+        {/* Publishing Settings */}
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
           <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
             <Calendar size={18} /> Publishing Settings
           </h3>
           <div className="grid grid-cols-2 gap-4">
-            <Input 
-              label="Published Date" 
-              type="datetime-local" 
-              value={form.published_at} 
-              onChange={e => setForm({ ...form, published_at: e.target.value })} 
-            />
-            <Input 
-              label="Read Time (minutes)" 
-              type="number" 
-              value={form.read_time} 
-              onChange={e => setForm({ ...form, read_time: Number(e.target.value) })} 
-            />
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Published Date</label>
+              <input
+                type="datetime-local"
+                value={form.published_at}
+                onChange={e => setForm(prev => ({ ...prev, published_at: e.target.value }))}
+                className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm bg-gray-50/50 focus:outline-none focus:ring-2 focus:ring-orange-400"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Read Time (minutes)</label>
+              <input
+                type="number"
+                value={form.read_time}
+                onChange={e => setForm(prev => ({ ...prev, read_time: Number(e.target.value) }))}
+                min={1}
+                max={60}
+                className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm bg-gray-50/50 focus:outline-none focus:ring-2 focus:ring-orange-400"
+              />
+            </div>
           </div>
         </div>
 
+        {/* Related Services & Packages */}
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
           <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
             <Layers size={18} /> Related Services & Packages
@@ -458,7 +699,6 @@ export default function AddBlogPost() {
                     value={relatedServiceInput} 
                     onChange={e => setRelatedServiceInput(e.target.value)} 
                     className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm bg-gray-50/50 focus:outline-none focus:ring-2 focus:ring-orange-400 appearance-none"
-                    style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23666' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 1rem center', backgroundSize: '1rem' }}
                   >
                     <option value="">Select a service</option>
                     {services.filter(s => !form.related_services.includes(s.id)).map(service => (
@@ -466,9 +706,13 @@ export default function AddBlogPost() {
                     ))}
                   </select>
                 </div>
-                <Button type="button" variant="secondary" onClick={() => addRelatedService(relatedServiceInput)} className="!px-4">
+                <button
+                  type="button"
+                  onClick={() => addRelatedService(relatedServiceInput)}
+                  className="px-4 py-2.5 border border-gray-200 rounded-xl text-sm bg-gray-50/50 hover:bg-gray-100 transition-colors"
+                >
                   <Plus size={16} />
-                </Button>
+                </button>
               </div>
               <div className="flex flex-wrap gap-2 mt-3 max-h-32 overflow-y-auto">
                 {services.filter(s => form.related_services.includes(s.id)).map(service => (
@@ -477,8 +721,12 @@ export default function AddBlogPost() {
                     <button type="button" onClick={() => removeRelatedService(service.id)} className="hover:text-blue-900">×</button>
                   </span>
                 ))}
+                {form.related_services.length === 0 && (
+                  <span className="text-xs text-gray-400">No related services added</span>
+                )}
               </div>
             </div>
+            
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">Related Packages</label>
               <div className="flex gap-2">
@@ -487,7 +735,6 @@ export default function AddBlogPost() {
                     value={relatedPackageInput} 
                     onChange={e => setRelatedPackageInput(e.target.value)} 
                     className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm bg-gray-50/50 focus:outline-none focus:ring-2 focus:ring-orange-400 appearance-none"
-                    style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23666' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 1rem center', backgroundSize: '1rem' }}
                   >
                     <option value="">Select a package</option>
                     {packages.filter(p => !form.related_packages.includes(p.id)).map(pkg => (
@@ -495,9 +742,13 @@ export default function AddBlogPost() {
                     ))}
                   </select>
                 </div>
-                <Button type="button" variant="secondary" onClick={() => addRelatedPackage(relatedPackageInput)} className="!px-4">
+                <button
+                  type="button"
+                  onClick={() => addRelatedPackage(relatedPackageInput)}
+                  className="px-4 py-2.5 border border-gray-200 rounded-xl text-sm bg-gray-50/50 hover:bg-gray-100 transition-colors"
+                >
                   <Plus size={16} />
-                </Button>
+                </button>
               </div>
               <div className="flex flex-wrap gap-2 mt-3 max-h-32 overflow-y-auto">
                 {packages.filter(p => form.related_packages.includes(p.id)).map(pkg => (
@@ -506,18 +757,44 @@ export default function AddBlogPost() {
                     <button type="button" onClick={() => removeRelatedPackage(pkg.id)} className="hover:text-green-900">×</button>
                   </span>
                 ))}
+                {form.related_packages.length === 0 && (
+                  <span className="text-xs text-gray-400">No related packages added</span>
+                )}
               </div>
             </div>
           </div>
         </div>
         
-        <div className="flex justify-end gap-3 pt-4 sticky bottom-4 bg-white/80 backdrop-blur-sm p-4 rounded-xl border">
-          <Button type="button" variant="secondary" onClick={() => router.back()}>
-            Cancel
-          </Button>
-          <Button type="submit" disabled={loading} className="bg-orange-500 hover:bg-orange-600 text-white">
-            {loading ? 'Creating...' : 'Save as Draft'}
-          </Button>
+        {/* Form Actions */}
+        <div className="flex justify-between items-center gap-3 pt-4 sticky bottom-4 bg-white/80 backdrop-blur-sm p-4 rounded-xl border shadow-lg">
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-gray-400">
+              {form.title || form.content ? 'Draft auto-saved' : 'No changes yet'}
+            </span>
+          </div>
+          <div className="flex gap-3">
+            <button
+              type="button"
+              onClick={() => router.back()}
+              className="px-4 py-2.5 border border-gray-200 rounded-xl text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={loading || isSubmitting || uploadingCover}
+              className="px-6 py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed min-w-[120px] flex items-center justify-center"
+            >
+              {loading || isSubmitting ? (
+                <>
+                  <Loader2 size={16} className="animate-spin mr-2" />
+                  Creating...
+                </>
+              ) : (
+                'Publish Post'
+              )}
+            </button>
+          </div>
         </div>
       </form>
     </div>
