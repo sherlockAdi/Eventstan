@@ -14,12 +14,46 @@ function headers(token = getVendorToken(), accept = 'application/json'): Headers
   };
 }
 
+const REQUEST_TIMEOUT_MS = 15000;
+
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const response = await fetch(`${API_BASE_URL}/${path}`, options);
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE_URL}/${path}`, {
+      ...options,
+      // Respect a caller-provided signal if one was passed in, otherwise
+      // fall back to our own timeout-driven controller.
+      signal: options.signal ?? controller.signal,
+    });
+  } catch (cause) {
+    if (cause instanceof Error && cause.name === 'AbortError') {
+      throw new Error('Request timed out. Please try again.');
+    }
+    throw cause;
+  } finally {
+    clearTimeout(timeoutId);
+  }
 
   if (!response.ok) {
-    const errorBody = await response.json().catch(() => null);
-    const message = errorBody?.message || errorBody?.error || `Request failed: ${response.status}`;
+    // Read as text first — a 502/504 from a proxy or gateway usually comes
+    // back as an HTML error page (e.g. "Cannot GET /502.shtml"), not JSON.
+    // Parsing that with response.json() throws inside the catch and the
+    // caught error ends up empty, so instead we read text and only try to
+    // JSON.parse it, falling back to a clean status-based message.
+    const rawText = await response.text().catch(() => '');
+    let errorBody: { message?: string; error?: string } | null = null;
+    try {
+      errorBody = rawText ? JSON.parse(rawText) : null;
+    } catch {
+      errorBody = null;
+    }
+    const message =
+      errorBody?.message ||
+      errorBody?.error ||
+      `Request failed: ${response.status}${response.statusText ? ` ${response.statusText}` : ''}`;
     throw new Error(message);
   }
 

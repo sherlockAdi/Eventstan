@@ -58,6 +58,7 @@ interface CityOption {
 }
 interface CityWithCountry extends CityOption {
   countryName: string;
+  stateId?: string | null;
 }
 
 interface VendorProfile {
@@ -150,6 +151,14 @@ interface CityMasterRow {
   createdAt?: string;
   updatedAt?: string;
 }
+
+interface StateMasterRow {
+  id: number | string;
+  name: string;
+  countryId: number;
+  status?: string;
+}
+
 function formatDate(iso?: string | null) {
   if (!iso) return "—";
   return new Date(iso).toLocaleDateString("en-GB", {
@@ -571,6 +580,7 @@ function SelectField({
   onChange,
   options,
   placeholder = "Select an option",
+  disabled = false,
 }: {
   label: string;
   icon?: React.ElementType;
@@ -578,6 +588,7 @@ function SelectField({
   onChange: (v: string) => void;
   options: { value: string; label: string }[];
   placeholder?: string;
+  disabled?: boolean;
 }) {
   return (
     <div>
@@ -593,8 +604,10 @@ function SelectField({
         )}
         <select
           value={value}
+          disabled={disabled}
           onChange={(e) => onChange(e.target.value)}
           className={`w-full py-2.5 pr-9 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-orange-400 bg-white text-gray-800 appearance-none
+            ${disabled ? "bg-gray-50 text-gray-400 cursor-not-allowed" : ""}
             ${Icon ? "pl-9" : "px-4"}`}
         >
           <option value="">{placeholder}</option>
@@ -624,6 +637,7 @@ function SearchableSelectField({
   onChange,
   options,
   placeholder = "Select an option",
+  disabled = false,
 }: {
   label: string;
   icon?: React.ElementType;
@@ -631,6 +645,7 @@ function SearchableSelectField({
   onChange: (v: string) => void;
   options: { value: string; label: string }[];
   placeholder?: string;
+  disabled?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -659,8 +674,10 @@ function SearchableSelectField({
       </label>
       <button
         type="button"
-        onClick={() => setOpen((o) => !o)}
-        className="relative w-full flex items-center gap-2 py-2.5 pl-9 pr-9 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-orange-400 bg-white text-left hover:border-orange-300 transition-colors"
+        disabled={disabled}
+        onClick={() => !disabled && setOpen((o) => !o)}
+        className={`relative w-full flex items-center gap-2 py-2.5 pl-9 pr-9 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-orange-400 bg-white text-left transition-colors
+          ${disabled ? "bg-gray-50 text-gray-400 cursor-not-allowed" : "hover:border-orange-300"}`}
       >
         {Icon && (
           <Icon
@@ -679,7 +696,7 @@ function SearchableSelectField({
         />
       </button>
 
-      {open && (
+      {open && !disabled && (
         <div className="absolute z-30 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden">
           <div className="p-2 border-b border-gray-100">
             <input
@@ -1080,6 +1097,41 @@ export default function ProfilePage() {
   const avatarMenuRef = useRef<HTMLDivElement | null>(null);
   const avatarInputRef = useRef<HTMLInputElement | null>(null);
   const citiesMenuRef = useRef<HTMLDivElement | null>(null);
+
+  /* ── Service Cities: Country → State filters for the multi-select ── */
+  const [serviceCountryId, setServiceCountryId] = useState<string>("");
+  const [serviceStateId, setServiceStateId] = useState<string>("");
+  const [serviceCityFilter, setServiceCityFilter] = useState<string>("");
+  const [serviceStates, setServiceStates] = useState<StateMasterRow[]>([]);
+  const [serviceStatesLoading, setServiceStatesLoading] = useState(false);
+
+  /* ── Business Location: Country → State → City cascading selects ── */
+  const [locationCountries, setLocationCountries] = useState<
+    { id: number; name: string }[]
+  >([]);
+  const [locationStates, setLocationStates] = useState<StateMasterRow[]>([]);
+  const [locationCities, setLocationCities] = useState<CityMasterRow[]>([]);
+  const [selectedCountryId, setSelectedCountryId] = useState<string>("");
+  const [selectedStateId, setSelectedStateId] = useState<string>("");
+  const [selectedCityName, setSelectedCityName] = useState<string>("");
+  const [statesLoading, setStatesLoading] = useState(false);
+  const [statesUnavailable, setStatesUnavailable] = useState(false);
+  const [locCitiesLoading, setLocCitiesLoading] = useState(false);
+  const [locationPrefilled, setLocationPrefilled] = useState(false);
+
+  /* ── Vendor Address: Country → State → City cascading selects ──
+     Same pattern as Business Location above, but writes to profile.address
+     instead of profile.businessLocation. */
+  const [addressStates, setAddressStates] = useState<StateMasterRow[]>([]);
+  const [addressCities, setAddressCities] = useState<CityMasterRow[]>([]);
+  const [addressCountryId, setAddressCountryId] = useState<string>("");
+  const [addressStateId, setAddressStateId] = useState<string>("");
+  const [addressCityName, setAddressCityName] = useState<string>("");
+  const [addressStatesLoading, setAddressStatesLoading] = useState(false);
+  const [addressStatesUnavailable, setAddressStatesUnavailable] = useState(false);
+  const [addressCitiesLoading, setAddressCitiesLoading] = useState(false);
+  const [addressPrefilled, setAddressPrefilled] = useState(false);
+
   useEffect(() => {
     setVisibleCityCount(10);
   }, [citySearchQuery, citiesMenuOpen]);
@@ -1130,8 +1182,9 @@ export default function ProfilePage() {
     vendorApi.masterData
       .countries<CountryMasterRow[]>()
       .then((data) => {
-        const mapped = data
-          .filter((c) => c.status === "Active" && c.phoneCode)
+        const active = data.filter((c) => c.status === "Active");
+        const mapped = active
+          .filter((c) => c.phoneCode)
           .map((c) => ({
             id: c.id,
             code: c.phoneCode,
@@ -1139,6 +1192,9 @@ export default function ProfilePage() {
             flag: c.flag,
           }));
         if (mapped.length) setCountryCodes(mapped);
+
+        // Also feed the Business Location country dropdown
+        setLocationCountries(active.map((c) => ({ id: c.id, name: c.name })));
       })
       .catch((cause: unknown) =>
         console.error("Unable to load countries:", cause),
@@ -1154,6 +1210,16 @@ export default function ProfilePage() {
       .catch((cause: unknown) =>
         console.error("Unable to load visa types:", cause),
       );
+
+    // Load the full cities list once for the "Service Cities" multi-select.
+    //
+    // Strategy: try the "all cities" endpoint first. If it comes back empty
+    // (some backends only support filtering by country), fall back to
+    // fetching per-country. That per-country fallback uses
+    // Promise.allSettled rather than Promise.all — with allSettled, if one
+    // country's request is slow, fails, or never resolves, the others can
+    // still come back and populate the list instead of the whole thing
+    // hanging on "Loading cities..." forever.
     (async () => {
       setCitiesLoading(true);
       try {
@@ -1161,18 +1227,23 @@ export default function ProfilePage() {
           await vendorApi.masterData.countries<CountryMasterRow[]>();
         const activeCountries = countries.filter((c) => c.status === "Active");
         const countryMap = new Map(activeCountries.map((c) => [c.id, c.name]));
+
         let cities = await vendorApi.masterData
           .cities<CityMasterRow[]>()
           .catch(() => [] as CityMasterRow[]);
+
         if (!cities || cities.length === 0) {
-          const perCountry = await Promise.all(
+          const perCountry = await Promise.allSettled(
             activeCountries.map((country) =>
-              vendorApi.masterData
-                .cities<CityMasterRow[]>(country.id)
-                .catch(() => [] as CityMasterRow[]),
+              vendorApi.masterData.cities<CityMasterRow[]>(country.id),
             ),
           );
-          cities = perCountry.flat();
+          cities = perCountry
+            .filter(
+              (r): r is PromiseFulfilledResult<CityMasterRow[]> =>
+                r.status === "fulfilled",
+            )
+            .flatMap((r) => r.value ?? []);
         }
 
         const mapped: CityWithCountry[] = cities
@@ -1183,6 +1254,7 @@ export default function ProfilePage() {
             countryId: city.countryId,
             countryName: countryMap.get(city.countryId) ?? "",
             status: city.status,
+            stateId: city.stateId ?? null,
           }));
 
         setAllCities(mapped);
@@ -1202,6 +1274,199 @@ export default function ProfilePage() {
     }
   }, [profile?.firstName, profile?.lastName]);
 
+  // Load states whenever the selected country changes.
+  useEffect(() => {
+    if (!selectedCountryId) {
+      setLocationStates([]);
+      setStatesUnavailable(false);
+      return;
+    }
+    setStatesLoading(true);
+    setStatesUnavailable(false);
+    vendorApi.masterData
+      .states<StateMasterRow[]>(Number(selectedCountryId))
+      .then((data) =>
+        setLocationStates(
+          data.filter((s) => !s.status || s.status === "Active"),
+        ),
+      )
+      .catch(() => {
+        // The states endpoint may not be available on the backend yet
+        // (e.g. returns 502/404). Don't spam the console/dev overlay —
+        // just fall back to a Country -> City flow without State.
+        setLocationStates([]);
+        setStatesUnavailable(true);
+      })
+      .finally(() => setStatesLoading(false));
+  }, [selectedCountryId]);
+
+  // Load cities whenever the selected country/state changes.
+  useEffect(() => {
+    if (!selectedCountryId) {
+      setLocationCities([]);
+      return;
+    }
+    setLocCitiesLoading(true);
+    vendorApi.masterData
+      .cities<CityMasterRow[]>(
+        Number(selectedCountryId),
+        selectedStateId || undefined,
+      )
+      .then((data) => setLocationCities(data.filter((c) => c.status === "Active")))
+      .catch(() => setLocationCities([]))
+      .finally(() => setLocCitiesLoading(false));
+  }, [selectedCountryId, selectedStateId]);
+
+  // Try to preselect Country/State/City once when an existing profile already
+  // has a businessLocation saved, so returning users see it filled in.
+  // Supports both the new "Country, State, City" format and the old
+  // flat "City" only format (for records saved before this change).
+  useEffect(() => {
+    if (locationPrefilled) return;
+    if (!profile?.businessLocation || locationCountries.length === 0) return;
+    setLocationPrefilled(true);
+
+    const parts = profile.businessLocation.split(",").map((p) => p.trim());
+    const cityGuess = parts[parts.length - 1]; // last part is always the city
+    const countryGuess = parts.length >= 3 ? parts[0] : null;
+
+    (async () => {
+      const candidateCountries = countryGuess
+        ? locationCountries.filter(
+            (c) => c.name.toLowerCase() === countryGuess.toLowerCase(),
+          )
+        : locationCountries;
+      const searchList = candidateCountries.length
+        ? candidateCountries
+        : locationCountries;
+
+      for (const country of searchList) {
+        try {
+          const cities = await vendorApi.masterData.cities<CityMasterRow[]>(
+            country.id,
+          );
+          const match = cities.find(
+            (c) => c.name.toLowerCase() === cityGuess.toLowerCase(),
+          );
+          if (match) {
+            setSelectedCountryId(String(country.id));
+            setSelectedStateId(match.stateId ? String(match.stateId) : "");
+            setSelectedCityName(match.name);
+            return;
+          }
+        } catch {
+          // ignore and keep trying other countries
+        }
+      }
+    })();
+  }, [profile?.businessLocation, locationCountries, locationPrefilled]);
+
+  // ── Vendor Address: same three effects as Business Location, but keyed
+  // off addressCountryId / addressStateId and writing to profile.address.
+  useEffect(() => {
+    if (!addressCountryId) {
+      setAddressStates([]);
+      setAddressStatesUnavailable(false);
+      return;
+    }
+    setAddressStatesLoading(true);
+    setAddressStatesUnavailable(false);
+    vendorApi.masterData
+      .states<StateMasterRow[]>(Number(addressCountryId))
+      .then((data) =>
+        setAddressStates(data.filter((s) => !s.status || s.status === "Active")),
+      )
+      .catch(() => {
+        setAddressStates([]);
+        setAddressStatesUnavailable(true);
+      })
+      .finally(() => setAddressStatesLoading(false));
+  }, [addressCountryId]);
+
+  useEffect(() => {
+    if (!addressCountryId) {
+      setAddressCities([]);
+      return;
+    }
+    setAddressCitiesLoading(true);
+    vendorApi.masterData
+      .cities<CityMasterRow[]>(
+        Number(addressCountryId),
+        addressStateId || undefined,
+      )
+      .then((data) => setAddressCities(data.filter((c) => c.status === "Active")))
+      .catch(() => setAddressCities([]))
+      .finally(() => setAddressCitiesLoading(false));
+  }, [addressCountryId, addressStateId]);
+
+  // Preselect Country/State/City once when an existing profile already has
+  // an address saved in "Country, State, City" format.
+  useEffect(() => {
+    if (addressPrefilled) return;
+    if (!profile?.address || locationCountries.length === 0) return;
+    setAddressPrefilled(true);
+
+    const parts = profile.address.split(",").map((p) => p.trim());
+    const cityGuess = parts[parts.length - 1];
+    const countryGuess = parts.length >= 3 ? parts[0] : null;
+
+    (async () => {
+      const candidateCountries = countryGuess
+        ? locationCountries.filter(
+            (c) => c.name.toLowerCase() === countryGuess.toLowerCase(),
+          )
+        : locationCountries;
+      const searchList = candidateCountries.length
+        ? candidateCountries
+        : locationCountries;
+
+      for (const country of searchList) {
+        try {
+          const cities = await vendorApi.masterData.cities<CityMasterRow[]>(
+            country.id,
+          );
+          const match = cities.find(
+            (c) => c.name.toLowerCase() === cityGuess.toLowerCase(),
+          );
+          if (match) {
+            setAddressCountryId(String(country.id));
+            setAddressStateId(match.stateId ? String(match.stateId) : "");
+            setAddressCityName(match.name);
+            return;
+          }
+        } catch {
+          // ignore and keep trying other countries
+        }
+      }
+    })();
+  }, [profile?.address, locationCountries, addressPrefilled]);
+
+  // Load states for the Service Cities Country filter whenever it changes.
+  useEffect(() => {
+    if (!serviceCountryId) {
+      setServiceStates([]);
+      setServiceStateId("");
+      setServiceCityFilter("");
+      return;
+    }
+    setServiceStatesLoading(true);
+    setServiceStateId("");
+    setServiceCityFilter("");
+    vendorApi.masterData
+      .states<StateMasterRow[]>(Number(serviceCountryId))
+      .then((data) =>
+        setServiceStates(data.filter((s) => !s.status || s.status === "Active")),
+      )
+      .catch(() => setServiceStates([]))
+      .finally(() => setServiceStatesLoading(false));
+  }, [serviceCountryId]);
+
+  // Reset the city filter whenever the state filter changes, since the
+  // previously chosen city may no longer belong to the new state.
+  useEffect(() => {
+    setServiceCityFilter("");
+  }, [serviceStateId]);
+
   const update = <K extends keyof VendorProfile>(
     key: K,
     value: VendorProfile[K],
@@ -1216,11 +1481,31 @@ export default function ProfilePage() {
     update("cities", updated);
   };
 
-  const filteredCities = citySearchQuery
-    ? allCities.filter((city) =>
-        city.name.toLowerCase().includes(citySearchQuery.toLowerCase()),
-      )
-    : allCities;
+  const filteredCities = allCities.filter((city) => {
+    if (serviceCountryId && String(city.countryId) !== serviceCountryId)
+      return false;
+    if (serviceStateId && String(city.stateId ?? "") !== serviceStateId)
+      return false;
+    if (serviceCityFilter && city.name !== serviceCityFilter) return false;
+    if (
+      citySearchQuery &&
+      !city.name.toLowerCase().includes(citySearchQuery.toLowerCase())
+    )
+      return false;
+    return true;
+  });
+
+  // City options for the Service Cities filter dropdown, scoped to the
+  // currently chosen country/state filters (mirrors filteredCities but
+  // without the city filter itself, so the dropdown always shows every
+  // city available for that country/state).
+  const serviceCityOptions = allCities.filter((city) => {
+    if (serviceCountryId && String(city.countryId) !== serviceCountryId)
+      return false;
+    if (serviceStateId && String(city.stateId ?? "") !== serviceStateId)
+      return false;
+    return true;
+  });
 
   const handleSave = async () => {
     if (!profile) return;
@@ -1661,119 +1946,192 @@ export default function ProfilePage() {
             options={categories.map((c) => ({ value: c.name, label: c.name }))}
             placeholder="Select category"
           />
-          <SearchableSelectField
-            label="Business Location"
-            value={profile.businessLocation ?? ""}
-            onChange={(v) => update("businessLocation", v)}
-            icon={MapPin}
-            options={[
-              "Downtown Dubai",
-              "Dubai Marina",
-              "Jumeirah",
-              "Deira",
-              "Bur Dubai",
-              "Business Bay",
-              "Al Barsha",
-              "Jumeirah Lake Towers (JLT)",
-              "Palm Jumeirah",
-              "Al Quoz",
-              "International City",
-              "Dubai Silicon Oasis",
-              "Dubai Sports City",
-              "Discovery Gardens",
-              "Jumeirah Village Circle (JVC)",
-              "Jumeirah Village Triangle (JVT)",
-              "Al Nahda",
-              "Mirdif",
-              "Umm Suqeim",
-              "Al Karama",
-              "Al Satwa",
-              "Al Barari",
-              "Arabian Ranches",
-              "Motor City",
-              "Dubai Investment Park (DIP)",
-              "Dubai Production City",
-              "Dubai Studio City",
-              "Al Furjan",
-              "The Springs",
-              "The Meadows",
-              "Emirates Hills",
-              "Dubai Festival City",
-              "Dubai Healthcare City",
-              "Al Rigga",
-              "Al Qusais",
-              "Nad Al Sheba",
-              "Dubai South",
-              "Damac Hills",
-              "Town Square",
-            ].map((c) => ({ value: c, label: c }))}
-            placeholder="Select business location"
-          />
-          <SearchableSelectField
-            label="Address"
-            value={profile.address ?? ""}
-            onChange={(v) => update("address", v)}
-            icon={MapPin}
-            options={[
-              "Downtown Dubai",
-              "Dubai Marina",
-              "Jumeirah",
-              "Deira",
-              "Bur Dubai",
-              "Business Bay",
-              "Al Barsha",
-              "Jumeirah Lake Towers (JLT)",
-              "Palm Jumeirah",
-              "Al Quoz",
-              "International City",
-              "Dubai Silicon Oasis",
-              "Dubai Sports City",
-              "Discovery Gardens",
-              "Jumeirah Village Circle (JVC)",
-              "Jumeirah Village Triangle (JVT)",
-              "Al Nahda",
-              "Mirdif",
-              "Umm Suqeim",
-              "Al Karama",
-              "Al Satwa",
-              "Al Barari",
-              "Arabian Ranches",
-              "Motor City",
-              "Dubai Investment Park (DIP)",
-              "Dubai Production City",
-              "Dubai Studio City",
-              "Al Furjan",
-              "The Springs",
-              "The Meadows",
-              "Emirates Hills",
-              "Dubai Festival City",
-              "Dubai Healthcare City",
-              "Al Rigga",
-              "Al Qusais",
-              "Nad Al Sheba",
-              "Dubai South",
-              "Damac Hills",
-              "Town Square",
-            ].map((c) => ({ value: c, label: c }))}
-            placeholder="Select address"
-          />
+
+          {/* ── Business Location: Country → State → City (searchable) ── */}
+          <div className="sm:col-span-2 grid sm:grid-cols-3 gap-4">
+            <SearchableSelectField
+              label="Country"
+              icon={Globe}
+              value={selectedCountryId}
+              onChange={(v) => {
+                setSelectedCountryId(v);
+                setSelectedStateId("");
+                setSelectedCityName("");
+                update("businessLocation", "");
+              }}
+              options={locationCountries.map((c) => ({
+                value: String(c.id),
+                label: c.name,
+              }))}
+              placeholder="Search country..."
+            />
+            <SearchableSelectField
+              label="State"
+              icon={MapPin}
+              value={selectedStateId}
+              onChange={(v) => {
+                setSelectedStateId(v);
+                setSelectedCityName("");
+                update("businessLocation", "");
+              }}
+              options={locationStates.map((s) => ({
+                value: String(s.id),
+                label: s.name,
+              }))}
+              placeholder={
+                !selectedCountryId
+                  ? "Select country first"
+                  : statesLoading
+                    ? "Loading..."
+                    : statesUnavailable
+                      ? "State list unavailable"
+                      : locationStates.length === 0
+                        ? "No states found"
+                        : "Search state..."
+              }
+              disabled={!selectedCountryId || statesLoading || statesUnavailable}
+            />
+            <SearchableSelectField
+              label="City (Business Location)"
+              icon={MapPin}
+              value={selectedCityName}
+              onChange={(cityName) => {
+                setSelectedCityName(cityName);
+                const countryName =
+                  locationCountries.find(
+                    (c) => String(c.id) === selectedCountryId,
+                  )?.name ?? "";
+                const stateName =
+                  locationStates.find((s) => String(s.id) === selectedStateId)
+                    ?.name ?? "";
+                update(
+                  "businessLocation",
+                  [countryName, stateName, cityName]
+                    .filter(Boolean)
+                    .join(", "),
+                );
+              }}
+              options={locationCities.map((c) => ({
+                value: c.name,
+                label: c.name,
+              }))}
+              placeholder={
+                !selectedCountryId
+                  ? "Select country first"
+                  : locCitiesLoading
+                    ? "Loading..."
+                    : locationCities.length === 0
+                      ? "No cities found"
+                      : "Search city..."
+              }
+              disabled={!selectedCountryId || locCitiesLoading}
+            />
+          </div>
+
+          {/* ── Vendor Address: Country → State → City (searchable) ──
+              Same pattern as Business Location above, writes to profile.address. */}
+          <div className="sm:col-span-2">
+            <p className="text-xs font-semibold text-gray-600 mb-2">
+              Vendor Address
+            </p>
+            <div className="grid sm:grid-cols-3 gap-4">
+              <SearchableSelectField
+                label="Country"
+                icon={Globe}
+                value={addressCountryId}
+                onChange={(v) => {
+                  setAddressCountryId(v);
+                  setAddressStateId("");
+                  setAddressCityName("");
+                  update("address", "");
+                }}
+                options={locationCountries.map((c) => ({
+                  value: String(c.id),
+                  label: c.name,
+                }))}
+                placeholder="Search country..."
+              />
+              <SearchableSelectField
+                label="State"
+                icon={MapPin}
+                value={addressStateId}
+                onChange={(v) => {
+                  setAddressStateId(v);
+                  setAddressCityName("");
+                  update("address", "");
+                }}
+                options={addressStates.map((s) => ({
+                  value: String(s.id),
+                  label: s.name,
+                }))}
+                placeholder={
+                  !addressCountryId
+                    ? "Select country first"
+                    : addressStatesLoading
+                      ? "Loading..."
+                      : addressStatesUnavailable
+                        ? "State list unavailable"
+                        : addressStates.length === 0
+                          ? "No states found"
+                          : "Search state..."
+                }
+                disabled={
+                  !addressCountryId || addressStatesLoading || addressStatesUnavailable
+                }
+              />
+              <SearchableSelectField
+                label="City (Vendor Address)"
+                icon={MapPin}
+                value={addressCityName}
+                onChange={(cityName) => {
+                  setAddressCityName(cityName);
+                  const countryName =
+                    locationCountries.find(
+                      (c) => String(c.id) === addressCountryId,
+                    )?.name ?? "";
+                  const stateName =
+                    addressStates.find((s) => String(s.id) === addressStateId)
+                      ?.name ?? "";
+                  update(
+                    "address",
+                    [countryName, stateName, cityName]
+                      .filter(Boolean)
+                      .join(", "),
+                  );
+                }}
+                options={addressCities.map((c) => ({
+                  value: c.name,
+                  label: c.name,
+                }))}
+                placeholder={
+                  !addressCountryId
+                    ? "Select country first"
+                    : addressCitiesLoading
+                      ? "Loading..."
+                      : addressCities.length === 0
+                        ? "No cities found"
+                        : "Search city..."
+                }
+                disabled={!addressCountryId || addressCitiesLoading}
+              />
+            </div>
+          </div>
         </div>
 
-        <div className="grid sm:grid-cols-2 gap-4 mt-4">
-          {/* Cities - Updated with search and country display, backed by real API */}
-          <div className="relative" ref={citiesMenuRef}>
+        <div className="mt-4">
+          {/* Service Cities — Country → State → City cascading picker, same
+              pattern as Business Location / Vendor Address, full width. */}
+          <div>
             <label className="text-xs font-medium text-gray-500 mb-1 block">
               Service Cities
             </label>
-            <button
-              type="button"
-              onClick={() => setCitiesMenuOpen((prev) => !prev)}
-              className="flex flex-wrap items-center gap-2 w-full px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-orange-400 bg-white text-left min-h-[44px]"
-            >
+
+            {/* Selected cities as removable chips */}
+            <div className="flex flex-wrap items-center gap-2 w-full px-3 py-2 border border-gray-200 rounded-xl bg-white min-h-[44px] mb-2">
               <Globe size={13} className="text-gray-400 shrink-0" />
               {(!profile.cities || profile.cities.length === 0) && (
                 <span className="text-sm text-gray-400">
-                  Search and select service cities
+                  No service cities selected yet
                 </span>
               )}
               {profile.cities &&
@@ -1790,98 +2148,81 @@ export default function ProfilePage() {
                         </span>
                       )}
                       {cityName}
-                      <span
-                        role="button"
-                        tabIndex={-1}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setProfile((prev) => {
-                            if (!prev) return prev;
-                            return {
-                              ...prev,
-                              cities: prev.cities.filter((c) => c !== cityName),
-                            };
-                          });
-                        }}
+                      <button
+                        type="button"
+                        onClick={() => toggleCity(cityName)}
                         className="text-orange-400 hover:text-orange-600"
                       >
                         <X size={12} />
-                      </span>
+                      </button>
                     </span>
                   );
                 })}
-              <ChevronDown
-                size={13}
-                className={`ml-auto text-gray-400 transition-transform shrink-0 ${
-                  citiesMenuOpen ? "rotate-180" : ""
-                }`}
-              />
-            </button>
+            </div>
 
-            {citiesMenuOpen && (
-              <div className="absolute z-30 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden">
-                <div className="p-2 border-b border-gray-100">
-                  <div className="relative">
-                    <input
-                      autoFocus
-                      type="text"
-                      value={citySearchQuery}
-                      onChange={(e) => setCitySearchQuery(e.target.value)}
-                      placeholder="Search cities..."
-                      className="w-full px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-orange-400 pl-8"
-                    />
-                    <Globe
-                      size={14}
-                      className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400"
-                    />
-                  </div>
-                </div>
-                <div className="max-h-56 overflow-y-auto py-1">
-                  {citiesLoading && (
-                    <p className="px-3 py-2 text-xs text-gray-400 flex items-center gap-1.5">
-                      <Loader2 size={12} className="animate-spin" /> Loading
-                      cities...
-                    </p>
-                  )}
-                  {!citiesLoading && filteredCities.length === 0 && (
-                    <p className="px-3 py-2 text-xs text-gray-400">
-                      {citySearchQuery
+            {/* Country → State → City cascading add */}
+            <div className="grid sm:grid-cols-3 gap-4">
+              <SearchableSelectField
+                label="Country"
+                value={serviceCountryId}
+                onChange={setServiceCountryId}
+                options={locationCountries.map((c) => ({
+                  value: String(c.id),
+                  label: c.name,
+                }))}
+                placeholder="Select country"
+              />
+              <SearchableSelectField
+                label="State"
+                value={serviceStateId}
+                onChange={setServiceStateId}
+                options={serviceStates.map((s) => ({
+                  value: String(s.id),
+                  label: s.name,
+                }))}
+                placeholder={
+                  !serviceCountryId
+                    ? "Select country first"
+                    : serviceStatesLoading
+                      ? "Loading..."
+                      : serviceStates.length === 0
+                        ? "No states found"
+                        : "Select state"
+                }
+                disabled={!serviceCountryId || serviceStatesLoading}
+              />
+              <SearchableSelectField
+                label="City"
+                value=""
+                onChange={(cityName) => {
+                  toggleCity(cityName);
+                }}
+                options={serviceCityOptions
+                  .filter((c) => !(profile.cities || []).includes(c.name))
+                  .map((c) => ({ value: c.name, label: c.name }))}
+                placeholder={
+                  citiesLoading
+                    ? "Loading..."
+                    : !serviceCountryId
+                      ? "Select country first"
+                      : serviceCityOptions.length === 0
                         ? "No cities found"
-                        : "No cities available"}
-                    </p>
-                  )}
-                  {filteredCities.map((city) => {
-                    const isSelected =
-                      profile.cities?.includes(city.name) || false;
-                    return (
-                      <label
-                        key={city.id}
-                        className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-gray-50 cursor-pointer"
-                      >
-                        <input
-                          type="checkbox"
-                          checked={isSelected}
-                          onChange={() => toggleCity(city.name)}
-                          className="rounded border-gray-300 text-orange-500 focus:ring-orange-400"
-                        />
-                        <span className="flex-1">{city.name}</span>
-                        {city.countryName && (
-                          <span className="text-xs text-gray-400 bg-gray-50 px-2 py-0.5 rounded-full">
-                            {city.countryName}
-                          </span>
-                        )}
-                      </label>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
+                        : "Select city to add"
+                }
+                disabled={
+                  citiesLoading || !serviceCountryId || serviceCityOptions.length === 0
+                }
+              />
+            </div>
             <p className="text-xs text-gray-400 mt-1">
-              Select cities where you provide services (global coverage)
+              Pick a country, state, then city to add it — repeat to add more
+              cities (global coverage).
             </p>
           </div>
+        </div>
 
-          {/* Capacity */}
+        {/* Capacity */}
+        <div className="grid sm:grid-cols-2 gap-4 mt-4">
           <div>
             <label className="text-xs font-medium text-gray-500 mb-1 block">
               Daily Booking Capacity
