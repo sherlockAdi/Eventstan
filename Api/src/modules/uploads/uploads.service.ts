@@ -22,8 +22,8 @@ interface UploadedFile {
 @Injectable()
 export class UploadsService implements OnModuleInit {
   private readonly logger = new Logger(UploadsService.name);
-  private readonly client: Client;
-  private readonly bucket: string;
+  private readonly client: Client | null;
+  private readonly bucket: string | null;
   private readonly apiPublicUrl: string;
   private bucketReady = false;
 
@@ -32,10 +32,6 @@ export class UploadsService implements OnModuleInit {
     const accessKey = config.get<string>('MINIO_ACCESS_KEY');
     const secretKey = config.get<string>('MINIO_SECRET_KEY');
 
-    if (!endPoint || !accessKey || !secretKey) {
-      throw new Error('MinIO configuration is missing');
-    }
-
     const port = Number(config.get<string>('MINIO_PORT', '443'));
     const useSSL = config.get<string>('MINIO_USE_SSL', 'true') === 'true';
 
@@ -43,6 +39,12 @@ export class UploadsService implements OnModuleInit {
     this.apiPublicUrl = config
       .get<string>('API_PUBLIC_URL', 'http://localhost:4000/api/v1')
       .replace(/\/$/, '');
+
+    if (!endPoint || !accessKey || !secretKey) {
+      this.client = null;
+      this.logger.warn('MinIO configuration is missing; uploads will be disabled until it is provided.');
+      return;
+    }
 
     this.client = new Client({
       endPoint,
@@ -54,6 +56,7 @@ export class UploadsService implements OnModuleInit {
   }
 
   onModuleInit() {
+    if (!this.client || !this.bucket) return;
     void this.ensureBucket().catch((error) => {
       const message = error instanceof Error ? error.message : 'Unknown storage error';
       this.logger.warn(`Object storage is unavailable during startup: ${message}`);
@@ -78,6 +81,10 @@ export class UploadsService implements OnModuleInit {
     maxSizeMb: number,
     route: 'images' | 'files',
   ) {
+    if (!this.client || !this.bucket) {
+      throw new ServiceUnavailableException('File storage is temporarily unavailable');
+    }
+
     const maxSize = maxSizeMb * 1024 * 1024;
     if (file.size > maxSize) {
       throw new BadRequestException(`File must be ${maxSizeMb}MB or smaller`);
@@ -106,6 +113,10 @@ export class UploadsService implements OnModuleInit {
   }
 
   async getImage(key: string): Promise<{ stream: Readable; contentType: string; size?: number }> {
+    if (!this.client || !this.bucket) {
+      throw new ServiceUnavailableException('File storage is temporarily unavailable');
+    }
+
     const safeKey = key.replace(/^\/+/, '');
     if (!safeKey || safeKey.includes('..')) {
       throw new NotFoundException('Image not found');
@@ -146,6 +157,7 @@ export class UploadsService implements OnModuleInit {
   }
 
   private async ensureBucket() {
+    if (!this.client || !this.bucket) return;
     if (this.bucketReady) return;
     const exists = await this.client.bucketExists(this.bucket);
     if (!exists) await this.client.makeBucket(this.bucket);

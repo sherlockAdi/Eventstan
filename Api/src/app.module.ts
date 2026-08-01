@@ -25,7 +25,10 @@ import { RolePermissionModule } from './modules/role-permission/role-permission.
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true }),
+    ConfigModule.forRoot({
+      isGlobal: true,
+      envFilePath: ['.env.production', '.env'],
+    }),
     PrismaModule,
     HealthModule,
     AuthModule,
