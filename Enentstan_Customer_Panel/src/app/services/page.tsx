@@ -367,7 +367,7 @@ function ServicesContent() {
         </aside>
 
         {/* Results */}
-        {/* <div className="flex-1 min-w-0">
+         <div className="flex-1 min-w-0">
           {loading ? (
             <div className="text-center py-16 text-gray-400">Loading services…</div>
           ) : error ? (
@@ -389,8 +389,8 @@ function ServicesContent() {
           )}
           </>
           )}
-        </div> */}
-        <div className="flex-1 min-w-0">
+        </div> 
+       {/* <div className="flex-1 min-w-0">
           {loading ? (
             <div className="text-center py-16 text-gray-400">Loading services…</div>
           ) : error ? (
@@ -439,7 +439,7 @@ function ServicesContent() {
           </div>
           </>
           )}
-        </div>
+        </div>*/}
       </div>
     </div>
   );
