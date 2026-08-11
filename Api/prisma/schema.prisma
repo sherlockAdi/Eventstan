@@ -128,6 +128,10 @@ model User {
   carts        Cart[]
   bookings     Booking[]
   reviews      Review[]
+  customerCarts CustomerCart[] @relation("CustomerCarts")
+  customerCartItems CustomerCartItem[] @relation("CustomerCartItems")
+  customerCheckouts CustomerCheckout[] @relation("CustomerCheckouts")
+  customerBookings CustomerBooking[] @relation("CustomerBookings")
   passwordResetTokens PasswordResetToken[]
   supportTicketsCreated SupportTicket[] @relation("SupportTicketCreator")
   supportMessagesAuthored SupportMessage[] @relation("SupportMessageAuthor")
@@ -506,6 +510,8 @@ model EventPackage {
   vendor      Vendor        @relation(fields: [vendorId], references: [id])
   category    Category?     @relation(fields: [categoryId], references: [id])
   items       PackageItem[]
+  customerCartItems CustomerCartItem[] @relation("PackageCustomerCartItems")
+  customerBookings CustomerBooking[] @relation("PackageCustomerBookings")
 
   @@unique([vendorId, title])
   @@index([categoryId, status])
@@ -614,6 +620,97 @@ model BookingItem {
 
   @@index([vendorId, eventDate])
   @@map("booking_items")
+}
+
+model CustomerCart {
+  id        String             @id @default(cuid())
+  userId    String             @unique
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+
+  user      User               @relation("CustomerCarts", fields: [userId], references: [id], onDelete: Cascade)
+  items     CustomerCartItem[]
+
+  @@map("customer_carts")
+}
+
+model CustomerCartItem {
+  id         String        @id @default(cuid())
+  cartId     String
+  userId     String
+  packageId  String
+  vendorId   String
+  title      String
+  category   String
+  quantity   Int           @default(1)
+  unitPrice  Int
+  priceUnit  String
+  totalPrice Int
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+
+  cart       CustomerCart  @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  user       User          @relation("CustomerCartItems", fields: [userId], references: [id], onDelete: Cascade)
+  package    EventPackage  @relation("PackageCustomerCartItems", fields: [packageId], references: [id], onDelete: Restrict)
+
+  @@unique([cartId, packageId])
+  @@index([userId])
+  @@index([packageId])
+  @@map("customer_cart_items")
+}
+
+model CustomerCheckout {
+  id             String            @id @default(cuid())
+  orderId        String            @unique
+  userId         String
+  eventDate      DateTime          @db.Date
+  eventType      String
+  guestCount     Int
+  message        String?
+  paymentMethod  String
+  paymentStatus  String            @default("Pending")
+  bookingStatus  String            @default("Pending")
+  subtotal       Int
+  totalAmount    Int
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  user           User              @relation("CustomerCheckouts", fields: [userId], references: [id], onDelete: Cascade)
+  bookings       CustomerBooking[]
+
+  @@index([userId, createdAt])
+  @@map("customer_checkouts")
+}
+
+model CustomerBooking {
+  id             String            @id @default(cuid())
+  checkoutId     String?
+  userId         String
+  packageId      String
+  vendorId       String
+  title          String
+  category       String
+  quantity       Int               @default(1)
+  unitPrice      Int
+  priceUnit      String
+  totalPrice     Int
+  eventDate      DateTime          @db.Date
+  eventType      String
+  guestCount     Int
+  message        String?
+  bookingStatus  String            @default("Pending")
+  paymentStatus  String            @default("Pending")
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  checkout       CustomerCheckout?  @relation(fields: [checkoutId], references: [id], onDelete: SetNull)
+  user           User               @relation("CustomerBookings", fields: [userId], references: [id], onDelete: Cascade)
+  package        EventPackage       @relation("PackageCustomerBookings", fields: [packageId], references: [id], onDelete: Restrict)
+
+  @@index([userId, createdAt])
+  @@index([checkoutId])
+  @@index([packageId])
+  @@map("customer_bookings")
 }
 
 model Payment {

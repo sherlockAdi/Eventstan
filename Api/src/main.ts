@@ -46,6 +46,7 @@ async function bootstrap() {
     .addTag('availability')
     .addTag('cart')
     .addTag('bookings')
+    .addTag('customer')
     .addTag('payments')
     .addTag('coupons')
     .addTag('reviews')
