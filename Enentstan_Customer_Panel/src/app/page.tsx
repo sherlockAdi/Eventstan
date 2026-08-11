@@ -521,11 +521,17 @@ export default function LandingPage() {
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
             {categories.map((cat) => (
               <Link key={cat.id} href={`/services?category=${cat.name}`}>
-                <div className="relative rounded-2xl overflow-hidden h-44 group cursor-pointer">
+                <div className="relative rounded-2xl overflow-hidden h-44 group cursor-pointer bg-gray-200">
+                  <span className="absolute inset-0 flex items-center justify-center text-4xl">
+                    {cat.icon}
+                  </span>
                   <img
                     src={cat.img}
                     alt={cat.name}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    onError={(e) => {
+                      (e.currentTarget as HTMLImageElement).style.display = "none";
+                    }}
+                    className="relative w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
                   <div className="absolute bottom-4 left-4 text-white">

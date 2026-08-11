@@ -7,6 +7,8 @@ export interface Category {
   parentId: string | null;
   isActive: boolean;
   createdAt: string;
+  image?: string;
+  showInHomePage?: boolean;
 }
 
 export interface CategoryWithMetadata extends Category {
@@ -108,13 +110,21 @@ export class CategoryService {
       const categories = await this.fetchCategories();
 
       // Merge API data with static metadata (or a sensible default
-      // for any category that doesn't have an explicit entry)
+      // for any category that doesn't have an explicit entry). The
+      // backend's own `image` is the real, up-to-date image — use it
+      // when present, and only fall back to the static local image
+      // (or emoji icon) if the backend hasn't set one.
       const categoriesWithMetadata = categories
         .filter((cat) => cat.isActive) // Only active categories
-        .map((cat) => ({
-          ...cat,
-          ...(CATEGORY_METADATA[cat.name] ?? DEFAULT_METADATA),
-        }));
+        .filter((cat) => cat.showInHomePage !== false) // Respect homepage flag when present
+        .map((cat) => {
+          const metadata = CATEGORY_METADATA[cat.name] ?? DEFAULT_METADATA;
+          return {
+            ...cat,
+            ...metadata,
+            img: cat.image?.trim() ? cat.image : metadata.img,
+          };
+        });
 
       return categoriesWithMetadata;
     } catch (error) {

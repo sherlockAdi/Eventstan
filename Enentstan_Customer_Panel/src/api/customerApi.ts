@@ -97,6 +97,22 @@ export interface City {
   status?: string;
 }
 
+// Service categories — e.g. Venue, Decor, Catering, Entertainment, Rentals.
+// Confirmed live on the API (GET /master-data/categories). Used to drive
+// category filter pills across the app (Promotions page, Services page,
+// Vendor Partners "List Your Service" form, etc.) so they always reflect
+// what's actually configured on the backend instead of a hardcoded list.
+export interface ApiCategory {
+  id: string;
+  name: string;
+  slug: string;
+  parentId: string | null;
+  image: string;
+  showInHomePage: boolean;
+  isActive: boolean;
+  createdAt: string;
+}
+
 // Fallback used if /master-data/countries fails, so phone country-code
 // selection still works (matches the API's current sample data).
 const FALLBACK_COUNTRIES: Country[] = [
@@ -125,6 +141,61 @@ const FALLBACK_CITIES: City[] = [
   { id: "fujairah", name: "Fujairah" },
   { id: "umm-al-quwain", name: "Umm Al Quwain" },
   { id: "al-ain", name: "Al Ain" },
+];
+
+// Fallback used if /master-data/categories fails, so category filter pills
+// still render with the known current set instead of disappearing entirely.
+const FALLBACK_CATEGORIES: ApiCategory[] = [
+  {
+    id: "venue",
+    name: "Venue",
+    slug: "venue",
+    parentId: null,
+    image: "",
+    showInHomePage: true,
+    isActive: true,
+    createdAt: "",
+  },
+  {
+    id: "decor",
+    name: "Decor",
+    slug: "decor",
+    parentId: null,
+    image: "",
+    showInHomePage: true,
+    isActive: true,
+    createdAt: "",
+  },
+  {
+    id: "catering",
+    name: "Catering",
+    slug: "catering",
+    parentId: null,
+    image: "",
+    showInHomePage: true,
+    isActive: true,
+    createdAt: "",
+  },
+  {
+    id: "entertainment",
+    name: "Entertainment",
+    slug: "entertainment",
+    parentId: null,
+    image: "",
+    showInHomePage: true,
+    isActive: true,
+    createdAt: "",
+  },
+  {
+    id: "rentals",
+    name: "Rentals",
+    slug: "rentals",
+    parentId: null,
+    image: "",
+    showInHomePage: true,
+    isActive: true,
+    createdAt: "",
+  },
 ];
 
 export const customerApi = {
@@ -188,6 +259,19 @@ export const customerApi = {
     getCities: async (): Promise<City[]> => {
       return FALLBACK_CITIES;
     },
+    // Service categories (Venue, Decor, Catering, Entertainment, Rentals,
+    // ...). Confirmed live on the API — used to drive category filter pills
+    // instead of a hardcoded list so newly added categories show up
+    // automatically without a code change.
+    getCategories: async (): Promise<ApiCategory[]> => {
+      try {
+        const categories = await request<ApiCategory[]>("/master-data/categories");
+        return categories.filter((c) => c.isActive);
+      } catch (err) {
+        console.error("Error fetching categories:", err);
+        return FALLBACK_CATEGORIES;
+      }
+    },
   },
 };
 
@@ -204,6 +288,7 @@ export const getServices = () => request<Service[]>("/services");
 export const getService = (id: string) => request<Service>(`/services/${encodeURIComponent(id)}`);
 export const getPackages = () => request<Package[]>("/packages");
 export const getReviews = () => request<Review[]>("/reviews");
+export const getCategories = () => customerApi.masterData.getCategories();
 
 export interface ApiBlogPost {
   id: string;
@@ -237,6 +322,11 @@ export const getBlogBySlug = async (slug: string) => {
 };
 
 export async function getMarketplaceData() {
-  const [services, packages, reviews] = await Promise.all([getServices(), getPackages(), getReviews()]);
-  return { services, packages, reviews };
+  const [services, packages, reviews, categories] = await Promise.all([
+    getServices(),
+    getPackages(),
+    getReviews(),
+    getCategories(),
+  ]);
+  return { services, packages, reviews, categories };
 }

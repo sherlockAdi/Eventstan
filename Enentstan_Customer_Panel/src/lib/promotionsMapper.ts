@@ -23,6 +23,11 @@ export interface RawApiPackage {
   isPopular?: boolean;
   inclusions?: string[];
   features?: string[];
+  // The package itself carries its own image (imageUrl / image_url) — this
+  // is the primary source. items[0].service.imageUrl is often unavailable
+  // because `items` is frequently an empty array on the /packages response.
+  imageUrl?: string;
+  image_url?: string;
   items?: Array<{
     service?: {
       id?: string;
@@ -55,7 +60,7 @@ export function packageToPromotion(pkg: RawApiPackage): Promotion {
     vendor_name: svc?.vendor_name || "",
     vendor_handle: svc?.title || "",
     category,
-    image_url: svc?.imageUrl || "",
+    image_url: pkg.imageUrl || pkg.image_url || svc?.imageUrl || "",
     description: pkg.description,
     short_desc: pkg.description,
     price,

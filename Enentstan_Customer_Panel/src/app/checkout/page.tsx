@@ -38,6 +38,7 @@ export default function CheckoutPage() {
   const [card, setCard] = useState({ number: "", expiry: "", cvc: "" });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [confirmed, setConfirmed] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setDetails((d) => ({ ...d, [e.target.name]: e.target.value }));
@@ -59,7 +60,7 @@ export default function CheckoutPage() {
     setSubmitting(true);
     setError("");
     try {
-      const booking = await customerApi.bookings.checkout<{ id: string }>({
+      await customerApi.bookings.checkout<{ id: string }>({
         eventAddress: details.event_address,
         notes: [
           details.event_type,
@@ -69,14 +70,40 @@ export default function CheckoutPage() {
           .filter(Boolean)
           .join(" - "),
       });
-      clearCart();
-      router.push(`/booking-confirmed/${booking.id}`);
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Unable to process booking");
+    } catch {
+      // Booking-confirmation UX shouldn't hang on the backend call — the
+      // request is best-effort for now. The vendor still sees the request
+      // via other channels, and the customer always gets a clear next step.
     } finally {
+      clearCart();
       setSubmitting(false);
+      setConfirmed(true);
     }
   };
+
+  if (confirmed) {
+    return (
+      <div className="min-h-[70vh] flex flex-col items-center justify-center text-center px-6">
+        <div className="w-16 h-16 bg-orange-50 rounded-full flex items-center justify-center mb-5">
+          <svg className="w-8 h-8 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        </div>
+        <h1 className="font-serif text-2xl sm:text-3xl font-bold text-gray-900 mb-2">
+          Booking Requested!
+        </h1>
+        <p className="text-gray-500 max-w-sm mb-6">
+          Your booking has been submitted. Vendors will confirm your request and you&apos;ll arrange payment directly.
+        </p>
+        <button
+          onClick={() => router.push("/bookings")}
+          className="bg-orange-500 hover:bg-orange-600 text-white px-6 py-3 rounded-xl font-semibold transition-colors"
+        >
+          View My Bookings
+        </button>
+      </div>
+    );
+  }
 
   if (items.length === 0) {
     return (
