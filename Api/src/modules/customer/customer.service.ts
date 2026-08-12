@@ -363,7 +363,7 @@ export class CustomerService {
           "updatedAt"
         FROM customer_cart_items
         WHERE "userId" = ${customer.id}
-          AND id = ANY(${uniqueCartItemIds}::uuid[])
+          AND id = ANY(${uniqueCartItemIds}::text[])
         ORDER BY "createdAt" ASC;
       `;
 
@@ -497,7 +497,7 @@ export class CustomerService {
       await tx.$executeRaw`
         DELETE FROM customer_cart_items
         WHERE "userId" = ${customer.id}
-          AND id = ANY(${uniqueCartItemIds}::uuid[]);
+          AND id = ANY(${uniqueCartItemIds}::text[]);
       `;
 
       return {
