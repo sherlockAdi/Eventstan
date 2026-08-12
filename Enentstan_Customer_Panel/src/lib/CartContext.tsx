@@ -26,13 +26,21 @@ export function CartProvider({ children }: { children: ReactNode }) {
     setItems((prev) => {
       const exists = prev.find((i) => i.id === `pkg-${pkg.id}`);
       if (exists) return prev;
+      // Some callers (e.g. the Promotions page) build a package-shaped
+      // object with `name` instead of `title`, and a service-shaped object
+      // without `title` — fall back through the fields that are actually
+      // present so the cart row is never blank.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const p = pkg as any;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const s = service as any;
       const newItem: CartItem = {
         id: `pkg-${pkg.id}`,
         type: "package",
-        title: pkg.title,
-        subtitle: service ? service.title : "Package",
+        title: p.title || p.name || "Package",
+        subtitle: s ? s.title || s.vendor_name || s.category || "Package" : "Package",
         price: pkg.price,
-        image_url: service?.image_url ?? "",
+        image_url: s?.image_url ?? p.image_url ?? "",
         pkg,
         service,
       };

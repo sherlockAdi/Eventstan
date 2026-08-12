@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState, useMemo } from "react";
 import { useMarketplace } from "@/lib/useMarketplace";
+import { customerApi, ApiCategory } from "@/api/customerApi";
 import {
   isPromotionalPackage,
   packageToPromotion,
@@ -142,15 +143,6 @@ function ConfigureCartModal({
     </div>
   );
 }
-
-const CATEGORIES = [
-  "All",
-  "Venue",
-  "Decor",
-  "Catering",
-  "Entertainment",
-  "Rentals",
-];
 
 const BADGE_COLORS: Record<string, string> = {
   Entertainment: "bg-purple-500",
@@ -749,6 +741,32 @@ export default function PromotionsPage() {
   const [category, setCategory] = useState("All");
   const [sortBy, setSortBy] = useState("featured");
   const [booking, setBooking] = useState<Promotion | null>(null);
+  const [categories, setCategories] = useState<ApiCategory[]>([]);
+  const [categoriesLoading, setCategoriesLoading] = useState(true);
+
+  // Categories are fetched live from /master-data/categories so the filter
+  // pills always reflect what's actually configured on the backend, instead
+  // of a hardcoded list that can drift out of sync (e.g. new categories
+  // added, or names/slugs changed).
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const data = await customerApi.masterData.getCategories();
+        if (!cancelled) setCategories(data);
+      } finally {
+        if (!cancelled) setCategoriesLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const CATEGORIES = useMemo(
+    () => ["All", ...categories.map((c) => c.name)],
+    [categories],
+  );
 
   // Only packages flagged as promotional (isPromotional/is_promotional) on the
   // /packages API response are shown here — this is the live "Promotions" feed.
@@ -838,19 +856,23 @@ export default function PromotionsPage() {
       </div>
 
       <div className="flex flex-wrap gap-2 mb-5">
-        {CATEGORIES.map((cat) => (
-          <button
-            key={cat}
-            onClick={() => setCategory(cat)}
-            className={`px-4 py-2 rounded-full text-sm font-medium border transition-all ${
-              category === cat
-                ? "bg-orange-500 text-white border-orange-500"
-                : "bg-white text-gray-600 border-gray-200 hover:border-orange-300 hover:text-orange-500"
-            }`}
-          >
-            {cat}
-          </button>
-        ))}
+        {categoriesLoading ? (
+          <span className="text-sm text-gray-400">Loading categories…</span>
+        ) : (
+          CATEGORIES.map((cat) => (
+            <button
+              key={cat}
+              onClick={() => setCategory(cat)}
+              className={`px-4 py-2 rounded-full text-sm font-medium border transition-all ${
+                category === cat
+                  ? "bg-orange-500 text-white border-orange-500"
+                  : "bg-white text-gray-600 border-gray-200 hover:border-orange-300 hover:text-orange-500"
+              }`}
+            >
+              {cat}
+            </button>
+          ))
+        )}
       </div>
 
       {loading ? (
@@ -863,75 +885,40 @@ export default function PromotionsPage() {
         </div>
       ) : (
         <>
-          {/* <p className="text-sm text-gray-400 mb-5">
+          <p className="text-sm text-gray-400 mb-5">
             {filtered.length} promotion{filtered.length !== 1 ? "s" : ""}{" "}
             available
-          </p> */}
+          </p>
 
-          {/* {filtered.length > 0 ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-          {filtered.map(promo => (
-            <PromotionCard key={promo.id} promo={promo} onBook={setBooking}/>
-          ))}
-        </div>
-      ) : (
-        <div className="text-center py-20">
-          <div className="text-5xl mb-4">🎟️</div>
-          <h3 className="text-xl font-bold text-gray-900 mb-2">No promotions found</h3>
-          <p className="text-gray-400 mb-5">Try adjusting your filters or search term.</p>
-          <button
-            onClick={() => { setSearch(""); setCategory("All"); }}
-            className="bg-orange-500 text-white px-6 py-2.5 rounded-full font-semibold hover:bg-orange-600 transition-colors"
-          >
-            Clear Filters
-          </button>
-        </div>
-      )} */}
-          {loading ? (
-            <div className="text-center py-20 text-gray-400">
-              Loading promotions…
-            </div>
-          ) : error ? (
-            <div className="text-center py-20 text-red-400">
-              Failed to load promotions: {error}
+          {filtered.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+              {filtered.map((promo) => (
+                <PromotionCard
+                  key={promo.id}
+                  promo={promo}
+                  onBook={setBooking}
+                />
+              ))}
             </div>
           ) : (
-            <>
-              <p className="text-sm text-gray-400 mb-5">
-                0 promotions available
+            <div className="text-center py-20">
+              <div className="text-5xl mb-4">🎟️</div>
+              <h3 className="text-xl font-bold text-gray-900 mb-2">
+                No promotions found
+              </h3>
+              <p className="text-gray-400 mb-5">
+                Try adjusting your filters or search term.
               </p>
-
-              <div className="text-center py-20">
-                <svg
-                  className="w-14 h-14 text-gray-300 mx-auto mb-4"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={1.5}
-                    d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a2 2 0 012-2h2z"
-                  />
-                </svg>
-                <h3 className="text-xl font-bold text-gray-900 mb-2">
-                  No promotions found
-                </h3>
-                <p className="text-gray-400 mb-5">
-                  Check back soon or try different filters
-                </p>
-                <button
-                  onClick={() => {
-                    setSearch("");
-                    setCategory("All");
-                  }}
-                  className="border border-gray-200 text-gray-700 px-6 py-2.5 rounded-full font-semibold hover:bg-gray-50 transition-colors bg-white"
-                >
-                  Clear Filters
-                </button>
-              </div>
-            </>
+              <button
+                onClick={() => {
+                  setSearch("");
+                  setCategory("All");
+                }}
+                className="bg-orange-500 text-white px-6 py-2.5 rounded-full font-semibold hover:bg-orange-600 transition-colors"
+              >
+                Clear Filters
+              </button>
+            </div>
           )}
         </>
       )}

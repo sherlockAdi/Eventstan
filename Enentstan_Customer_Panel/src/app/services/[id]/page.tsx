@@ -9,7 +9,7 @@ import { useCart } from "@/lib/CartContext";
 export default function ServiceDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const { services, packages: allPackages, loading, error } = useMarketplace();
-  const service = services.find((s) => s.slug === id || s.id === id);
+  const service = services.find((s) => s.slug === id || String(s.id) === String(id));
   const [showBooking, setShowBooking] = useState(false);
   const [selectedPkg, setSelectedPkg] = useState<Package | undefined>();
   const { addService, items } = useCart();
@@ -30,7 +30,7 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ id: st
     );
   }
 
-  const packages = allPackages.filter((p) => p.service_id === service.id);
+  const packages = allPackages.filter((p) => String(p.service_id) === String(service.id));
   const inCart = items.some((i) => i.id === `svc-${service.id}`);
   const gallery = service.gallery || [service.image_url];
 

@@ -79,7 +79,7 @@ function ConfigureCartModal({
               Cancel
             </button>
             <button
-              onClick={() => { (addPackage as any)(p, days); onClose(); }}
+              onClick={() => { (addPackage as any)(p, service); onClose(); }}
               className="flex-1 py-2.5 rounded-xl bg-orange-500 text-white text-sm font-semibold hover:bg-orange-600 transition-colors"
             >
               Add to Cart
