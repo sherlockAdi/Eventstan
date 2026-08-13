@@ -40,6 +40,16 @@ interface VendorLead {
   updatedAt: string;
 }
 
+interface Category {
+  id: string;
+  name: string;
+}
+
+interface City {
+  id: string;
+  name: string;
+}
+
 const statusColors: Record<string, string> = {
   NEW: "bg-blue-100 text-blue-700",
   CONTACTED: "bg-yellow-100 text-yellow-700",
@@ -62,6 +72,8 @@ const formatDate = (v?: string) => {
 
 export default function VendorLeadsPage() {
   const [leads, setLeads] = useState<VendorLead[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [cities, setCities] = useState<City[]>([]);
   const [loading, setLoading] = useState(true);
   const [isViewOpen, setIsViewOpen] = useState(false);
   const [selectedLead, setSelectedLead] = useState<VendorLead | null>(null);
@@ -73,6 +85,8 @@ export default function VendorLeadsPage() {
 
   useEffect(() => {
     fetchLeads();
+    fetchCategories();
+    fetchCities();
   }, []);
 
   const fetchLeads = async () => {
@@ -88,6 +102,37 @@ export default function VendorLeadsPage() {
     }
   };
 
+  const fetchCategories = async () => {
+    try {
+      const res: any = await adminApi.categories.list();
+      const list: Category[] = Array.isArray(res) ? res : res?.data ?? [];
+      setCategories(list);
+    } catch (err: any) {
+      // Non-blocking: if categories fail to load, we just fall back to showing the raw ID
+      toast.error(err?.message || "Failed to load service categories");
+    }
+  };
+
+  const fetchCities = async () => {
+    try {
+      const res: any = await adminApi.cities.list();
+      const list: City[] = Array.isArray(res) ? res : res?.data ?? [];
+      setCities(list);
+    } catch (err: any) {
+      // Non-blocking: if cities fail to load, we just fall back to showing the raw id
+      toast.error(err?.message || "Failed to load cities");
+    }
+  };
+
+  // Map serviceCategoryId -> category name, falling back to the raw id if not found
+  const getCategoryName = (id: string) =>
+    categories.find((c) => c.id === id)?.name || id || "-";
+
+  // Map cityId -> city name, falling back to the raw value if not found
+  // (handles both proper city ids and legacy free-text entries like "Dubai")
+  const getCityName = (id: string) =>
+    cities.find((c) => c.id === id)?.name || id || "-";
+
   const handleViewLead = (lead: VendorLead) => {
     setSelectedLead(lead);
     setIsViewOpen(true);
@@ -102,7 +147,8 @@ export default function VendorLeadsPage() {
       lead.businessName?.toLowerCase().includes(term) ||
       lead.yourName?.toLowerCase().includes(term) ||
       lead.email?.toLowerCase().includes(term) ||
-      lead.phone?.includes(searchTerm);
+      lead.phone?.includes(searchTerm) ||
+      getCategoryName(lead.serviceCategoryId)?.toLowerCase().includes(term);
     return matchesStatus && matchesSearch;
   });
 
@@ -141,22 +187,28 @@ export default function VendorLeadsPage() {
       ),
     },
     {
-      key: "phone",
-      label: "Phone",
-      render: (v: string) => (
-        <div className="flex items-center gap-2 text-sm text-gray-700">
-          <Phone size={14} className="text-gray-400" />
-          <span>{v}</span>
+      key: "email",
+      label: "Contact",
+      render: (v: string, row: VendorLead) => (
+        <div className="min-w-0 space-y-0.5">
+          <div className="flex items-center gap-1.5 text-sm text-gray-700 truncate">
+            <Mail size={13} className="text-gray-400 shrink-0" />
+            <span className="truncate">{v}</span>
+          </div>
+          <div className="flex items-center gap-1.5 text-xs text-gray-500">
+            <Phone size={12} className="text-gray-400 shrink-0" />
+            <span>{row.phone}</span>
+          </div>
         </div>
       ),
     },
     {
-      key: "email",
-      label: "Email",
+      key: "serviceCategoryId",
+      label: "Service",
       render: (v: string) => (
-        <div className="flex items-center gap-2">
-          <Mail size={14} className="text-gray-400" />
-          <span className="text-sm text-gray-700">{v}</span>
+        <div className="flex items-center gap-1.5 text-sm text-gray-700">
+          <Briefcase size={14} className="text-gray-400 shrink-0" />
+          <span className="truncate">{getCategoryName(v)}</span>
         </div>
       ),
     },
@@ -164,27 +216,27 @@ export default function VendorLeadsPage() {
       key: "cityId",
       label: "City",
       render: (v: string) => (
-        <div className="flex items-center gap-2 text-sm text-gray-700">
-          <MapPin size={14} className="text-gray-400" />
-          <span className="capitalize">{v}</span>
+        <div className="flex items-center gap-1.5 text-sm text-gray-700">
+          <MapPin size={14} className="text-gray-400 shrink-0" />
+          <span className="capitalize truncate">{getCityName(v)}</span>
         </div>
       ),
     },
     {
       key: "yearsOfExperience",
-      label: "Experience",
-      render: (v: number) => <span className="text-sm text-gray-700">{v} yrs</span>,
+      label: "Exp.",
+      render: (v: number) => <span className="text-sm text-gray-700 whitespace-nowrap">{v} yrs</span>,
     },
     {
       key: "createdAt",
       label: "Submitted",
-      render: (v: string) => <span className="text-sm text-gray-500">{formatDate(v)}</span>,
+      render: (v: string) => <span className="text-sm text-gray-500 whitespace-nowrap">{formatDate(v)}</span>,
     },
     {
       key: "status",
       label: "Status",
       render: (v: string) => (
-        <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-medium ${getStatusColor(v)}`}>
+        <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-medium whitespace-nowrap ${getStatusColor(v)}`}>
           {v}
         </span>
       ),
@@ -227,7 +279,7 @@ export default function VendorLeadsPage() {
         <div className="relative flex-1 max-w-sm">
           <input
             type="text"
-            placeholder="Search by business, name, email or phone..."
+            placeholder="Search by business, name, email, phone or service..."
             value={searchTerm}
             onChange={(e) => {
               setSearchTerm(e.target.value);
@@ -264,9 +316,7 @@ export default function VendorLeadsPage() {
         </div>
       ) : (
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-          <div className="overflow-x-auto">
-            <Table columns={columns} data={paginatedData} />
-          </div>
+          <Table columns={columns} data={paginatedData} />
           {leadsWithSrNo.length > 0 ? (
             <div className="border-t border-gray-100">
               <Pagination
@@ -347,7 +397,14 @@ export default function VendorLeadsPage() {
               {/* Vendor details */}
               <div className="mb-5">
                 <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Vendor Details</h3>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <div className="bg-gray-50 rounded-lg p-3 text-center border border-gray-100">
+                    <Briefcase size={15} className="mx-auto text-gray-400 mb-1" />
+                    <p className="text-[11px] text-gray-400">Service</p>
+                    <p className="text-sm font-medium text-gray-900 truncate">
+                      {getCategoryName(selectedLead.serviceCategoryId)}
+                    </p>
+                  </div>
                   <div className="bg-gray-50 rounded-lg p-3 text-center border border-gray-100">
                     <MapPin size={15} className="mx-auto text-gray-400 mb-1" />
                     <p className="text-[11px] text-gray-400">City</p>
@@ -358,7 +415,7 @@ export default function VendorLeadsPage() {
                     <p className="text-[11px] text-gray-400">Experience</p>
                     <p className="text-sm font-medium text-gray-900">{selectedLead.yearsOfExperience ?? "-"} yrs</p>
                   </div>
-                  <div className="bg-gray-50 rounded-lg p-3 text-center border border-gray-100 col-span-2 sm:col-span-1">
+                  <div className="bg-gray-50 rounded-lg p-3 text-center border border-gray-100">
                     <Calendar size={15} className="mx-auto text-gray-400 mb-1" />
                     <p className="text-[11px] text-gray-400">Submitted</p>
                     <p className="text-sm font-medium text-gray-900">{formatDate(selectedLead.createdAt)}</p>

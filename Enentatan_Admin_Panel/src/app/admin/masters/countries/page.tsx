@@ -209,7 +209,7 @@ export default function CountriesPage() {
         <Button onClick={openAdd}><Plus size={15} />Add Country</Button>
       </div>
 
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-x-auto">
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm">
         <Table columns={columns} data={paginatedData} />
         <Pagination
           currentPage={currentPage}

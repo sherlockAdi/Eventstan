@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { useCart } from "@/lib/CartContext";
 import { CartItem } from "@/types";
 import { useAuth } from "@/lib/AuthContext";
@@ -7,7 +8,7 @@ import { useRouter } from "next/navigation";
 
 export default function CartDrawer() {
   const router = useRouter();
-  const { items, isOpen, closeCart, removeItem, clearCart, total, count } =
+  const { items, isOpen, closeCart, removeItem, updateQuantity, clearCart, total, count } =
     useCart();
   const [mounted, setMounted] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
@@ -129,6 +130,7 @@ export default function CartDrawer() {
                     key={item.id}
                     item={item}
                     onRemove={() => removeItem(item.id)}
+                    onQuantityChange={(q) => updateQuantity(item.id, q)}
                   />
                 ))}
               </div>
@@ -507,10 +509,32 @@ function ShareCartModal({
 function CartItemRow({
   item,
   onRemove,
+  onQuantityChange,
 }: {
   item: CartItem;
   onRemove: () => void;
+  onQuantityChange: (quantity: number) => void;
 }) {
+  const [editing, setEditing] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const priceUnit = ((item.pkg as any)?.price_unit || "").toLowerCase();
+  const isPerEvent = priceUnit === "per event";
+  // Quantity editing only makes sense for packages that actually have a
+  // quantity to begin with — flat "per event" packages and plain
+  // services don't have one.
+  const canEditQuantity = item.type === "package" && !isPerEvent && !!item.quantity;
+  const unitLabel = priceUnit || "per event";
+  // The "days" figure on a cart item is really a count of whatever unit
+  // the package is priced in (days, hours, persons, pieces) — pick the
+  // matching noun instead of always saying "day(s)".
+  const unitNoun = priceUnit.includes("hour")
+    ? "hour"
+    : priceUnit.includes("person") || priceUnit.includes("guest")
+    ? "person"
+    : priceUnit.includes("piece")
+    ? "piece"
+    : "day";
+
   return (
     <div className="bg-gray-50 rounded-2xl p-4">
       <div className="flex items-start justify-between gap-3">
@@ -532,34 +556,161 @@ function CartItemRow({
             </svg>
           </div>
           <p className="text-sm text-gray-400 mt-0.5">{item.subtitle}</p>
+          {item.unitQuantity && item.days ? (
+            <p className="text-sm text-gray-400 mt-0.5">
+              {item.unitQuantity} × {item.days} {item.days === 1 ? unitNoun : `${unitNoun}s`} ({unitLabel})
+            </p>
+          ) : item.quantity ? (
+            <p className="text-sm text-gray-400 mt-0.5">
+              {item.quantity} × {unitLabel}
+            </p>
+          ) : null}
+          {item.deliveryLocation && (
+            <p className="text-xs text-gray-400 mt-0.5 truncate">📍 {item.deliveryLocation}</p>
+          )}
+          {!!item.transportFee && (
+            <p className="text-xs text-gray-400 mt-0.5">+ ${item.transportFee.toLocaleString()} transport fee</p>
+          )}
         </div>
-        <button
-          onClick={onRemove}
-          className="text-gray-300 hover:text-red-400 transition-colors flex-shrink-0"
-        >
-          <svg
-            className="w-5 h-5"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
+
+        <div className="flex items-center gap-3 flex-shrink-0">
+          {canEditQuantity && (
+            <button
+              onClick={() => setEditing(true)}
+              aria-label="Edit quantity"
+              className="text-gray-300 hover:text-orange-500 transition-colors"
+            >
+              <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={1.8}
+                  d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                />
+              </svg>
+            </button>
+          )}
+          <button
+            onClick={onRemove}
+            aria-label="Remove item"
+            className="text-gray-300 hover:text-red-400 transition-colors"
           >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={1.8}
-              d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-            />
-          </svg>
-        </button>
+            <svg
+              className="w-5 h-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={1.8}
+                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+              />
+            </svg>
+          </button>
+        </div>
       </div>
+
       <p className="mt-2">
         <span className="text-orange-500 font-bold text-lg">
           ${item.price.toLocaleString()}
         </span>
-        <span className="text-gray-400 text-sm"> / per event</span>
       </p>
+
+      {editing && (
+        <EditQuantityModal
+          title={item.title}
+          quantity={item.quantity || 1}
+          unitLabel={unitLabel}
+          onClose={() => setEditing(false)}
+          onSave={(q) => {
+            onQuantityChange(q);
+            setEditing(false);
+          }}
+        />
+      )}
     </div>
   );
+}
+
+function EditQuantityModal({
+  title,
+  quantity,
+  unitLabel,
+  onClose,
+  onSave,
+}: {
+  title: string;
+  quantity: number;
+  unitLabel: string;
+  onClose: () => void;
+  onSave: (quantity: number) => void;
+}) {
+  const [value, setValue] = useState(quantity);
+
+  const modal = (
+    <div
+      className="fixed inset-0 z-[60] flex items-center justify-center p-4"
+      onClick={onClose}
+    >
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
+      <div
+        className="relative bg-white rounded-2xl shadow-2xl w-full max-w-xs z-10 p-6"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <p className="font-bold text-gray-900 text-sm mb-1 truncate">{title}</p>
+        <p className="text-xs text-gray-400 mb-4">Update quantity ({unitLabel})</p>
+
+        <div className="flex items-center justify-center gap-3 mb-5">
+          <button
+            onClick={() => setValue((v) => Math.max(1, v - 1))}
+            disabled={value <= 1}
+            className="w-9 h-9 rounded-lg border border-gray-200 flex items-center justify-center text-gray-500 hover:border-orange-400 hover:text-orange-500 transition-all disabled:opacity-40"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
+            </svg>
+          </button>
+          <span className="w-12 text-center border border-gray-200 rounded-lg py-1.5 text-sm font-semibold text-gray-900">
+            {value}
+          </span>
+          <button
+            onClick={() => setValue((v) => v + 1)}
+            className="w-9 h-9 rounded-lg border border-gray-200 flex items-center justify-center text-gray-500 hover:border-orange-400 hover:text-orange-500 transition-all"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+          </button>
+        </div>
+
+        <div className="flex gap-3">
+          <button
+            onClick={onClose}
+            className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-600 hover:border-gray-300 transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={() => onSave(value)}
+            className="flex-1 py-2.5 rounded-xl bg-orange-500 text-white text-sm font-semibold hover:bg-orange-600 transition-colors"
+          >
+            Save
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
+  // Render via a portal straight onto <body> so this modal is centered on
+  // the full page instead of inside the cart drawer, which has a CSS
+  // `transform` applied for its slide-in animation. A `transform` on an
+  // ancestor creates a new containing block for `position: fixed`
+  // descendants, so without the portal this modal would center itself
+  // relative to the (narrow, off-screen-sliding) drawer instead of the
+  // viewport.
+  return createPortal(modal, document.body);
 }
 
 function simpleHash(input: string): string {

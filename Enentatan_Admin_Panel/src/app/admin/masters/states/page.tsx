@@ -396,7 +396,7 @@ export default function StatesPage() {
         )}
       </div>
 
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-x-auto">
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm">
         <Table columns={columns} data={paginatedData} />
         <Pagination
           currentPage={currentPage}

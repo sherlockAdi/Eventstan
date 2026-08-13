@@ -376,7 +376,7 @@ export default function CategoriesPage() {
           </div>
         </div>
       ) : (
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-x-auto">
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm">
           <Table
             columns={categoryColumns}
             data={paginatedData}

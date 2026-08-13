@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { customerApi, getPackages } from "@/api/customerApi";
+import { customerApi } from "@/api/customerApi";
 import { useAuth } from "@/lib/AuthContext";
 import { Package, Service } from "@/types";
 
@@ -70,34 +70,32 @@ export default function BookingModal({ pkg, service, onClose }: Props) {
       return;
     }
 
+    const packageId = p?.id;
+    if (!packageId) {
+      setError("This item can't be booked online right now — missing package reference.");
+      return;
+    }
+
     setSubmitting(true);
     setError("");
     try {
-      const normalize = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, "");
-      const packages = await getPackages();
-      const bookablePackage = packages.find((item) => normalize(item.title) === normalize(title));
-      if (!bookablePackage) throw new Error("This promotion is not available for online booking.");
-
-      await customerApi.cart.clear().catch(() => undefined);
-      await customerApi.cart.add({
-        type: "PACKAGE",
-        itemId: bookablePackage.id,
+      const guestCount = Math.max(1, Number(form.numGuests) || 1);
+      const res = await customerApi.bookNow({
+        userId: user.id,
+        packageId,
         eventDate: form.eventDate,
-        quantity: billingQuantity,
+        eventType: form.eventType.trim() || "Event",
+        guestCount,
+        message:
+          [
+            form.eventAddress && `Address: ${form.eventAddress}`,
+            form.phone && `Phone: ${form.phone}`,
+            form.message,
+          ]
+            .filter(Boolean)
+            .join(" - ") || undefined,
       });
-      const booking = await customerApi.bookings.checkout<{ id: string }>({
-        eventAddress: form.eventAddress,
-        notes: [
-          `Promotion: ${title}`,
-          form.eventType && `Event: ${form.eventType}`,
-          form.numGuests && `Guests: ${form.numGuests}`,
-          form.phone && `Phone: ${form.phone}`,
-          form.message,
-        ]
-          .filter(Boolean)
-          .join(" - "),
-      });
-      setBookingId(booking.id);
+      setBookingId(res.data.bookingId);
       setSubmitted(true);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Unable to confirm booking.");

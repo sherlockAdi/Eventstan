@@ -2,12 +2,21 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { FaArrowLeft, FaLink } from "react-icons/fa";
+import { 
+  FaArrowLeft, 
+  FaLink, 
+  FaTrophy, 
+  FaBolt, 
+  FaLock,
+  FaChevronDown,
+  FaSearch,
+  FaTimes,
+  FaHome,
+  FaCheck
+} from "react-icons/fa";
 import { customerApi } from "@/api/customerApi";
 import type { Country, City } from "@/api/customerApi";
 import { categoryService, type CategoryWithMetadata } from "@/services/api/category.service";
-
-// ─── Types ────────────────────────────────────────────────────────────────────
 
 interface Step1Data {
   businessName: string;
@@ -24,14 +33,131 @@ interface Step2Data {
   description: string;
 }
 
-// Strips numbers only (keeps everything else the user types, e.g. "Bloom & Petal")
 const stripDigits = (value: string) => value.replace(/[0-9]/g, "");
-// Digits only
 const sanitizeDigits = (value: string) => value.replace(/\D/g, "");
 
-// ─── Page ─────────────────────────────────────────────────────────────────────
+interface SearchableSelectProps {
+  value: string;
+  onChange: (value: string) => void;
+  options: Array<{ id: string; name: string; flag?: string }>;
+  placeholder: string;
+  loading?: boolean;
+  error?: boolean;
+  disabled?: boolean;
+}
 
-const page = () => {
+const SearchableSelect = ({
+  value,
+  onChange,
+  options,
+  placeholder,
+  loading = false,
+  error = false,
+  disabled = false,
+}: SearchableSelectProps) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const [selectedLabel, setSelectedLabel] = useState("");
+
+  useEffect(() => {
+    const selected = options.find((opt) => opt.id === value);
+    setSelectedLabel(selected ? (selected.flag ? `${selected.flag} ${selected.name}` : selected.name) : "");
+  }, [value, options]);
+
+  const filteredOptions = options.filter((opt) =>
+    opt.name.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const handleSelect = (id: string) => {
+    onChange(id);
+    setIsOpen(false);
+    setSearch("");
+  };
+
+  const inputClass = (hasError?: boolean) =>
+    `w-full px-4 py-3 rounded-xl border text-sm outline-none transition-colors bg-gray-50 focus:bg-white ${
+      hasError
+        ? "border-red-400 focus:border-red-500"
+        : "border-gray-200 focus:border-orange-400 focus:ring-2 focus:ring-orange-100"
+    }`;
+
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => !disabled && setIsOpen(!isOpen)}
+        disabled={disabled || loading}
+        className={`${inputClass(error)} flex items-center justify-between text-left w-full ${
+          disabled ? "opacity-60 cursor-not-allowed" : ""
+        }`}
+      >
+        <span className={selectedLabel ? "text-gray-900" : "text-gray-400"}>
+          {loading ? "Loading..." : selectedLabel || placeholder}
+        </span>
+        <FaChevronDown
+          className={`text-gray-400 transition-transform flex-shrink-0 ml-2 ${
+            isOpen ? "rotate-180" : ""
+          }`}
+        />
+      </button>
+
+      {isOpen && !disabled && !loading && (
+        <>
+          <div
+            className="fixed inset-0 z-10"
+            onClick={() => setIsOpen(false)}
+          />
+          <div className="absolute z-20 w-full mt-2 bg-white rounded-xl border border-gray-200 shadow-lg overflow-hidden">
+            <div className="flex items-center gap-2 px-3 py-2 border-b border-gray-100 bg-gray-50">
+              <FaSearch className="text-gray-400 flex-shrink-0" />
+              <input
+                type="text"
+                placeholder="Search..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full bg-transparent outline-none text-sm text-gray-700 placeholder-gray-400"
+                autoFocus
+              />
+              {search && (
+                <button
+                  onClick={() => setSearch("")}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <FaTimes />
+                </button>
+              )}
+            </div>
+            <div className="max-h-60 overflow-y-auto py-1">
+              {filteredOptions.length === 0 ? (
+                <div className="px-4 py-3 text-sm text-gray-500 text-center">
+                  No results found
+                </div>
+              ) : (
+                filteredOptions.map((option) => (
+                  <button
+                    key={option.id}
+                    onClick={() => handleSelect(option.id)}
+                    className="w-full px-4 py-2.5 text-sm text-left hover:bg-orange-50 transition-colors flex items-center justify-between"
+                  >
+                    <span>
+                      {option.flag && `${option.flag} `}
+                      {option.name}
+                    </span>
+                    {value === option.id && (
+                      <FaCheck className="text-orange-500 flex-shrink-0" />
+                    )}
+                  </button>
+                ))
+              )}
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+};
+
+const Page = () => {
   const [step, setStep] = useState<1 | 2>(1);
   const [submitted, setSubmitted] = useState(false);
 
@@ -40,6 +166,8 @@ const page = () => {
 
   const [countries, setCountries] = useState<Country[]>([]);
   const [countryCode, setCountryCode] = useState("+971");
+  const [codeOpen, setCodeOpen] = useState(false);
+  const [phoneFocused, setPhoneFocused] = useState(false);
 
   const [cities, setCities] = useState<City[]>([]);
   const [citiesLoading, setCitiesLoading] = useState(true);
@@ -77,7 +205,6 @@ const page = () => {
     websites: [],
   });
 
-  // Text currently typed into the "add a link" box (not yet added to the list)
   const [websiteInput, setWebsiteInput] = useState("");
 
   const addWebsite = () => {
@@ -108,9 +235,7 @@ const page = () => {
   const [errors1, setErrors1] = useState<Partial<Step1Data>>({});
   const [errors2, setErrors2] = useState<Partial<Step2Data>>({});
 
-  const [submitStatus, setSubmitStatus] = useState<
-    "idle" | "loading" | "error"
-  >("idle");
+  const [submitStatus, setSubmitStatus] = useState<"idle" | "loading" | "error">("idle");
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   const validateStep1 = () => {
@@ -127,7 +252,7 @@ const page = () => {
   const validateStep2 = () => {
     const errs: Partial<Step2Data> = {};
     if (!step2.serviceCategoryId) errs.serviceCategoryId = "Required";
-    if (!step2.cityArea.trim()) errs.cityArea = "Required";
+    if (!step2.cityArea) errs.cityArea = "Required";
     if (!step2.yearsOfExperience.trim()) errs.yearsOfExperience = "Required";
     setErrors2(errs);
     return Object.keys(errs).length === 0;
@@ -146,14 +271,17 @@ const page = () => {
 
     const websiteSocialMedia = step1.websites;
 
+    // Clean phone number: remove leading zeros and non-digits
+    const cleanPhone = step1.phone.replace(/\D/g, "").replace(/^0+/, "");
+    const fullPhone = `${countryCode}${cleanPhone}`;
+
     const payload = {
       businessName: step1.businessName,
       yourName: step1.yourName,
       email: step1.email,
-      phone: step1.phone ? `${countryCode}${step1.phone}` : undefined,
+      phone: fullPhone,
       websiteSocialMedia,
       serviceCategoryId: step2.serviceCategoryId,
-      // cityId now comes from the City/Area dropdown (see customerApi.masterData.getCities).
       cityId: step2.cityArea,
       yearsOfExperience: step2.yearsOfExperience
         ? Number(step2.yearsOfExperience.replace(/\D/g, "")) || undefined
@@ -163,7 +291,6 @@ const page = () => {
 
     try {
       await customerApi.leads.submitVendorLead(payload);
-
       setSubmitStatus("idle");
       setSubmitted(true);
     } catch (err) {
@@ -181,31 +308,23 @@ const page = () => {
         : "border-gray-200 focus:border-orange-400 focus:ring-2 focus:ring-orange-100"
     }`;
 
+  // Phone number input handler - only allow digits
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value.replace(/\D/g, "");
+    setStep1({ ...step1, phone: value });
+  };
+
   return (
     <div className="min-h-screen" style={{ background: "#fff5eb" }}>
-      {/* Background blobs */}
       <div className="absolute top-20 left-20 w-64 h-64 bg-orange-300/30 rounded-full blur-3xl opacity-50 pointer-events-none" />
       <div className="absolute bottom-20 right-20 w-80 h-80 bg-orange-300/25 rounded-full blur-3xl opacity-50 pointer-events-none" />
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-orange-200/30 rounded-full blur-3xl opacity-40 pointer-events-none" />
 
       <div className="relative z-10 max-w-2xl mx-auto px-4 py-16 sm:py-24">
         {submitted ? (
-          /* ── Success State ── */
           <div className="bg-white rounded-3xl shadow-xl p-10 text-center">
             <div className="w-20 h-20 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-5">
-              <svg
-                className="w-10 h-10 text-orange-500"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth={2.5}
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M5 13l4 4L19 7"
-                />
-              </svg>
+              <FaCheck className="w-10 h-10 text-orange-500" />
             </div>
             <h2 className="text-3xl font-bold text-gray-900 mb-3">
               Application Submitted!
@@ -228,28 +347,9 @@ const page = () => {
           </div>
         ) : (
           <>
-            {/* ── Page Header ── */}
             <div className="text-center mb-10">
               <div className="inline-flex items-center gap-2 bg-white/90 backdrop-blur-sm border border-orange-100 rounded-full px-4 py-2 text-sm text-orange-600 font-medium mb-5 shadow-sm">
-                <svg
-                  className="w-4 h-4"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"
-                  />
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M9 22V12h6v10"
-                  />
-                </svg>
+                <FaHome className="w-4 h-4" />
                 Vendor Partners
               </div>
               <h1 className="text-4xl sm:text-5xl font-bold text-gray-900 mb-4 leading-tight">
@@ -279,29 +379,10 @@ const page = () => {
               </p>
             </div>
 
-            {/* ── Card ── */}
             <div className="bg-white rounded-3xl shadow-xl p-8 sm:p-10">
-              {/* Header inside card */}
               <div className="flex items-center gap-3 mb-7">
                 <div className="w-11 h-11 bg-orange-50 rounded-xl flex items-center justify-center flex-shrink-0">
-                  <svg
-                    className="w-5 h-5 text-orange-500"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth={2}
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"
-                    />
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M9 22V12h6v10"
-                    />
-                  </svg>
+                  <FaHome className="w-5 h-5 text-orange-500" />
                 </div>
                 <div>
                   <h2 className="text-lg font-bold text-gray-900 leading-tight">
@@ -313,7 +394,6 @@ const page = () => {
                 </div>
               </div>
 
-              {/* Step Indicator */}
               <div className="flex items-center gap-2 mb-8">
                 <div className="flex items-center gap-2">
                   <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold bg-orange-500 text-white">
@@ -347,7 +427,6 @@ const page = () => {
                 </div>
               </div>
 
-              {/* ── Step 1 ── */}
               {step === 1 && (
                 <div className="space-y-5">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -417,45 +496,88 @@ const page = () => {
                         </p>
                       )}
                     </div>
+
+                    {/* Phone — signup-page style */}
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1.5">
                         Phone <span className="text-red-500">*</span>
                       </label>
                       <div
-                        className={`flex items-stretch overflow-hidden rounded-xl border bg-gray-50 transition-colors focus-within:bg-white focus-within:ring-2 ${
+                        className={`relative flex items-center bg-white border rounded-xl transition-all ${
                           errors1.phone
-                            ? "border-red-400 focus-within:border-red-500"
-                            : "border-gray-200 focus-within:border-orange-400 focus-within:ring-orange-100"
+                            ? "border-red-400 ring-2 ring-red-100"
+                            : phoneFocused
+                            ? "border-orange-400 ring-2 ring-orange-100"
+                            : "border-gray-200"
                         }`}
                       >
-                        <select
-                          value={countryCode}
-                          onChange={(e) => setCountryCode(e.target.value)}
-                          className="flex-shrink-0 border-r border-gray-200 bg-transparent py-3 pl-3 pr-2 text-sm text-gray-700 outline-none"
-                        >
-                          {countries.map((c) => (
-                            <option key={c.id} value={c.phoneCode}>
-                              {c.flag} {c.phoneCode}
-                            </option>
-                          ))}
-                        </select>
+                        {/* Country code dropdown */}
+                        <div className="relative flex-shrink-0">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              setCodeOpen((o) => !o);
+                            }}
+                            className="flex items-center gap-1 pl-3.5 pr-2 py-3 text-sm text-gray-700 font-medium border-r border-gray-200 focus:outline-none"
+                          >
+                            <span>
+                              {countries.find((c) => c.phoneCode === countryCode)?.flag ?? "🌐"}
+                            </span>
+                            <span>{countryCode}</span>
+                            <svg
+                              className={`w-3 h-3 text-gray-400 transition-transform ${codeOpen ? "rotate-180" : ""}`}
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                            </svg>
+                          </button>
+
+                          {codeOpen && (
+                            <>
+                              <div className="fixed inset-0 z-10" onClick={() => setCodeOpen(false)} />
+                              <div className="absolute z-20 top-full left-0 mt-1 w-56 max-h-56 overflow-y-auto bg-white border border-gray-200 rounded-xl shadow-lg py-1">
+                                {countries.map((c) => (
+                                  <button
+                                    key={c.id}
+                                    type="button"
+                                    onClick={() => {
+                                      setCountryCode(c.phoneCode);
+                                      setCodeOpen(false);
+                                    }}
+                                    className={`w-full flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-orange-50 ${
+                                      c.phoneCode === countryCode ? "bg-orange-50 text-orange-600" : "text-gray-700"
+                                    }`}
+                                  >
+                                    <span>{c.flag}</span>
+                                    <span className="flex-1 truncate">{c.name}</span>
+                                    <span className="text-gray-400">{c.phoneCode}</span>
+                                  </button>
+                                ))}
+                              </div>
+                            </>
+                          )}
+                        </div>
+
                         <input
                           type="tel"
                           inputMode="numeric"
                           placeholder="50 000 0000"
                           value={step1.phone}
-                          onChange={(e) =>
-                            setStep1({
-                              ...step1,
-                              phone: sanitizeDigits(e.target.value),
-                            })
-                          }
-                          className="w-full min-w-0 bg-transparent px-3 py-3 text-sm text-gray-900 placeholder-gray-400 outline-none"
+                          onChange={handlePhoneChange}
+                          onFocus={() => setPhoneFocused(true)}
+                          onBlur={() => setPhoneFocused(false)}
+                          className="w-full bg-transparent pl-3 pr-4 py-3 text-sm text-gray-900 placeholder-gray-400 rounded-xl focus:outline-none"
                         />
                       </div>
                       {errors1.phone && (
                         <p className="text-xs text-red-500 mt-1">{errors1.phone}</p>
                       )}
+                      <p className="text-xs text-gray-400 mt-1.5">
+                        Enter digits only. We'll format it as {countryCode}XXX...
+                      </p>
                     </div>
                   </div>
 
@@ -502,7 +624,7 @@ const page = () => {
                               aria-label={`Remove ${site}`}
                               className="text-orange-500 hover:text-orange-700 transition-colors"
                             >
-                              ×
+                              <FaTimes className="w-3 h-3" />
                             </button>
                           </span>
                         ))}
@@ -519,7 +641,6 @@ const page = () => {
                 </div>
               )}
 
-              {/* ── Step 2 ── */}
               {step === 2 && (
                 <div className="space-y-5">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -527,44 +648,22 @@ const page = () => {
                       <label className="block text-sm font-medium text-gray-700 mb-1.5">
                         Service Category <span className="text-red-500">*</span>
                       </label>
-                      <div className="relative">
-                        <select
-                          value={step2.serviceCategoryId}
-                          disabled={categoriesLoading}
-                          onChange={(e) =>
-                            setStep2({
-                              ...step2,
-                              serviceCategoryId: e.target.value,
-                            })
-                          }
-                          className={`appearance-none ${inputClass(!!errors2.serviceCategoryId)} text-gray-700 disabled:opacity-60`}
-                        >
-                          <option value="">
-                            {categoriesLoading ? "Loading categories..." : "Select category"}
-                          </option>
-                          {categories.map((cat) => (
-                            <option key={cat.id} value={cat.id}>
-                              {cat.name}
-                            </option>
-                          ))}
-                        </select>
-                        <div className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400">
-                          <svg
-                            width="16"
-                            height="16"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth={2}
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              d="M19 9l-7 7-7-7"
-                            />
-                          </svg>
-                        </div>
-                      </div>
+                      <SearchableSelect
+                        value={step2.serviceCategoryId}
+                        onChange={(value) =>
+                          setStep2({
+                            ...step2,
+                            serviceCategoryId: value,
+                          })
+                        }
+                        options={categories.map((cat) => ({
+                          id: cat.id,
+                          name: cat.name,
+                        }))}
+                        placeholder="Select category"
+                        loading={categoriesLoading}
+                        error={!!errors2.serviceCategoryId}
+                      />
                       {errors2.serviceCategoryId && (
                         <p className="text-xs text-red-500 mt-1">
                           {errors2.serviceCategoryId}
@@ -575,41 +674,22 @@ const page = () => {
                       <label className="block text-sm font-medium text-gray-700 mb-1.5">
                         City / Area <span className="text-red-500">*</span>
                       </label>
-                      <div className="relative">
-                        <select
-                          value={step2.cityArea}
-                          disabled={citiesLoading}
-                          onChange={(e) =>
-                            setStep2({ ...step2, cityArea: e.target.value })
-                          }
-                          className={`appearance-none ${inputClass(!!errors2.cityArea)} text-gray-700 disabled:opacity-60`}
-                        >
-                          <option value="">
-                            {citiesLoading ? "Loading cities..." : "Select city / area"}
-                          </option>
-                          {cities.map((city) => (
-                            <option key={city.id} value={city.id}>
-                              {city.name}
-                            </option>
-                          ))}
-                        </select>
-                        <div className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400">
-                          <svg
-                            width="16"
-                            height="16"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth={2}
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              d="M19 9l-7 7-7-7"
-                            />
-                          </svg>
-                        </div>
-                      </div>
+                      <SearchableSelect
+                        value={step2.cityArea}
+                        onChange={(value) =>
+                          setStep2({
+                            ...step2,
+                            cityArea: value,
+                          })
+                        }
+                        options={cities.map((city) => ({
+                          id: city.id,
+                          name: city.name,
+                        }))}
+                        placeholder="Select city / area"
+                        loading={citiesLoading}
+                        error={!!errors2.cityArea}
+                      />
                       {errors2.cityArea && (
                         <p className="text-xs text-red-500 mt-1">
                           {errors2.cityArea}
@@ -692,18 +772,17 @@ const page = () => {
               )}
             </div>
 
-            {/* Trust badges */}
             <div className="flex flex-wrap items-center justify-center gap-3 mt-8">
               {[
-                { icon: "🏆", text: "500+ Trusted Vendors" },
-                { icon: "⚡", text: "Quick Review — 2–3 Days" },
-                { icon: "🔒", text: "Your Info is Safe" },
-              ].map(({ icon, text }) => (
+                { icon: FaTrophy, text: "500+ Trusted Vendors" },
+                { icon: FaBolt, text: "Quick Review — 2–3 Days" },
+                { icon: FaLock, text: "Your Info is Safe" },
+              ].map(({ icon: Icon, text }) => (
                 <div
                   key={text}
                   className="bg-white/80 backdrop-blur-sm rounded-full px-4 py-2 text-sm text-gray-600 shadow-sm border border-white flex items-center gap-2"
                 >
-                  <span>{icon}</span>
+                  <Icon className="w-4 h-4 text-orange-500" />
                   {text}
                 </div>
               ))}
@@ -715,4 +794,4 @@ const page = () => {
   );
 };
 
-export default page;
+export default Page;

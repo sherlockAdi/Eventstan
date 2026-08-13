@@ -2,94 +2,7 @@
 import { useState } from "react";
 import { Package, Service } from "@/types";
 import { useCart } from "@/lib/CartContext";
-
-/* ── Inline: Configure & Add to Cart modal ── */
-function ConfigureCartModal({
-  pkg,
-  service,
-  onClose,
-}: {
-  pkg: Package;
-  service: Service;
-  onClose: () => void;
-}) {
-  const [days, setDays] = useState(1);
-  const { addPackage } = useCart();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const p = pkg as any;
-  const total = (p.price ?? 0) * days;
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm z-10">
-        <button
-          onClick={onClose}
-          className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors"
-        >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button>
-        <div className="p-6">
-          <h2 className="text-lg font-bold text-gray-900 mb-5">Configure &amp; Add to Cart</h2>
-          <div className="bg-gray-50 rounded-xl px-4 py-3 mb-5">
-            <p className="font-semibold text-gray-900 text-sm">{p.name}</p>
-            <p className="text-xs text-gray-400 mt-0.5">{service.vendor_name} · {service.category}</p>
-          </div>
-          <div className="mb-5">
-            <p className="text-sm font-medium text-gray-700 mb-2">Days</p>
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => setDays((d) => Math.max(1, d - 1))}
-                className="w-9 h-9 rounded-lg border border-gray-200 flex items-center justify-center text-gray-500 hover:border-orange-400 hover:text-orange-500 transition-all"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
-                </svg>
-              </button>
-              <span className="w-12 text-center border border-gray-200 rounded-lg py-1.5 text-sm font-semibold text-gray-900">
-                {days}
-              </span>
-              <button
-                onClick={() => setDays((d) => d + 1)}
-                className="w-9 h-9 rounded-lg border border-gray-200 flex items-center justify-center text-gray-500 hover:border-orange-400 hover:text-orange-500 transition-all"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                </svg>
-              </button>
-            </div>
-          </div>
-          <div className="bg-orange-50 rounded-xl px-4 py-3 mb-5 space-y-2">
-            <div className="flex items-center justify-between text-sm text-gray-600">
-              <span>{days} × ${p.price?.toLocaleString()} {p.price_unit ? `per ${p.price_unit}` : ""}</span>
-              <span>${total.toLocaleString()}</span>
-            </div>
-            <div className="flex items-center justify-between text-sm font-bold">
-              <span className="text-gray-900">Cart Price</span>
-              <span className="text-orange-500 text-base">${total.toLocaleString()}</span>
-            </div>
-          </div>
-          <div className="flex gap-3">
-            <button
-              onClick={onClose}
-              className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-600 hover:border-gray-300 transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={() => { (addPackage as any)(p, service); onClose(); }}
-              className="flex-1 py-2.5 rounded-xl bg-orange-500 text-white text-sm font-semibold hover:bg-orange-600 transition-colors"
-            >
-              Add to Cart
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
+import ConfigureCartModal from "@/components/ui/Configurecartmodal";
 
 interface Props {
   pkg: Package;
@@ -98,11 +11,22 @@ interface Props {
 }
 
 export default function PackageCard({ pkg, service, onBook }: Props) {
-  const { items } = useCart();
+  const { items, addPackage } = useCart();
   const [showConfigure, setShowConfigure] = useState(false);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const p = pkg as any;
-  const inCart = items.some((i) => i.id === `pkg-${p.id}`);
+  const inCart = items.some((i) => i.id === `pkg-${p.id}` || i.pkg?.id === p.id);
+  // "per event" packages are a flat, one-off price — no day/quantity
+  // picker makes sense, so skip the configure modal and add directly.
+  const isPerEvent = (p.price_unit || "").toLowerCase() === "per event";
+
+  const handleAddToCart = () => {
+    if (isPerEvent) {
+      addPackage(pkg, service, 1);
+    } else {
+      setShowConfigure(true);
+    }
+  };
 
   return (
     <>
@@ -162,6 +86,25 @@ export default function PackageCard({ pkg, service, onBook }: Props) {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
                 </svg>
                 {p.price_unit}
+                {(() => {
+                  const unit = String(p.price_unit).toLowerCase();
+                  const [min, max] = unit.includes("hour")
+                    ? [p.min_hours ?? p.minHours, p.max_hours ?? p.maxHours]
+                    : unit.includes("person") || unit.includes("guest")
+                    ? [p.min_persons ?? p.minPersons, p.max_persons ?? p.maxPersons]
+                    : unit.includes("piece")
+                    ? [p.min_pieces ?? p.minPieces, p.max_pieces ?? p.maxPieces]
+                    : [p.min_days ?? p.minDays, p.max_days ?? p.maxDays];
+                  return (
+                    min != null &&
+                    max != null && (
+                      <span className="text-gray-400">
+                        {" "}
+                        (min {min}, max {max})
+                      </span>
+                    )
+                  );
+                })()}
               </span>
             )}
           </div>
@@ -193,18 +136,25 @@ export default function PackageCard({ pkg, service, onBook }: Props) {
 
             <div className="flex gap-2">
               <button
-                onClick={() => setShowConfigure(true)}
+                onClick={handleAddToCart}
                 disabled={inCart}
                 className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-sm font-semibold border transition-all ${
                   inCart
-                    ? "bg-green-50 text-green-600 border-green-200 cursor-default"
+                    ? "bg-white text-gray-500 border-gray-200 cursor-default"
                     : "bg-white text-gray-700 border-gray-200 hover:border-orange-300 hover:text-orange-500"
                 }`}
               >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
-                </svg>
-                {inCart ? "Added ✓" : "Add to Cart"}
+                {inCart ? (
+                  <svg className="w-4 h-4 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <circle cx="12" cy="12" r="9" strokeWidth={1.6} />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.6} d="M9 12l2 2 4-4" />
+                  </svg>
+                ) : (
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+                  </svg>
+                )}
+                {inCart ? "In Cart" : "Add to Cart"}
               </button>
               <button
                 onClick={() => onBook(pkg)}

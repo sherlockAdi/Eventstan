@@ -151,10 +151,10 @@ export default function ServicesPage() {
         adminApi.categories.list(),
       ]);
 
-      const servicesWithData = svc.map((service: VendorService) => ({
+      const servicesWithData = svc.map((service: VendorService & { showOnPromotionalPage?: boolean }) => ({
         ...service,
         verificationStatus: "APPROVED",
-        showOnHomepage: service.showOnHomepage || false,
+        showOnHomepage: service.showOnPromotionalPage || false,
         tags: service.tags || [],
         features: service.features || [],
         gallery: service.gallery || [],
@@ -308,7 +308,7 @@ export default function ServicesPage() {
     if (pendingHomepageChange) {
       const { service, newValue } = pendingHomepageChange;
       try {
-        await adminApi.services.update(service.id, { showOnHomepage: newValue });
+        await adminApi.services.update(service.id, { showOnPromotionalPage: newValue });
         setServices(services.map(s => 
           s.id === service.id ? { ...s, showOnHomepage: newValue } : s
         ));
@@ -475,7 +475,7 @@ export default function ServicesPage() {
       imageUrl: form.imageUrl,
       status: form.status,
       verificationStatus: "APPROVED",
-      showOnHomepage: form.showOnHomepage,
+      showOnPromotionalPage: form.showOnHomepage,
     };
 
     try {

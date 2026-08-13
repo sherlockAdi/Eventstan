@@ -43,7 +43,7 @@ export default function BookingsPage() {
       return;
     }
     customerApi.bookings.list<ApiBooking[]>()
-      .then(setBookings)
+      .then((result) => setBookings(Array.isArray(result) ? result : []))
       .catch((cause: unknown) => setError(cause instanceof Error ? cause.message : "Unable to load bookings"))
       .finally(() => setLoading(false));
   }, [authLoading, router, user]);

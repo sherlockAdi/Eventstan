@@ -2,11 +2,12 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useEffect, useRef, useCallback } from "react";
-import { SERVICES, REVIEWS } from "@/lib/data";
+import { REVIEWS } from "@/lib/data";
 import ServiceCard from "@/components/ui/ServiceCard";
 import PreviousWorks from "@/components/PreviousWorks";
 import PartnerMarquee from "@/components/PartnerMarquee";
 import { categoryService, CategoryWithMetadata } from "@/services/api/event.service";
+import { useMarketplace } from "@/lib/useMarketplace";
 import { Search, ClipboardList, PartyPopper, Sparkles, ArrowRight } from "lucide-react";
 
 
@@ -336,6 +337,12 @@ export default function LandingPage() {
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
+  // ─── Live services (API) — only ones flagged to show on the home page ──
+  const { services: allServices, loading: servicesLoading } = useMarketplace();
+  const featuredServices = allServices.filter(
+    (s) => s.showOnPromotionalPage === true
+  );
+
   // ─── Fetch categories using service ─────────────────────────────────────
   useEffect(() => {
     async function loadCategories() {
@@ -547,7 +554,7 @@ export default function LandingPage() {
 
       {/* API DATA */}
       {/* Featured Services */}
-      {/* <section className="py-8 px-4 max-w-7xl mx-auto">
+      <section className="py-8 px-4 max-w-7xl mx-auto">
         <div className="flex items-end justify-between mb-6">
           <div>
             <h2 className="text-3xl font-bold text-gray-900">
@@ -564,16 +571,40 @@ export default function LandingPage() {
             View all →
           </Link>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {SERVICES.map((service) => (
-            <ServiceCard key={service.id} service={service} />
-          ))}
-        </div>
-      </section> */}
+        {servicesLoading ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div
+                key={i}
+                className="h-80 rounded-2xl bg-gray-100 animate-pulse"
+              />
+            ))}
+          </div>
+        ) : featuredServices.length > 0 ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {featuredServices.map((service) => (
+              <ServiceCard key={service.id} service={service} />
+            ))}
+          </div>
+        ) : (
+          <div className="relative rounded-3xl overflow-hidden text-center py-16 px-6 bg-gradient-to-br from-orange-50 via-orange-50 to-amber-50">
+            <div className="w-16 h-16 bg-white rounded-2xl shadow-sm flex items-center justify-center mx-auto mb-5">
+              <Sparkles className="w-7 h-7 text-orange-500" />
+            </div>
+            <h3 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-3">
+              No Featured Services Yet
+            </h3>
+            <p className="text-gray-500 max-w-xl mx-auto">
+              Check back soon — vendors will appear here once they&apos;re
+              featured.
+            </p>
+          </div>
+        )}
+      </section>
       {/* API DATA */}
 
       {/* Featured Services */}
-      <section className="py-8 px-4 max-w-7xl mx-auto">
+      {/* <section className="py-8 px-4 max-w-7xl mx-auto">
         <div className="flex items-end justify-between mb-6">
           <div>
             <h2 className="text-3xl font-bold text-gray-900">
@@ -626,7 +657,7 @@ export default function LandingPage() {
             </Link>
           </div>
         </div>
-      </section>
+      </section> */}
 
       {/* How It Works */}
       <section className="py-12 px-4 bg-gray-50">

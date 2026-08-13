@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useCart } from "@/lib/CartContext";
 import { useAuth } from "@/lib/AuthContext";
@@ -22,12 +22,12 @@ type PaymentMethod = "card" | "pay_later";
 export default function CheckoutPage() {
   const router = useRouter();
   const { user } = useAuth();
-  const { items, total, count, clearCart } = useCart();
+  const { items, total, count, clearCart, loading: cartLoading } = useCart();
 
   const [details, setDetails] = useState<EventDetails>({
     name: user?.name ?? "",
     email: user?.email ?? "",
-    phone: "",
+    phone: user?.phone ?? "",
     event_date: "",
     event_type: "",
     guest_count: "",
@@ -39,6 +39,20 @@ export default function CheckoutPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [confirmed, setConfirmed] = useState(false);
+
+  // On refresh, `user` starts out null while the session is being restored
+  // (AuthContext fetches it async), so the initial useState above misses it.
+  // Fill in name/email/phone once the user actually loads — but don't
+  // clobber anything the visitor has already typed themselves.
+  useEffect(() => {
+    if (!user) return;
+    setDetails((d) => ({
+      ...d,
+      name: d.name || user.name || "",
+      email: d.email || user.email || "",
+      phone: d.phone || user.phone || "",
+    }));
+  }, [user]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setDetails((d) => ({ ...d, [e.target.name]: e.target.value }));
@@ -57,27 +71,36 @@ export default function CheckoutPage() {
     }
     if (!isValid) return;
 
+    const cartItemIds = items
+      .map((i) => i.cartItemId)
+      .filter((id): id is string => Boolean(id));
+
+    if (cartItemIds.length === 0) {
+      setError("These items need to be re-added to your cart while logged in before checkout.");
+      return;
+    }
+
     setSubmitting(true);
     setError("");
     try {
-      await customerApi.bookings.checkout<{ id: string }>({
-        eventAddress: details.event_address,
-        notes: [
-          details.event_type,
-          details.guest_count ? `${details.guest_count} guests` : "",
-          details.message,
-        ]
-          .filter(Boolean)
-          .join(" - "),
+      await customerApi.checkout({
+        userId: user.id,
+        cartItemIds,
+        eventDate: details.event_date,
+        eventType: details.event_type.trim() || "Event",
+        guestCount: Math.max(1, Number(details.guest_count) || 1),
+        message:
+          [details.event_address && `Address: ${details.event_address}`, details.message]
+            .filter(Boolean)
+            .join(" - ") || undefined,
+        paymentMethod: payment === "card" ? "card" : "pay_on_confirmation",
       });
-    } catch {
-      // Booking-confirmation UX shouldn't hang on the backend call — the
-      // request is best-effort for now. The vendor still sees the request
-      // via other channels, and the customer always gets a clear next step.
-    } finally {
       clearCart();
-      setSubmitting(false);
       setConfirmed(true);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Unable to complete checkout.");
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -101,6 +124,14 @@ export default function CheckoutPage() {
         >
           View My Bookings
         </button>
+      </div>
+    );
+  }
+
+  if (cartLoading) {
+    return (
+      <div className="min-h-[60vh] flex items-center justify-center text-gray-400">
+        Loading your cart…
       </div>
     );
   }

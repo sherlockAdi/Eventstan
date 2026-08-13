@@ -2,7 +2,7 @@ import { Package, Review, Service } from "@/types";
 
 const isServer = typeof window === "undefined";
 const API_BASE_URL = isServer
-  ? `${process.env.NEXT_PUBLIC_BASE_URL?.replace(/\/$/, "") ?? "https://api.eventstan.com"}/api/v1`
+  ? `${process.env.NEXT_PUBLIC_BASE_URL?.replace(/\/$/, "")}/api/v1`
   : "/api/proxy";
 
 export { API_BASE_URL };
@@ -21,6 +21,74 @@ export interface AuthResponse {
   expiresIn: number;
   user: ApiUser;
   welcomeEmailSent?: boolean;
+}
+
+// Shared envelope every /customer/* endpoint responds with: { success, message, data }.
+export interface ApiEnvelope<T> {
+  success: boolean;
+  message: string;
+  data: T;
+}
+
+export interface CustomerCartItemResponse {
+  cartItemId: string;
+  userId: string;
+  packageId: string;
+  vendorId: string;
+  title: string;
+  category: string;
+  quantity: number;
+  unitPrice: number;
+  priceUnit: string;
+  totalPrice: number;
+}
+
+export interface CustomerCartResponse {
+  items: CustomerCartItemResponse[];
+  itemCount: number;
+  estimatedTotal: number;
+}
+
+export interface CustomerBookingResponse {
+  bookingId: string;
+  userId: string;
+  packageId: string;
+  vendorId: string;
+  eventDate: string;
+  eventType: string;
+  guestCount: number;
+  unitPrice: number;
+  priceUnit: string;
+  totalPrice: number;
+  bookingStatus: string;
+  paymentStatus: string;
+}
+
+export interface CustomerCheckoutItemResponse {
+  bookingId: string;
+  packageId: string;
+  vendorId: string;
+  title: string;
+  quantity: number;
+  unitPrice: number;
+  priceUnit: string;
+  totalPrice: number;
+}
+
+export interface CustomerCheckoutResponse {
+  checkoutId: string;
+  orderId: string;
+  userId: string;
+  bookingCount: number;
+  eventDate: string;
+  eventType: string;
+  guestCount: number;
+  paymentMethod: string;
+  paymentStatus: string;
+  bookingStatus: string;
+  subtotal: number;
+  totalAmount: number;
+  items: CustomerCheckoutItemResponse[];
 }
 
 function token() {
@@ -219,16 +287,55 @@ export const customerApi = {
         body: JSON.stringify({ token, password }),
       }),
   },
+  // Live customer cart/checkout endpoints — see /api/v1/customer/* in the
+  // API docs (POST cart, GET cart/:userId, PUT cart/:cartItemId,
+  // DELETE cart/:cartItemId, POST book-now, POST checkout).
   cart: {
-    get: <T>() => request<T>("/cart"),
-    add: <T>(payload: { type: "SERVICE" | "PACKAGE"; itemId: string; eventDate: string; quantity: number }) =>
-      request<T>("/cart/items", { method: "POST", body: JSON.stringify(payload) }),
-    clear: () => request<{ cleared: boolean }>("/cart", { method: "DELETE" }),
+    add: <T = CustomerCartItemResponse>(payload: { userId: string; packageId: string; quantity: number }) =>
+      request<ApiEnvelope<T>>("/customer/cart", { method: "POST", body: JSON.stringify(payload) }),
+    get: <T = CustomerCartResponse>(userId: string) =>
+      request<ApiEnvelope<T>>(`/customer/cart/${encodeURIComponent(userId)}`),
+    update: <T = CustomerCartItemResponse>(cartItemId: string, payload: { userId: string; quantity: number }) =>
+      request<ApiEnvelope<T>>(`/customer/cart/${encodeURIComponent(cartItemId)}`, {
+        method: "PUT",
+        body: JSON.stringify(payload),
+      }),
+    remove: (cartItemId: string, userId: string) =>
+      request<ApiEnvelope<{ success: boolean }>>(`/customer/cart/${encodeURIComponent(cartItemId)}`, {
+        method: "DELETE",
+        body: JSON.stringify({ userId }),
+      }),
   },
+  bookNow: <T = CustomerBookingResponse>(payload: {
+    userId: string;
+    packageId: string;
+    eventDate: string;
+    eventType: string;
+    guestCount: number;
+    message?: string;
+  }) => request<ApiEnvelope<T>>("/customer/book-now", { method: "POST", body: JSON.stringify(payload) }),
+  checkout: <T = CustomerCheckoutResponse>(payload: {
+    userId: string;
+    cartItemIds: string[];
+    eventDate: string;
+    eventType: string;
+    guestCount: number;
+    message?: string;
+    paymentMethod: string;
+  }) => request<ApiEnvelope<T>>("/customer/checkout", { method: "POST", body: JSON.stringify(payload) }),
   bookings: {
-    list: <T>() => request<T>("/bookings"),
-    checkout: <T>(payload: { eventAddress: string; notes?: string }) =>
-      request<T>("/bookings/checkout", { method: "POST", body: JSON.stringify(payload) }),
+    // Unlike the /customer/* endpoints, /bookings does NOT consistently use
+    // the { success, message, data } envelope — it's been observed returning
+    // a bare array directly. Handle both shapes defensively so the page
+    // never ends up with `bookings` as undefined or a non-array.
+    list: async <T>() => {
+      const response = await request<T | ApiEnvelope<T>>("/bookings");
+      const unwrapped =
+        response && typeof response === "object" && "data" in response
+          ? (response as ApiEnvelope<T>).data
+          : (response as T);
+      return (unwrapped ?? ([] as unknown as T));
+    },
     cancel: <T>(id: string, reason: string) =>
       request<T>(`/bookings/${id}/cancel`, { method: "PATCH", body: JSON.stringify({ reason }) }),
   },

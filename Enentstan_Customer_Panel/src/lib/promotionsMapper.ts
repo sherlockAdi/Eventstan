@@ -28,6 +28,20 @@ export interface RawApiPackage {
   // because `items` is frequently an empty array on the /packages response.
   imageUrl?: string;
   image_url?: string;
+  // The category API's data is embedded directly on the package now —
+  // either as a nested object (`category`) or already flattened
+  // (`category_name` / `category_slug`). This is the most authoritative,
+  // always-populated source, so it's checked first.
+  category?: string | { id?: string; name?: string; slug?: string };
+  category_name?: string;
+  category_slug?: string;
+  // Rental-specific fields (present on rental packages from the /packages API).
+  is_rental?: boolean;
+  isRental?: boolean;
+  delivery_available?: boolean;
+  deliveryAvailable?: boolean;
+  delivery_fee?: number;
+  deliveryFee?: number;
   items?: Array<{
     service?: {
       id?: string;
@@ -46,10 +60,26 @@ export function isPromotionalPackage(pkg: RawApiPackage): boolean {
   return Boolean(pkg.isPromotional ?? pkg.is_promotional);
 }
 
-export function packageToPromotion(pkg: RawApiPackage): Promotion {
+export function packageToPromotion(
+  pkg: RawApiPackage,
+  // Looked up from the live /services list (service.id -> service.category),
+  // used as a fallback for the rare case a package's own category fields
+  // (see below) aren't populated.
+  categoryByServiceId?: Record<string, string>,
+): Promotion {
   const svc = pkg.items?.[0]?.service;
-  const rawCategory =
+  const embeddedCategory =
     typeof svc?.category === "string" ? svc.category : svc?.category?.name;
+  const serviceId = pkg.service_id || svc?.id;
+  // Priority: the package's own category (from the category API, either
+  // nested or flattened) > the live /services lookup > the category
+  // embedded on items[0].service (items is frequently empty) > "Venue" as
+  // a last-resort fallback for the rare case nothing resolves.
+  const ownCategory =
+    pkg.category_name ||
+    (typeof pkg.category === "string" ? pkg.category : pkg.category?.name);
+  const rawCategory =
+    ownCategory || (serviceId && categoryByServiceId?.[serviceId]) || embeddedCategory;
   const category = (rawCategory as Promotion["category"]) || "Venue";
   const price = pkg.promotional_price ?? pkg.promotionalPrice ?? pkg.price;
   const originalPrice = pkg.original_price ?? pkg.exact_price;
@@ -74,5 +104,8 @@ export function packageToPromotion(pkg: RawApiPackage): Promotion {
     is_featured: pkg.is_popular || pkg.isPopular || false,
     original_price: originalPrice && originalPrice !== price ? originalPrice : undefined,
     service_id: pkg.service_id || svc?.id || "",
+    is_rental: Boolean(pkg.is_rental ?? pkg.isRental),
+    delivery_available: Boolean(pkg.delivery_available ?? pkg.deliveryAvailable),
+    delivery_fee: pkg.delivery_fee ?? pkg.deliveryFee,
   };
 }

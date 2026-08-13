@@ -471,7 +471,7 @@ export default function CitiesPage() {
         )}
       </div>
 
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-x-auto">
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm">
         {loading ? (
           <div className="flex h-48 items-center justify-center text-sm text-gray-500">Loading cities...</div>
         ) : (

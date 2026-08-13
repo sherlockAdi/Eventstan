@@ -216,7 +216,7 @@ export default function PriceUnitsPage() {
         </div>
       </div>
 
-      <div className="overflow-x-auto rounded-2xl border border-gray-100 bg-white shadow-sm">
+      <div className="rounded-2xl border border-gray-100 bg-white shadow-sm">
         <Table columns={columns} data={paginatedRows} />
         <Pagination
           currentPage={currentPage}

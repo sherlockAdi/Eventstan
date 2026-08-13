@@ -256,9 +256,7 @@ export default function UserLeadsPage() {
         </div>
       ) : (
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-          <div className="overflow-x-auto">
-            <Table columns={columns} data={paginatedData} />
-          </div>
+          <Table columns={columns} data={paginatedData} />
           {filteredLeads.length > 0 ? (
             <Pagination
               currentPage={currentPage}

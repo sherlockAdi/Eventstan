@@ -31,7 +31,7 @@ const navItems: NavItem[] = [
     permissionKey: 'masters',
     children: [
       { href: '/admin/masters/services', label: 'Services' },
-      { href: '/admin/masters/pending-service-approvals', label: 'Pending Services' },
+      // { href: '/admin/masters/pending-service-approvals', label: 'Pending Services' },
       { href: '/admin/masters/event-slots', label: 'Event Slots' },
       { href: '/admin/masters/price-units', label: 'Price Units' },
       { href: '/admin/masters/coupons', label: 'Coupons' },
@@ -459,7 +459,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <div className="fixed inset-0 bg-black/30 z-40 lg:hidden" onClick={() => setMobileOpen(false)} />
       )}
 
-      <div className="flex-1 lg:ml-60 flex flex-col min-h-screen">
+      <div className="flex-1 lg:ml-60 flex flex-col min-h-screen min-w-0">
 
         <header className="h-14 bg-white border-b border-gray-100 flex items-center px-4 lg:px-6 gap-3 sticky top-0 z-30">
           <button className="lg:hidden p-2 rounded-lg hover:bg-gray-100" onClick={() => setMobileOpen(true)}>
@@ -522,7 +522,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </div>
         </header>
 
-        <main className="flex-1 p-4 lg:p-6 overflow-y-auto custom-scrollbar">
+        <main className="flex-1 p-4 lg:p-6 overflow-y-auto overflow-x-hidden custom-scrollbar min-w-0">
           {children}
         </main>
       </div>

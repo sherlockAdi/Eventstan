@@ -35,6 +35,12 @@ export default function RootLayout({
             gtag('config', 'G-9HD74LKG7J');
           `}
         </Script>
+        {/* Tawk.to Live Chat */}
+        <Script
+          id="tawk-to"
+          strategy="afterInteractive"
+          src="https://embed.tawk.to/66544c16981b6c564774ffbf/1huskiei9"
+        />
       </head>
 
       <body
