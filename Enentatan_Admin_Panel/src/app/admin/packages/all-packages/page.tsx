@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Eye, RefreshCw, Package, Check, X, Home } from "lucide-react";
+import { Eye, RefreshCw, Package, Check, X, Megaphone } from "lucide-react";
 import Button from "@/components/admin/Button";
 import Pagination from "@/components/admin/Pagination";
 import { adminApi } from "@/api/adminApi";
@@ -38,8 +38,22 @@ interface MarketingPackage {
   durationHours: number;
   inclusions: string[];
   features: string[];
-  showOnHomepage: boolean;
+  showOnPromotionalPage: boolean;
   serviceIds: string[];
+  isPromotional: boolean;
+  imageUrl: string | null;
+  originalPrice: number | null;
+  promotionDiscountType: string | null;
+  promotionDiscountValue: number | null;
+  promotionStartDate: string | null;
+  promotionEndDate: string | null;
+  minDays: number | null;
+  maxDays: number | null;
+  rentalLocation: string | null;
+  serviceArea: string | null;
+  deliveryFee: number | null;
+  pickupAvailable: boolean;
+  deliveryAvailable: boolean;
 }
 
 interface ApiPackage {
@@ -57,8 +71,23 @@ interface ApiPackage {
   maxGuests: number | null;
   durationHours: number | null;
   isPopular: boolean;
-  showOnHomepage?: boolean;
-  show_on_homepage?: boolean;
+  showOnPromotionalPage?: boolean;
+  show_on_promotional_page?: boolean;
+  isPromotional?: boolean;
+  imageUrl?: string | null;
+  image_url?: string | null;
+  exact_price?: number;
+  promotionDiscountType?: string | null;
+  promotionDiscountValue?: number | null;
+  promotionStartDate?: string | null;
+  promotionEndDate?: string | null;
+  minDays?: number | null;
+  maxDays?: number | null;
+  rentalLocation?: string | null;
+  serviceArea?: string | null;
+  deliveryFee?: number | null;
+  pickupAvailable?: boolean;
+  deliveryAvailable?: boolean;
   status: string;
   items: Array<{
     service: {
@@ -77,6 +106,13 @@ const formatPrice = (price: number | undefined | null, currency: string = "USD")
   }
   const symbol = currency === "AED" ? "AED" : "$";
   return `${symbol}${price.toLocaleString()}`;
+};
+
+const formatDate = (dateStr: string | null): string => {
+  if (!dateStr) return "";
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return "";
+  return d.toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" });
 };
 
 const getStatusColor = (status: string) => {
@@ -141,8 +177,26 @@ export default function MarketingPackagesPage() {
           durationHours: pkg.durationHours || 0,
           inclusions: pkg.inclusions || [],
           features: pkg.features || [],
-          showOnHomepage: pkg.showOnHomepage || pkg.show_on_homepage || false,
+          showOnPromotionalPage:
+            pkg.showOnPromotionalPage ??
+            pkg.show_on_promotional_page ??
+            pkg.isPromotional ??
+            false,
           serviceIds: pkg.items.map((item) => item.service.id),
+          isPromotional: pkg.isPromotional ?? false,
+          imageUrl: pkg.imageUrl ?? pkg.image_url ?? null,
+          originalPrice: pkg.exact_price ?? pkg.exactPrice ?? null,
+          promotionDiscountType: pkg.promotionDiscountType ?? null,
+          promotionDiscountValue: pkg.promotionDiscountValue ?? null,
+          promotionStartDate: pkg.promotionStartDate ?? null,
+          promotionEndDate: pkg.promotionEndDate ?? null,
+          minDays: pkg.minDays ?? null,
+          maxDays: pkg.maxDays ?? null,
+          rentalLocation: pkg.rentalLocation ?? null,
+          serviceArea: pkg.serviceArea ?? null,
+          deliveryFee: pkg.deliveryFee ?? null,
+          pickupAvailable: pkg.pickupAvailable ?? false,
+          deliveryAvailable: pkg.deliveryAvailable ?? false,
         };
       });
       
@@ -163,18 +217,6 @@ export default function MarketingPackagesPage() {
 
   const handleRefresh = () => {
     fetchData(true);
-  };
-
-  const toggleHomepage = async (pkg: MarketingPackage, nextValue: boolean) => {
-    try {
-      await adminApi.packages.update(pkg.id, { showOnHomepage: nextValue });
-      setPackages((current) =>
-        current.map((item) => (item.id === pkg.id ? { ...item, showOnHomepage: nextValue } : item)),
-      );
-      toast.success(`Package ${nextValue ? "added to" : "removed from"} homepage`);
-    } catch (error) {
-      toast.error("Failed to update homepage setting");
-    }
   };
 
   const openModal = (pkg: MarketingPackage) => {
@@ -228,7 +270,7 @@ export default function MarketingPackagesPage() {
           <p className="text-sm text-gray-500 mt-0.5">
             {packages.length} packages total • 
             <span className="text-orange-600 ml-1">
-              {packages.filter(p => p.popular).length} popular packages
+              {packages.filter(p => p.showOnPromotionalPage).length} promotional packages
             </span>
           </p>
         </div>
@@ -271,10 +313,9 @@ export default function MarketingPackagesPage() {
                 <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-6 py-3">Package Name</th>
                 <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-6 py-3">Vendor</th>
                 <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-6 py-3">Price</th>
-                <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-6 py-3">Duration</th>
                 <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-6 py-3">Services</th>
                 <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-6 py-3">Max Guests</th>
-                <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-6 py-3">Home Page</th>
+                <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-6 py-3">Promotion Page</th>
                 <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-6 py-3">Status</th>
                 <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-6 py-3">Actions</th>
               </tr>
@@ -299,49 +340,59 @@ export default function MarketingPackagesPage() {
                     </div>
                   </td>
                   <td className="px-6 py-4">
-                    <div className="flex items-center gap-2">
-                      <div className="w-6 h-6 rounded-full bg-orange-100 flex items-center justify-center">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <div className="w-6 h-6 rounded-full bg-orange-100 flex items-center justify-center shrink-0">
                         <span className="text-xs font-semibold text-orange-600">
                           {pkg.vendorName.charAt(0)}
                         </span>
                       </div>
-                      <span className="text-sm font-medium text-gray-700">{pkg.vendorName}</span>
+                      <span
+                        className="text-sm font-medium text-gray-700 truncate max-w-[140px]"
+                        title={pkg.vendorName}
+                      >
+                        {pkg.vendorName}
+                      </span>
                     </div>
                   </td>
                   <td className="px-6 py-4">
                     <span className="font-bold text-orange-600">{formatPrice(pkg.price, pkg.currency)}</span>
                   </td>
-                  <td className="px-6 py-4 text-gray-600">{pkg.duration}</td>
-                  <td className="px-6 py-4">
-                    <div className="flex flex-wrap gap-1">
-                      {pkg.services.slice(0, 2).map((service, idx) => (
-                        <span key={idx} className="inline-block text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-600">
-                          {service.name.length > 20 ? service.name.substring(0, 20) + "..." : service.name}
-                        </span>
-                      ))}
-                      {pkg.services.length > 2 && (
-                        <span className="inline-block text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-600">
-                          +{pkg.services.length - 2}
-                        </span>
-                      )}
-                    </div>
+                  <td className="px-6 py-4 max-w-[220px]">
+                    {pkg.services.length === 0 ? (
+                      <span className="text-gray-400">--</span>
+                    ) : (
+                      <div className="flex flex-wrap gap-1">
+                        {pkg.services.slice(0, 2).map((service, idx) => (
+                          <span
+                            key={idx}
+                            className="inline-block text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-600 max-w-[180px] truncate"
+                            title={service.name}
+                          >
+                            {service.name}
+                          </span>
+                        ))}
+                        {pkg.services.length > 2 && (
+                          <span className="inline-block text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-600">
+                            +{pkg.services.length - 2}
+                          </span>
+                        )}
+                      </div>
+                    )}
                   </td>
                   <td className="px-6 py-4">
                     <span className="text-gray-600">{pkg.maxGuests > 0 ? pkg.maxGuests : "Unlimited"}</span>
                   </td>
                   <td className="px-6 py-4">
-                    <div className="flex items-center gap-2">
-                      <label className="relative inline-flex items-center cursor-pointer">
-                        <input
-                          type="checkbox"
-                          className="sr-only peer"
-                          checked={pkg.showOnHomepage}
-                          onChange={() => void toggleHomepage(pkg, !pkg.showOnHomepage)}
-                        />
-                        <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-orange-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-orange-500"></div>
-                      </label>
-                      <span className="text-xs text-gray-500">{pkg.showOnHomepage ? "Yes" : "No"}</span>
-                    </div>
+                    {pkg.showOnPromotionalPage ? (
+                      <span className="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full bg-blue-50 text-blue-600">
+                        <Megaphone size={12} />
+                        Yes
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center text-xs font-medium px-2.5 py-1 rounded-full bg-gray-100 text-gray-500">
+                        No
+                      </span>
+                    )}
                   </td>
                   <td className="px-6 py-4">
                     <span className={`inline-block text-xs px-2 py-1 rounded-full ${getStatusColor(pkg.status)}`}>
@@ -390,6 +441,30 @@ export default function MarketingPackagesPage() {
           
           <div className="flex min-h-full items-center justify-center p-4">
             <div className="relative bg-white rounded-2xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+              {selectedPackage.imageUrl && (
+                <div className="relative w-full h-56 bg-gray-100">
+                  <img
+                    src={selectedPackage.imageUrl}
+                    alt={selectedPackage.name}
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      (e.currentTarget as HTMLImageElement).style.display = "none";
+                    }}
+                  />
+                  <div className="absolute top-3 left-3 flex gap-2">
+                    <span className={`inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full ${getStatusColor(selectedPackage.status)}`}>
+                      <span className="w-1.5 h-1.5 rounded-full bg-current" />
+                      {selectedPackage.status.charAt(0) + selectedPackage.status.slice(1).toLowerCase()}
+                    </span>
+                    {selectedPackage.isPromotional && (
+                      <span className="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full bg-orange-100 text-orange-600">
+                        <Megaphone size={12} />
+                        Promotional
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
               <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${selectedPackage.popular ? 'bg-orange-50' : 'bg-gray-50'}`}>
@@ -401,10 +476,10 @@ export default function MarketingPackagesPage() {
                       {selectedPackage.popular && (
                         <span className="text-xs bg-orange-100 text-orange-600 px-2 py-1 rounded-full font-medium">Popular</span>
                       )}
-                      {selectedPackage.showOnHomepage && (
+                      {selectedPackage.showOnPromotionalPage && (
                         <span className="text-xs bg-blue-100 text-blue-600 px-2 py-1 rounded-full font-medium flex items-center gap-1">
-                          <Home size={12} />
-                          Home Page
+                          <Megaphone size={12} />
+                          Promotion Page
                         </span>
                       )}
                     </div>
@@ -433,8 +508,21 @@ export default function MarketingPackagesPage() {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="p-4 bg-gray-50 rounded-xl">
                     <p className="text-xs text-gray-500 uppercase tracking-wider">Price</p>
-                    <p className="text-2xl font-bold text-orange-600">{formatPrice(selectedPackage.price, selectedPackage.currency)}</p>
-                    <p className="text-xs text-gray-500">per {selectedPackage.duration}</p>
+                    <div className="flex items-baseline gap-2">
+                      <p className="text-2xl font-bold text-orange-600">{formatPrice(selectedPackage.price, selectedPackage.currency)}</p>
+                      {selectedPackage.isPromotional && selectedPackage.originalPrice && selectedPackage.originalPrice !== selectedPackage.price && (
+                        <span className="text-sm text-gray-400 line-through">
+                          {formatPrice(selectedPackage.originalPrice, selectedPackage.currency)}
+                        </span>
+                      )}
+                    </div>
+                    {selectedPackage.isPromotional && selectedPackage.promotionDiscountValue && (
+                      <span className="inline-block mt-1 text-[10px] font-semibold bg-red-100 text-red-600 px-2 py-0.5 rounded-full">
+                        {selectedPackage.promotionDiscountType === "PERCENTAGE"
+                          ? `${selectedPackage.promotionDiscountValue}% OFF`
+                          : `${formatPrice(selectedPackage.promotionDiscountValue, selectedPackage.currency)} OFF`}
+                      </span>
+                    )}
                   </div>
                   <div className="p-4 bg-gray-50 rounded-xl">
                     <p className="text-xs text-gray-500 uppercase tracking-wider">Max Guests</p>
@@ -448,6 +536,15 @@ export default function MarketingPackagesPage() {
                     </span>
                   </div>
                 </div>
+
+                {selectedPackage.isPromotional && (selectedPackage.promotionStartDate || selectedPackage.promotionEndDate) && (
+                  <div className="flex items-center gap-2 bg-red-50 text-red-600 text-sm px-4 py-3 rounded-xl">
+                    <Megaphone size={16} className="shrink-0" />
+                    <span>
+                      Promotion valid from {formatDate(selectedPackage.promotionStartDate)} to {formatDate(selectedPackage.promotionEndDate)}
+                    </span>
+                  </div>
+                )}
                 
                 {selectedPackage.description && (
                   <div>
@@ -491,22 +588,47 @@ export default function MarketingPackagesPage() {
                   </div>
                   
                   <div className="space-y-3">
-                    {selectedPackage.services.map((service, idx) => (
-                      <div key={idx} className="bg-gray-50 rounded-lg p-3">
-                        <div className="flex items-start gap-2">
-                          <Check size={14} className="text-green-500 shrink-0 mt-0.5" />
-                          <div className="flex-1">
-                            <p className="text-sm font-medium text-gray-900">{service.name}</p>
-                            <p className="text-xs text-gray-500 mt-0.5">Category: {service.category}</p>
+                    {selectedPackage.services.length === 0 ? (
+                      <p className="text-sm text-gray-400">--</p>
+                    ) : (
+                      selectedPackage.services.map((service, idx) => (
+                        <div key={idx} className="bg-gray-50 rounded-lg p-3">
+                          <div className="flex items-start gap-2">
+                            <Check size={14} className="text-green-500 shrink-0 mt-0.5" />
+                            <div className="flex-1">
+                              <p className="text-sm font-medium text-gray-900">{service.name}</p>
+                              <p className="text-xs text-gray-500 mt-0.5">Category: {service.category}</p>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))}
+                      ))
+                    )}
                   </div>
                 </div>
                 
+                {(selectedPackage.minDays || selectedPackage.maxDays || selectedPackage.rentalLocation || selectedPackage.serviceArea || selectedPackage.deliveryFee !== null || selectedPackage.pickupAvailable || selectedPackage.deliveryAvailable) && (
+                  <div>
+                    <h3 className="text-sm font-semibold text-gray-900 mb-3">Additional Details</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm text-gray-600">
+                      {(selectedPackage.minDays || selectedPackage.maxDays) && (
+                        <p>Days: {selectedPackage.minDays ?? "-"} – {selectedPackage.maxDays ?? "-"}</p>
+                      )}
+                      {selectedPackage.serviceArea && <p>Service area: {selectedPackage.serviceArea}</p>}
+                      {selectedPackage.rentalLocation && <p>{selectedPackage.rentalLocation}</p>}
+                      {selectedPackage.deliveryFee !== null && <p>Delivery fee: {formatPrice(selectedPackage.deliveryFee, selectedPackage.currency)}</p>}
+                      {(selectedPackage.pickupAvailable || selectedPackage.deliveryAvailable) && (
+                        <p>
+                          {selectedPackage.pickupAvailable ? "Pickup available" : ""}
+                          {selectedPackage.pickupAvailable && selectedPackage.deliveryAvailable ? " · " : ""}
+                          {selectedPackage.deliveryAvailable ? "Delivery available" : ""}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
+
                 <div className="pt-4 border-t border-gray-100">
-                  <p className="text-xs text-gray-400">Vendor ID: {selectedPackage.vendorId}</p>
+                  <p className="text-xs text-gray-400">Vendor: {selectedPackage.vendorName}</p>
                 </div>
               </div>
               

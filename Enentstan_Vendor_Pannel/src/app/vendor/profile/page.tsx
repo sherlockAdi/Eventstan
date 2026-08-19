@@ -13,7 +13,7 @@ import {
   User,
   CreditCard,
   CalendarClock,
-  Landmark,
+  Landmark as LandmarkIcon,
   BadgeCheck,
   Globe,
   FileText,
@@ -34,12 +34,14 @@ import {
 } from "lucide-react";
 import { vendorApi } from "@/api/vendorApi";
 import { updateSessionUser } from "@/lib/auth";
+
 interface CountryOption {
-  id: number | string; // unique id from master-data, used as the React key
-  code: string; // phoneCode, e.g. "+971"
-  country: string; // name, e.g. "United Arab Emirates (UAE)"
+  id: number | string;
+  code: string;
+  country: string;
   flag: string;
 }
+
 const DEFAULT_COUNTRY_CODES: CountryOption[] = [
   {
     id: "default-ae",
@@ -56,6 +58,7 @@ interface CityOption {
   countryName?: string;
   status: string;
 }
+
 interface CityWithCountry extends CityOption {
   countryName: string;
   stateId?: string | null;
@@ -90,7 +93,6 @@ interface VendorProfile {
   annualLeaves?: number | null;
   workingHours?: number | null;
   joiningDate?: string | null;
-  // Personal
   firstName?: string | null;
   lastName?: string | null;
   userName?: string | null;
@@ -119,6 +121,12 @@ interface VendorProfile {
   accountNumber?: string | null;
   swift?: string | null;
   branchAddress?: string | null;
+  // Dubai address fields
+  addressLine1?: string | null;
+  addressLine2?: string | null;
+  landmark?: string | null;
+  city?: string | null;
+  poBox?: string | null;
 }
 
 interface CountryMasterRow {
@@ -197,7 +205,38 @@ function sanitizeDigitsInput(value: string) {
   return value.replace(/\D/g, "");
 }
 
+function stripCountryCode(value: string | null | undefined, code: string) {
+  if (!value) return "";
+  if (code && value.startsWith(code)) return value.slice(code.length);
+  return value;
+}
+
+function sanitizePositiveNumber(value: string) {
+  // Strip everything except digits and a single decimal point; no minus sign allowed
+  let cleaned = value.replace(/[^0-9.]/g, "");
+  const firstDot = cleaned.indexOf(".");
+  if (firstDot !== -1) {
+    cleaned =
+      cleaned.slice(0, firstDot + 1) +
+      cleaned.slice(firstDot + 1).replace(/\./g, "");
+  }
+  return cleaned;
+}
+
 const NAME_MAX_LENGTH = 40;
+const PHONE_MIN_DIGITS = 7;
+const PHONE_MAX_DIGITS = 15;
+
+// UAE Cities list
+const UAE_CITIES = [
+  "Dubai",
+  "Abu Dhabi",
+  "Sharjah",
+  "Ajman",
+  "Ras Al Khaimah",
+  "Fujairah",
+  "Umm Al Quwain",
+];
 
 function SectionCard({
   title,
@@ -226,10 +265,13 @@ function SectionCard({
         </div>
         <ChevronDown
           size={16}
-          className={`text-gray-400 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
+          className={
+            "text-gray-400 transition-transform duration-200 " +
+            (open ? "rotate-180" : "")
+          }
         />
       </button>
-      {open && <div className="px-6 pb-6 pt-1">{children}</div>}
+      {open ? <div className="px-6 pb-6 pt-1">{children}</div> : null}
     </div>
   );
 }
@@ -245,6 +287,8 @@ function Field({
   min,
   max,
   maxLength,
+  required = false,
+  error,
 }: {
   label: string;
   icon?: React.ElementType;
@@ -256,19 +300,23 @@ function Field({
   min?: string;
   max?: string;
   maxLength?: number;
+  required?: boolean;
+  error?: string;
 }) {
+  const showError = (required && !value) || !!error;
   return (
     <div>
       <label className="text-xs font-medium text-gray-500 mb-1 block">
         {label}
+        {required ? <span className="text-red-500 ml-1">*</span> : null}
       </label>
       <div className="relative">
-        {Icon && (
+        {Icon ? (
           <Icon
             size={13}
             className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
           />
-        )}
+        ) : null}
         <input
           type={type}
           value={value}
@@ -278,42 +326,45 @@ function Field({
           max={max}
           maxLength={maxLength}
           onChange={onChange ? (e) => onChange(e.target.value) : undefined}
-          className={`w-full py-2.5 text-sm border rounded-xl focus:outline-none transition
-            ${Icon ? "pl-9 pr-4" : "px-4"}
-            ${
-              readOnly
-                ? "bg-gray-50 border-gray-100 text-gray-400 cursor-not-allowed"
-                : "border-gray-200 focus:ring-2 focus:ring-orange-200 focus:border-orange-400 bg-white text-gray-800"
-            }`}
+          className={
+            "w-full py-2.5 text-sm border rounded-xl focus:outline-none transition " +
+            (Icon ? "pl-9 pr-4 " : "px-4 ") +
+            (readOnly
+              ? "bg-gray-50 border-gray-100 text-gray-400 cursor-not-allowed"
+              : "border-gray-200 focus:ring-2 focus:ring-orange-200 focus:border-orange-400 bg-white text-gray-800") +
+            (showError ? " border-red-300" : "")
+          }
         />
-        {readOnly && (
+        {readOnly ? (
           <Lock
             size={11}
             className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-300"
           />
-        )}
+        ) : null}
       </div>
+      {error ? <p className="text-xs text-red-500 mt-1">{error}</p> : null}
     </div>
   );
 }
 
-// Dedicated name input: blocks numbers/symbols as the user types and caps length,
-// without showing a live character counter underneath.
 function NameField({
   label,
   value,
   onChange,
   icon: Icon = User,
+  required = false,
 }: {
   label: string;
   value: string;
   onChange: (v: string) => void;
   icon?: React.ElementType;
+  required?: boolean;
 }) {
   return (
     <div>
       <label className="text-xs font-medium text-gray-500 mb-1 block">
         {label}
+        {required ? <span className="text-red-500 ml-1">*</span> : null}
       </label>
       <div className="relative">
         <Icon
@@ -329,7 +380,10 @@ function NameField({
               sanitizeNameInput(e.target.value).slice(0, NAME_MAX_LENGTH),
             )
           }
-          className="w-full py-2.5 pl-9 pr-4 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-orange-400 bg-white text-gray-800"
+          className={
+            "w-full py-2.5 pl-9 pr-4 text-sm border rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-orange-400 bg-white text-gray-800 " +
+            (required && !value ? "border-red-300" : "border-gray-200")
+          }
         />
       </div>
     </div>
@@ -356,21 +410,23 @@ function toIsoDate(d: Date) {
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, "0");
   const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
+  return y + "-" + m + "-" + day;
 }
 
-// Fully custom calendar date picker (no native <input type="date">), so past
-// dates can be truly disabled/grayed and past months can't even be navigated to.
 function DateField({
   label,
   value,
   onChange,
   icon: Icon = CalendarClock,
+  allowPast = false,
+  required = false,
 }: {
   label: string;
   value: string;
   onChange: (v: string) => void;
   icon?: React.ElementType;
+  allowPast?: boolean;
+  required?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement | null>(null);
@@ -378,7 +434,7 @@ function DateField({
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  const parsed = value ? new Date(`${value}T00:00:00`) : null;
+  const parsed = value ? new Date(value + "T00:00:00") : null;
   const [viewYear, setViewYear] = useState(
     parsed ? parsed.getFullYear() : today.getFullYear(),
   );
@@ -421,12 +477,12 @@ function DateField({
     cells.push({ day: next.getDate(), date: next, inMonth: false });
   }
 
-  // Prevent navigating into any month before the current one.
   const isCurrentViewMonth =
     viewYear === today.getFullYear() && viewMonth === today.getMonth();
+  const prevMonthDisabled = !allowPast && isCurrentViewMonth;
 
   const goPrevMonth = () => {
-    if (isCurrentViewMonth) return;
+    if (prevMonthDisabled) return;
     const m = viewMonth - 1;
     if (m < 0) {
       setViewMonth(11);
@@ -446,7 +502,7 @@ function DateField({
   };
 
   const selectDate = (d: Date) => {
-    if (d < today) return;
+    if (!allowPast && d < today) return;
     onChange(toIsoDate(d));
     setOpen(false);
   };
@@ -463,11 +519,15 @@ function DateField({
     <div className="relative" ref={ref}>
       <label className="text-xs font-medium text-gray-500 mb-1 block">
         {label}
+        {required ? <span className="text-red-500 ml-1">*</span> : null}
       </label>
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="relative w-full flex items-center py-2.5 pl-9 pr-4 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-orange-400 bg-white text-left"
+        className={
+          "relative w-full flex items-center py-2.5 pl-9 pr-4 text-sm border rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-orange-400 bg-white text-left " +
+          (required && !value ? "border-red-300" : "border-gray-200")
+        }
       >
         <Icon
           size={13}
@@ -478,7 +538,7 @@ function DateField({
         </span>
       </button>
 
-      {open && (
+      {open ? (
         <div className="absolute z-30 mt-1 w-72 bg-white border border-gray-200 rounded-xl shadow-lg p-3">
           <div className="flex items-center justify-between mb-2 px-1">
             <p className="text-sm font-semibold text-gray-800">
@@ -488,13 +548,8 @@ function DateField({
               <button
                 type="button"
                 onClick={goPrevMonth}
-                disabled={isCurrentViewMonth}
+                disabled={prevMonthDisabled}
                 className="p-1.5 rounded-lg hover:bg-gray-100 disabled:opacity-25 disabled:cursor-not-allowed text-gray-500"
-                title={
-                  isCurrentViewMonth
-                    ? "Past months aren't available"
-                    : "Previous month"
-                }
               >
                 <ChevronLeft size={14} />
               </button>
@@ -521,7 +576,7 @@ function DateField({
 
           <div className="grid grid-cols-7 gap-1">
             {cells.map((cell, idx) => {
-              const isPast = cell.date < today;
+              const isPast = !allowPast && cell.date < today;
               const isToday = cell.date.getTime() === today.getTime();
               const isSelected =
                 parsed && cell.date.getTime() === parsed.getTime();
@@ -531,12 +586,17 @@ function DateField({
                   type="button"
                   disabled={isPast}
                   onClick={() => selectDate(cell.date)}
-                  className={`text-xs h-8 w-8 rounded-lg flex items-center justify-center transition-colors
-                    ${isPast ? "text-gray-300 cursor-not-allowed" : "text-gray-700 hover:bg-orange-50 cursor-pointer"}
-                    ${!cell.inMonth && !isPast ? "text-gray-400" : ""}
-                    ${isSelected ? "bg-orange-500 text-white hover:bg-orange-500" : ""}
-                    ${isToday && !isSelected ? "border border-orange-400" : ""}
-                  `}
+                  className={
+                    "text-xs h-8 w-8 rounded-lg flex items-center justify-center transition-colors " +
+                    (isPast
+                      ? "text-gray-300 cursor-not-allowed"
+                      : "text-gray-700 hover:bg-orange-50 cursor-pointer") +
+                    (!cell.inMonth && !isPast ? " text-gray-400" : "") +
+                    (isSelected
+                      ? " bg-orange-500 text-white hover:bg-orange-500"
+                      : "") +
+                    (isToday && !isSelected ? " border border-orange-400" : "")
+                  }
                 >
                   {cell.day}
                 </button>
@@ -568,7 +628,7 @@ function DateField({
             </button>
           </div>
         </div>
-      )}
+      ) : null}
     </div>
   );
 }
@@ -581,6 +641,7 @@ function SelectField({
   options,
   placeholder = "Select an option",
   disabled = false,
+  required = false,
 }: {
   label: string;
   icon?: React.ElementType;
@@ -589,26 +650,31 @@ function SelectField({
   options: { value: string; label: string }[];
   placeholder?: string;
   disabled?: boolean;
+  required?: boolean;
 }) {
   return (
     <div>
       <label className="text-xs font-medium text-gray-500 mb-1 block">
         {label}
+        {required ? <span className="text-red-500 ml-1">*</span> : null}
       </label>
       <div className="relative">
-        {Icon && (
+        {Icon ? (
           <Icon
             size={13}
             className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
           />
-        )}
+        ) : null}
         <select
           value={value}
           disabled={disabled}
           onChange={(e) => onChange(e.target.value)}
-          className={`w-full py-2.5 pr-9 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-orange-400 bg-white text-gray-800 appearance-none
-            ${disabled ? "bg-gray-50 text-gray-400 cursor-not-allowed" : ""}
-            ${Icon ? "pl-9" : "px-4"}`}
+          className={
+            "w-full py-2.5 pr-9 text-sm border rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-orange-400 bg-white text-gray-800 appearance-none " +
+            (disabled ? "bg-gray-50 text-gray-400 cursor-not-allowed " : "") +
+            (Icon ? "pl-9 " : "px-4 ") +
+            (required && !value ? "border-red-300" : "border-gray-200")
+          }
         >
           <option value="">{placeholder}</option>
           {options.map((opt) => (
@@ -626,10 +692,6 @@ function SelectField({
   );
 }
 
-// A nicer, fully custom single-select dropdown (styled like the Cities
-// multi-select): searchable, shows a checkmark on the selected option, and
-// closes on outside click. Used for fields like Specialization and Visa
-// Type where a plain native <select> feels flat.
 function SearchableSelectField({
   label,
   icon: Icon,
@@ -638,6 +700,7 @@ function SearchableSelectField({
   options,
   placeholder = "Select an option",
   disabled = false,
+  required = false,
 }: {
   label: string;
   icon?: React.ElementType;
@@ -646,6 +709,7 @@ function SearchableSelectField({
   options: { value: string; label: string }[];
   placeholder?: string;
   disabled?: boolean;
+  required?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -671,32 +735,44 @@ function SearchableSelectField({
     <div className="relative" ref={ref}>
       <label className="text-xs font-medium text-gray-500 mb-1 block">
         {label}
+        {required ? <span className="text-red-500 ml-1">*</span> : null}
       </label>
       <button
         type="button"
         disabled={disabled}
         onClick={() => !disabled && setOpen((o) => !o)}
-        className={`relative w-full flex items-center gap-2 py-2.5 pl-9 pr-9 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-orange-400 bg-white text-left transition-colors
-          ${disabled ? "bg-gray-50 text-gray-400 cursor-not-allowed" : "hover:border-orange-300"}`}
+        className={
+          "relative w-full flex items-center gap-2 py-2.5 pl-9 pr-9 text-sm border rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-orange-400 bg-white text-left transition-colors " +
+          (disabled
+            ? "bg-gray-50 text-gray-400 cursor-not-allowed"
+            : "hover:border-orange-300") +
+          " " +
+          (required && !value ? "border-red-300" : "border-gray-200")
+        }
       >
-        {Icon && (
+        {Icon ? (
           <Icon
             size={13}
             className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
           />
-        )}
+        ) : null}
         <span
-          className={`truncate ${selected ? "text-gray-800" : "text-gray-400"}`}
+          className={
+            "truncate " + (selected ? "text-gray-800" : "text-gray-400")
+          }
         >
           {selected ? selected.label : placeholder}
         </span>
         <ChevronDown
           size={13}
-          className={`absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 transition-transform ${open ? "rotate-180" : ""}`}
+          className={
+            "absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 transition-transform " +
+            (open ? "rotate-180" : "")
+          }
         />
       </button>
 
-      {open && !disabled && (
+      {open && !disabled ? (
         <div className="absolute z-30 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden">
           <div className="p-2 border-b border-gray-100">
             <input
@@ -709,11 +785,11 @@ function SearchableSelectField({
             />
           </div>
           <div className="max-h-56 overflow-y-auto py-1">
-            {filtered.length === 0 && (
+            {filtered.length === 0 ? (
               <p className="px-3 py-2 text-xs text-gray-400">
                 No matches found
               </p>
-            )}
+            ) : null}
             {filtered.map((opt) => {
               const isSelected = opt.value === value;
               return (
@@ -725,31 +801,30 @@ function SearchableSelectField({
                     setOpen(false);
                     setQuery("");
                   }}
-                  className={`w-full flex items-center justify-between gap-2 px-3 py-2 text-sm text-left hover:bg-orange-50 transition-colors
-                    ${isSelected ? "text-orange-600 font-medium bg-orange-50/60" : "text-gray-700"}`}
+                  className={
+                    "w-full flex items-center justify-between gap-2 px-3 py-2 text-sm text-left hover:bg-orange-50 transition-colors " +
+                    (isSelected
+                      ? "text-orange-600 font-medium bg-orange-50/60"
+                      : "text-gray-700")
+                  }
                 >
                   <span className="truncate">{opt.label}</span>
-                  {isSelected && (
+                  {isSelected ? (
                     <CheckCircle2
                       size={14}
                       className="text-orange-500 shrink-0"
                     />
-                  )}
+                  ) : null}
                 </button>
               );
             })}
           </div>
         </div>
-      )}
+      ) : null}
     </div>
   );
 }
 
-// Phone field with a flag + country-code dropdown; only the local number
-// (digits only) is stored/shown in the number input, the dialing code is
-// tracked separately. Used for both Telephone and Primary Mobile.
-// `options` now comes from the master-data/countries API (see ProfilePage),
-// instead of a hardcoded list.
 function PhoneField({
   label,
   countryCode,
@@ -758,6 +833,8 @@ function PhoneField({
   onNumberChange,
   options,
   placeholder = "Number only",
+  required = false,
+  error,
 }: {
   label: string;
   countryCode: string;
@@ -766,6 +843,8 @@ function PhoneField({
   onNumberChange: (v: string) => void;
   options: CountryOption[];
   placeholder?: string;
+  required?: boolean;
+  error?: string;
 }) {
   const [open, setOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
@@ -781,12 +860,20 @@ function PhoneField({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  const showError = (required && !number) || !!error;
+
   return (
     <div>
       <label className="text-xs font-medium text-gray-500 mb-1 block">
         {label}
+        {required ? <span className="text-red-500 ml-1">*</span> : null}
       </label>
-      <div className="flex items-stretch border border-gray-200 rounded-xl overflow-visible focus-within:ring-2 focus-within:ring-orange-200 focus-within:border-orange-400 bg-white relative">
+      <div
+        className={
+          "flex items-stretch border rounded-xl overflow-visible focus-within:ring-2 focus-within:ring-orange-200 focus-within:border-orange-400 bg-white relative " +
+          (showError ? "border-red-300" : "border-gray-200")
+        }
+      >
         <div className="relative shrink-0" ref={menuRef}>
           <button
             type="button"
@@ -797,11 +884,11 @@ function PhoneField({
             <span className="text-gray-700 font-medium">{selected?.code}</span>
             <ChevronDown size={12} className="text-gray-400" />
           </button>
-          {open && (
+          {open ? (
             <div className="absolute z-30 top-full left-0 mt-1 w-64 bg-white border border-gray-200 rounded-xl shadow-lg max-h-64 overflow-y-auto py-1">
               {options.map((c) => (
                 <button
-                  key={c.id} // ✅ FIX: use unique id instead of code
+                  key={c.id}
                   type="button"
                   onClick={() => {
                     onCountryCodeChange(c.code);
@@ -812,13 +899,13 @@ function PhoneField({
                   <span className="text-lg leading-none">{c.flag}</span>
                   <span className="flex-1 text-gray-700">{c.country}</span>
                   <span className="text-gray-400">{c.code}</span>
-                  {c.code === countryCode && (
+                  {c.code === countryCode ? (
                     <CheckCircle2 size={14} className="text-orange-500" />
-                  )}
+                  ) : null}
                 </button>
               ))}
             </div>
-          )}
+          ) : null}
         </div>
         <input
           type="tel"
@@ -826,11 +913,14 @@ function PhoneField({
           value={number}
           placeholder={placeholder}
           onChange={(e) =>
-            onNumberChange(sanitizeDigitsInput(e.target.value).slice(0, 15))
+            onNumberChange(
+              sanitizeDigitsInput(e.target.value).slice(0, PHONE_MAX_DIGITS),
+            )
           }
           className="flex-1 min-w-0 py-2.5 px-3 text-sm rounded-r-xl focus:outline-none bg-white text-gray-800"
         />
       </div>
+      {error ? <p className="text-xs text-red-500 mt-1">{error}</p> : null}
     </div>
   );
 }
@@ -841,40 +931,86 @@ function FileUploadField({
   onUploaded,
   folder,
   maxSizeMb = 3,
+  readOnly = false,
 }: {
   label: string;
   fileUrl?: string | null;
   onUploaded: (result: { url: string; key: string }) => void;
   folder: string;
   maxSizeMb?: number;
+  readOnly?: boolean;
 }) {
   const [uploading, setUploading] = useState(false);
   const [sizeError, setSizeError] = useState("");
-  const inputId = `upload-${folder}-${label.replace(/\s+/g, "-").toLowerCase()}`;
+
+  const inputId =
+    "upload-" + folder + "-" + label.replace(/\s+/g, "-").toLowerCase();
 
   const handleFile = async (file: File) => {
     setSizeError("");
+
     const maxBytes = maxSizeMb * 1024 * 1024;
+
     if (file.size > maxBytes) {
-      setSizeError(`File must be ${maxSizeMb}MB or smaller.`);
+      setSizeError("File must be " + maxSizeMb + "MB or smaller.");
       return;
     }
+
     try {
       setUploading(true);
+
       const result = await vendorApi.uploads.image(file, folder);
-      onUploaded({ url: result.url, key: result.key });
-    } catch {
-      // upload failed silently; parent can show a toast if desired
+
+      onUploaded({
+        url: result.url,
+        key: result.key,
+      });
+    } catch (error) {
+      console.error("File upload failed:", error);
+      setSizeError("File upload failed. Please try again.");
     } finally {
       setUploading(false);
     }
   };
+
+  if (readOnly) {
+    return (
+      <div>
+        <label className="text-xs font-medium text-gray-500 mb-1 block">
+          {label}
+        </label>
+        <div className="flex items-center gap-2">
+          <div className="flex-1 flex items-center gap-2 px-4 py-2.5 text-sm border border-gray-100 rounded-xl bg-gray-50 text-gray-400 cursor-not-allowed">
+            <Lock size={13} className="text-gray-300 shrink-0" />
+            <span className="truncate">
+              {fileUrl ? "File uploaded by admin" : "No file uploaded"}
+            </span>
+          </div>
+          {fileUrl ? (
+            <a
+              href={fileUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="p-2.5 rounded-xl border border-gray-200 text-gray-400 hover:text-orange-500 hover:border-orange-300 transition shrink-0"
+              title="View uploaded file"
+            >
+              <ExternalLink size={14} />
+            </a>
+          ) : null}
+        </div>
+        <p className="text-xs text-gray-400 mt-1">
+          This document is managed by the admin team. You can only view it here.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div>
       <label className="text-xs font-medium text-gray-500 mb-1 block">
         {label}
       </label>
+
       <div className="flex items-center gap-2">
         <label
           htmlFor={inputId}
@@ -885,14 +1021,16 @@ function FileUploadField({
           ) : (
             <Upload size={14} className="text-gray-400" />
           )}
+
           <span className="truncate">
             {uploading
               ? "Uploading..."
               : fileUrl
                 ? "Replace file"
-                : `Upload file (PDF, JPG, PNG · max ${maxSizeMb}MB)`}
+                : "Upload file (PDF, JPG, PNG, max " + maxSizeMb + "MB)"}
           </span>
         </label>
+
         <input
           id={inputId}
           type="file"
@@ -900,11 +1038,16 @@ function FileUploadField({
           className="hidden"
           onChange={(e) => {
             const file = e.target.files?.[0];
-            if (file) void handleFile(file);
+
+            if (file) {
+              void handleFile(file);
+            }
+
             e.target.value = "";
           }}
         />
-        {fileUrl && (
+
+        {fileUrl ? (
           <a
             href={fileUrl}
             target="_blank"
@@ -914,9 +1057,13 @@ function FileUploadField({
           >
             <ExternalLink size={14} />
           </a>
-        )}
+        ) : null}
       </div>
-      {sizeError && <p className="text-xs text-red-500 mt-1">{sizeError}</p>}
+
+      {sizeError ? (
+        <p className="text-xs text-red-500 mt-1">{sizeError}</p>
+      ) : null}
+
       <p className="text-xs text-gray-400 mt-1">
         {fileUrl
           ? "File uploaded. The link updates once you replace it."
@@ -1019,16 +1166,16 @@ function ChangePasswordCard() {
   return (
     <SectionCard title="Change Password" icon={Lock}>
       <div className="space-y-4">
-        {success && (
+        {success ? (
           <div className="flex items-center gap-2 bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-xl text-sm">
             <CheckCircle2 size={15} /> {success}
           </div>
-        )}
-        {error && (
+        ) : null}
+        {error ? (
           <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm">
             <AlertTriangle size={15} /> {error}
           </div>
-        )}
+        ) : null}
         <div className="grid sm:grid-cols-2 gap-4">
           <PasswordField
             label="Current Password"
@@ -1068,7 +1215,6 @@ function ChangePasswordCard() {
   );
 }
 
-/* ─── main page ────────────────────────────────────────────── */
 export default function ProfilePage() {
   const router = useRouter();
   const [profile, setProfile] = useState<VendorProfile | null>(null);
@@ -1098,14 +1244,12 @@ export default function ProfilePage() {
   const avatarInputRef = useRef<HTMLInputElement | null>(null);
   const citiesMenuRef = useRef<HTMLDivElement | null>(null);
 
-  /* ── Service Cities: Country → State filters for the multi-select ── */
   const [serviceCountryId, setServiceCountryId] = useState<string>("");
   const [serviceStateId, setServiceStateId] = useState<string>("");
   const [serviceCityFilter, setServiceCityFilter] = useState<string>("");
   const [serviceStates, setServiceStates] = useState<StateMasterRow[]>([]);
   const [serviceStatesLoading, setServiceStatesLoading] = useState(false);
 
-  /* ── Business Location: Country → State → City cascading selects ── */
   const [locationCountries, setLocationCountries] = useState<
     { id: number; name: string }[]
   >([]);
@@ -1119,22 +1263,25 @@ export default function ProfilePage() {
   const [locCitiesLoading, setLocCitiesLoading] = useState(false);
   const [locationPrefilled, setLocationPrefilled] = useState(false);
 
-  /* ── Vendor Address: Country → State → City cascading selects ──
-     Same pattern as Business Location above, but writes to profile.address
-     instead of profile.businessLocation. */
   const [addressStates, setAddressStates] = useState<StateMasterRow[]>([]);
   const [addressCities, setAddressCities] = useState<CityMasterRow[]>([]);
   const [addressCountryId, setAddressCountryId] = useState<string>("");
   const [addressStateId, setAddressStateId] = useState<string>("");
   const [addressCityName, setAddressCityName] = useState<string>("");
   const [addressStatesLoading, setAddressStatesLoading] = useState(false);
-  const [addressStatesUnavailable, setAddressStatesUnavailable] = useState(false);
+  const [addressStatesUnavailable, setAddressStatesUnavailable] =
+    useState(false);
   const [addressCitiesLoading, setAddressCitiesLoading] = useState(false);
   const [addressPrefilled, setAddressPrefilled] = useState(false);
+
+  const [validationErrors, setValidationErrors] = useState<
+    Record<string, string>
+  >({});
 
   useEffect(() => {
     setVisibleCityCount(10);
   }, [citySearchQuery, citiesMenuOpen]);
+
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
       if (
@@ -1158,14 +1305,26 @@ export default function ProfilePage() {
   useEffect(() => {
     vendorApi.profile
       .get<VendorProfile>()
-      .then((data) =>
+      .then((data) => {
+        const code =
+          data.phoneCountryCode ||
+          data.telephoneCountryCode ||
+          data.primaryMobileCountryCode ||
+          "+971";
+
+        if (data.primaryEmail) {
+          data.email = data.primaryEmail;
+        }
+
         setProfile({
           ...data,
-          telephoneCountryCode: data.telephoneCountryCode || "+971",
-          primaryMobileCountryCode: data.primaryMobileCountryCode || "+971",
-          phoneCountryCode: data.phoneCountryCode || "+971", // ✅ Added for Phone Number
-        }),
-      )
+          phoneCountryCode: code,
+          telephoneCountryCode: code,
+          primaryMobileCountryCode: code,
+          telephone: stripCountryCode(data.telephone, code),
+          primaryMobile: stripCountryCode(data.primaryMobile, code),
+        });
+      })
       .catch((cause: unknown) =>
         setError(
           cause instanceof Error ? cause.message : "Unable to load profile",
@@ -1192,8 +1351,6 @@ export default function ProfilePage() {
             flag: c.flag,
           }));
         if (mapped.length) setCountryCodes(mapped);
-
-        // Also feed the Business Location country dropdown
         setLocationCountries(active.map((c) => ({ id: c.id, name: c.name })));
       })
       .catch((cause: unknown) =>
@@ -1211,15 +1368,6 @@ export default function ProfilePage() {
         console.error("Unable to load visa types:", cause),
       );
 
-    // Load the full cities list once for the "Service Cities" multi-select.
-    //
-    // Strategy: try the "all cities" endpoint first. If it comes back empty
-    // (some backends only support filtering by country), fall back to
-    // fetching per-country. That per-country fallback uses
-    // Promise.allSettled rather than Promise.all — with allSettled, if one
-    // country's request is slow, fails, or never resolves, the others can
-    // still come back and populate the list instead of the whole thing
-    // hanging on "Loading cities..." forever.
     (async () => {
       setCitiesLoading(true);
       try {
@@ -1274,7 +1422,6 @@ export default function ProfilePage() {
     }
   }, [profile?.firstName, profile?.lastName]);
 
-  // Load states whenever the selected country changes.
   useEffect(() => {
     if (!selectedCountryId) {
       setLocationStates([]);
@@ -1291,16 +1438,12 @@ export default function ProfilePage() {
         ),
       )
       .catch(() => {
-        // The states endpoint may not be available on the backend yet
-        // (e.g. returns 502/404). Don't spam the console/dev overlay —
-        // just fall back to a Country -> City flow without State.
         setLocationStates([]);
         setStatesUnavailable(true);
       })
       .finally(() => setStatesLoading(false));
   }, [selectedCountryId]);
 
-  // Load cities whenever the selected country/state changes.
   useEffect(() => {
     if (!selectedCountryId) {
       setLocationCities([]);
@@ -1312,22 +1455,20 @@ export default function ProfilePage() {
         Number(selectedCountryId),
         selectedStateId || undefined,
       )
-      .then((data) => setLocationCities(data.filter((c) => c.status === "Active")))
+      .then((data) =>
+        setLocationCities(data.filter((c) => c.status === "Active")),
+      )
       .catch(() => setLocationCities([]))
       .finally(() => setLocCitiesLoading(false));
   }, [selectedCountryId, selectedStateId]);
 
-  // Try to preselect Country/State/City once when an existing profile already
-  // has a businessLocation saved, so returning users see it filled in.
-  // Supports both the new "Country, State, City" format and the old
-  // flat "City" only format (for records saved before this change).
   useEffect(() => {
     if (locationPrefilled) return;
     if (!profile?.businessLocation || locationCountries.length === 0) return;
     setLocationPrefilled(true);
 
     const parts = profile.businessLocation.split(",").map((p) => p.trim());
-    const cityGuess = parts[parts.length - 1]; // last part is always the city
+    const cityGuess = parts[parts.length - 1];
     const countryGuess = parts.length >= 3 ? parts[0] : null;
 
     (async () => {
@@ -1352,17 +1493,14 @@ export default function ProfilePage() {
             setSelectedCountryId(String(country.id));
             setSelectedStateId(match.stateId ? String(match.stateId) : "");
             setSelectedCityName(match.name);
+            update("city", match.name);
             return;
           }
-        } catch {
-          // ignore and keep trying other countries
-        }
+        } catch {}
       }
     })();
   }, [profile?.businessLocation, locationCountries, locationPrefilled]);
 
-  // ── Vendor Address: same three effects as Business Location, but keyed
-  // off addressCountryId / addressStateId and writing to profile.address.
   useEffect(() => {
     if (!addressCountryId) {
       setAddressStates([]);
@@ -1374,7 +1512,9 @@ export default function ProfilePage() {
     vendorApi.masterData
       .states<StateMasterRow[]>(Number(addressCountryId))
       .then((data) =>
-        setAddressStates(data.filter((s) => !s.status || s.status === "Active")),
+        setAddressStates(
+          data.filter((s) => !s.status || s.status === "Active"),
+        ),
       )
       .catch(() => {
         setAddressStates([]);
@@ -1394,13 +1534,13 @@ export default function ProfilePage() {
         Number(addressCountryId),
         addressStateId || undefined,
       )
-      .then((data) => setAddressCities(data.filter((c) => c.status === "Active")))
+      .then((data) =>
+        setAddressCities(data.filter((c) => c.status === "Active")),
+      )
       .catch(() => setAddressCities([]))
       .finally(() => setAddressCitiesLoading(false));
   }, [addressCountryId, addressStateId]);
 
-  // Preselect Country/State/City once when an existing profile already has
-  // an address saved in "Country, State, City" format.
   useEffect(() => {
     if (addressPrefilled) return;
     if (!profile?.address || locationCountries.length === 0) return;
@@ -1434,14 +1574,11 @@ export default function ProfilePage() {
             setAddressCityName(match.name);
             return;
           }
-        } catch {
-          // ignore and keep trying other countries
-        }
+        } catch {}
       }
     })();
   }, [profile?.address, locationCountries, addressPrefilled]);
 
-  // Load states for the Service Cities Country filter whenever it changes.
   useEffect(() => {
     if (!serviceCountryId) {
       setServiceStates([]);
@@ -1455,14 +1592,14 @@ export default function ProfilePage() {
     vendorApi.masterData
       .states<StateMasterRow[]>(Number(serviceCountryId))
       .then((data) =>
-        setServiceStates(data.filter((s) => !s.status || s.status === "Active")),
+        setServiceStates(
+          data.filter((s) => !s.status || s.status === "Active"),
+        ),
       )
       .catch(() => setServiceStates([]))
       .finally(() => setServiceStatesLoading(false));
   }, [serviceCountryId]);
 
-  // Reset the city filter whenever the state filter changes, since the
-  // previously chosen city may no longer belong to the new state.
   useEffect(() => {
     setServiceCityFilter("");
   }, [serviceStateId]);
@@ -1471,6 +1608,31 @@ export default function ProfilePage() {
     key: K,
     value: VendorProfile[K],
   ) => setProfile((cur) => (cur ? { ...cur, [key]: value } : cur));
+
+  const setSharedCountryCode = (code: string) => {
+    setProfile((cur) =>
+      cur
+        ? {
+            ...cur,
+            phoneCountryCode: code,
+            telephoneCountryCode: code,
+            primaryMobileCountryCode: code,
+          }
+        : cur,
+    );
+  };
+
+  const setPersonalContactNumber = (value: string) => {
+    setProfile((cur) =>
+      cur
+        ? {
+            ...cur,
+            telephone: value,
+            primaryMobile: value,
+          }
+        : cur,
+    );
+  };
 
   const toggleCity = (cityName: string) => {
     if (!profile) return;
@@ -1495,10 +1657,6 @@ export default function ProfilePage() {
     return true;
   });
 
-  // City options for the Service Cities filter dropdown, scoped to the
-  // currently chosen country/state filters (mirrors filteredCities but
-  // without the city filter itself, so the dropdown always shows every
-  // city available for that country/state).
   const serviceCityOptions = allCities.filter((city) => {
     if (serviceCountryId && String(city.countryId) !== serviceCountryId)
       return false;
@@ -1507,27 +1665,116 @@ export default function ProfilePage() {
     return true;
   });
 
+  const validateRequiredFields = () => {
+    const errors: Record<string, string> = {};
+    const isFreelancerCheck = profile?.vendorType === "FREELANCER";
+
+    if (!profile?.companyName?.trim()) {
+      errors.companyName = "Business Name is required";
+    }
+    if (!profile?.contactPerson?.trim()) {
+      errors.contactPerson = "Contact Person is required";
+    }
+    if (!profile?.primaryEmail?.trim()) {
+      errors.primaryEmail = "Email Address is required";
+    }
+    if (!profile?.phone?.trim()) {
+      errors.phone = "Phone Number is required";
+    } else if (
+      profile.phone.length < PHONE_MIN_DIGITS ||
+      profile.phone.length > PHONE_MAX_DIGITS
+    ) {
+      errors.phone =
+        "Phone Number must be " +
+        PHONE_MIN_DIGITS +
+        "-" +
+        PHONE_MAX_DIGITS +
+        " digits";
+    }
+    if (
+      profile?.telephone &&
+      (profile.telephone.length < PHONE_MIN_DIGITS ||
+        profile.telephone.length > PHONE_MAX_DIGITS)
+    ) {
+      errors.telephone =
+        "Number must be " +
+        PHONE_MIN_DIGITS +
+        "-" +
+        PHONE_MAX_DIGITS +
+        " digits";
+    }
+    if (!profile?.cities || profile.cities.length === 0) {
+      errors.cities = "At least one Service City is required";
+    }
+    if (!profile?.capacityPerDay || profile.capacityPerDay < 1) {
+      errors.capacityPerDay = "Daily Booking Capacity is required";
+    }
+
+    const positiveNumericFields: Array<{
+      key: keyof VendorProfile;
+      label: string;
+    }> = isFreelancerCheck
+      ? [
+          { key: "hourlyRate", label: "Hourly / Monthly Rate" },
+          { key: "availableHoursPerWeek", label: "Available Hours per Week" },
+          { key: "projectRate", label: "Project Rate" },
+        ]
+      : [
+          { key: "basicSalary", label: "Basic Salary" },
+          { key: "housingAllowance", label: "Housing Allowance" },
+          { key: "transportationAllowance", label: "Transportation Allowance" },
+          { key: "otherAllowances", label: "Other Allowances" },
+          { key: "annualLeaves", label: "Annual Leaves" },
+          { key: "workingHours", label: "Working Hours per Week" },
+        ];
+
+    positiveNumericFields.forEach(({ key, label }) => {
+      const value = profile?.[key] as number | null | undefined;
+      if (value !== null && value !== undefined && value <= 0) {
+        errors[key as string] = label + " must be greater than 0";
+      }
+    });
+
+    setValidationErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
   const handleSave = async () => {
     if (!profile) return;
+
+    if (!validateRequiredFields()) {
+      setError("Please fill in all required fields marked with *");
+      return;
+    }
+
     setSaving(true);
     setError("");
     setMessage("");
     try {
+      const validContractTypes = ["hourly", "monthly", "project"];
+      let contractTypeValue = profile.contractType ?? "";
+      if (
+        !contractTypeValue ||
+        !validContractTypes.includes(contractTypeValue)
+      ) {
+        contractTypeValue = "hourly";
+      }
+
+      const sharedCode = profile.phoneCountryCode ?? "+971";
+
       const updated = await vendorApi.profile.update<VendorProfile>({
         companyName: profile.companyName,
         contactPerson: profile.contactPerson,
-        email: profile.email,
+        primaryEmail: profile.primaryEmail ?? "",
+        email: profile.primaryEmail ?? "",
         phone: profile.phone,
-        phoneCountryCode: profile.phoneCountryCode ?? "+971", // ✅ Added for Phone Number
+        countryCode: sharedCode,
         vendorProfileImage: profile.vendorProfileImage ?? "",
         firstName: profile.firstName ?? "",
         lastName: profile.lastName ?? "",
         userName: profile.userName ?? "",
-        primaryEmail: profile.primaryEmail ?? "",
-        telephone: profile.telephone ?? "",
-        telephoneCountryCode: profile.telephoneCountryCode ?? "+971",
-        primaryMobile: profile.primaryMobile ?? "",
-        primaryMobileCountryCode: profile.primaryMobileCountryCode ?? "+971",
+        telephone: sharedCode + (profile.telephone ?? ""),
+        primaryMobile: sharedCode + (profile.telephone ?? ""),
         about: profile.about ?? "",
         businessLocation: profile.businessLocation ?? "",
         address: profile.address ?? "",
@@ -1538,13 +1785,15 @@ export default function ProfilePage() {
         tradeLicenseExpiry: profile.tradeLicenseExpiry ?? "",
         tradeLicenseFileUrl: profile.tradeLicenseFileUrl ?? "",
         tradeLicenseFileKey: profile.tradeLicenseFileKey ?? "",
+        tradeLicenseFile: {},
         passportExpiry: profile.passportExpiry ?? "",
         passportFileUrl: profile.passportFileUrl ?? "",
         passportFileKey: profile.passportFileKey ?? "",
+        passportFile: {},
         emiratesIdExpiry: profile.emiratesIdExpiry ?? "",
         vatNumber: profile.vatNumber ?? "",
         visaType: profile.visaType ?? "",
-        contractType: profile.contractType ?? "",
+        contractType: contractTypeValue,
         hourlyRate: profile.hourlyRate ?? undefined,
         availableHoursPerWeek: profile.availableHoursPerWeek ?? undefined,
         projectRate: profile.projectRate ?? undefined,
@@ -1563,22 +1812,33 @@ export default function ProfilePage() {
           : 0,
         agreementFileUrl: profile.agreementFileUrl ?? "",
         agreementFileKey: profile.agreementFileKey ?? "",
+        agreementFile: {},
         bankName: profile.bankName ?? "",
         accountFullName: profile.accountFullName ?? "",
         ibanNo: profile.ibanNo ?? "",
         accountNumber: profile.accountNumber ?? "",
         swift: profile.swift ?? "",
         branchAddress: profile.branchAddress ?? "",
+        // Dubai address fields
+        addressLine1: profile.addressLine1 ?? "",
+        addressLine2: profile.addressLine2 ?? "",
+        landmark: profile.landmark ?? "",
+        poBox: profile.poBox ?? "",
       });
+
+      const code = updated.phoneCountryCode || sharedCode;
+
       setProfile({
         ...updated,
-        telephoneCountryCode: updated.telephoneCountryCode || "+971",
-        primaryMobileCountryCode: updated.primaryMobileCountryCode || "+971",
-        phoneCountryCode: updated.phoneCountryCode || "+971", // ✅ Added for Phone Number
+        phoneCountryCode: code,
+        telephoneCountryCode: code,
+        primaryMobileCountryCode: code,
+        telephone: stripCountryCode(updated.telephone, code),
+        primaryMobile: stripCountryCode(updated.primaryMobile, code),
       });
       updateSessionUser({
         companyName: updated.companyName,
-        email: updated.email,
+        email: updated.primaryEmail ?? "",
         phone: updated.phone,
         image: updated.vendorProfileImage,
         updatedProfile: true,
@@ -1614,11 +1874,16 @@ export default function ProfilePage() {
   const completionChecks = [
     { label: "Business name", done: hasValue(profile.companyName) },
     { label: "Contact person", done: hasValue(profile.contactPerson) },
-    { label: "Login email", done: hasValue(profile.email) },
+    { label: "Email", done: hasValue(profile.primaryEmail) },
     { label: "Phone number", done: hasValue(profile.phone) },
     { label: "Description", done: hasValue(profile.about) },
     { label: "Business location", done: hasValue(profile.businessLocation) },
     { label: "Address", done: hasValue(profile.address) },
+    { label: "Address Line 1", done: hasValue(profile.addressLine1) },
+    { label: "Address Line 2", done: hasValue(profile.addressLine2) },
+    { label: "Landmark", done: hasValue(profile.landmark) },
+    { label: "City", done: hasValue(profile.city) },
+    { label: "PO Box", done: hasValue(profile.poBox) },
     { label: "Specialization", done: hasValue(profile.specialization) },
     { label: "Service cities", done: hasValue(profile.cities) },
     ...(isFreelancer
@@ -1650,7 +1915,6 @@ export default function ProfilePage() {
 
   return (
     <div className="space-y-6 max-w-4xl pb-10">
-      {/* ── Header ── */}
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Profile & Settings</h1>
         <p className="text-sm text-gray-500 mt-1">
@@ -1658,7 +1922,6 @@ export default function ProfilePage() {
         </p>
       </div>
 
-      {/* ── Alerts ── */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-4">
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
@@ -1683,10 +1946,10 @@ export default function ProfilePage() {
         <div className="h-3 rounded-full bg-gray-100 overflow-hidden">
           <div
             className="h-full rounded-full bg-gradient-to-r from-orange-400 to-orange-500 transition-all duration-300"
-            style={{ width: `${completionPercent}%` }}
+            style={{ width: completionPercent + "%" }}
           />
         </div>
-        {missingFields.length > 0 && (
+        {missingFields.length > 0 ? (
           <div>
             <p className="text-xs font-medium text-gray-600 mb-2">
               Still missing
@@ -1702,27 +1965,26 @@ export default function ProfilePage() {
               ))}
             </div>
           </div>
-        )}
-        {completionPercent === 100 && (
+        ) : null}
+        {completionPercent === 100 ? (
           <div className="flex items-center gap-2 text-sm text-green-700">
             <CheckCircle2 size={16} />
             Your profile is fully completed.
           </div>
-        )}
+        ) : null}
       </div>
 
-      {message && (
+      {message ? (
         <div className="bg-green-50 border border-green-200 rounded-xl p-4 text-green-800 text-sm flex items-center gap-2">
           <Shield size={15} /> {message}
         </div>
-      )}
-      {error && (
+      ) : null}
+      {error ? (
         <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-red-700 text-sm">
           {error}
         </div>
-      )}
+      ) : null}
 
-      {/* ── Avatar card ── */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex items-center gap-4">
         <div className="relative shrink-0" ref={avatarMenuRef}>
           <button
@@ -1754,9 +2016,9 @@ export default function ProfilePage() {
             </div>
           </button>
 
-          {avatarMenuOpen && (
+          {avatarMenuOpen ? (
             <div className="absolute z-20 top-full left-0 mt-2 w-40 bg-white rounded-xl border border-gray-100 shadow-lg py-1.5 overflow-hidden">
-              {profile.vendorProfileImage && (
+              {profile.vendorProfileImage ? (
                 <button
                   type="button"
                   onClick={() => {
@@ -1767,7 +2029,7 @@ export default function ProfilePage() {
                 >
                   <Eye size={14} className="text-gray-400" /> View
                 </button>
-              )}
+              ) : null}
               <button
                 type="button"
                 onClick={() => {
@@ -1779,7 +2041,7 @@ export default function ProfilePage() {
                 <RefreshCw size={14} className="text-gray-400" />
                 {profile.vendorProfileImage ? "Replace" : "Upload"}
               </button>
-              {profile.vendorProfileImage && (
+              {profile.vendorProfileImage ? (
                 <button
                   type="button"
                   onClick={() => {
@@ -1790,9 +2052,9 @@ export default function ProfilePage() {
                 >
                   <Trash2 size={14} /> Remove
                 </button>
-              )}
+              ) : null}
             </div>
-          )}
+          ) : null}
         </div>
         <input
           ref={avatarInputRef}
@@ -1808,7 +2070,6 @@ export default function ProfilePage() {
               const result = await vendorApi.uploads.image(file, "vendors");
               update("vendorProfileImage", result.url);
             } catch {
-              // ignore upload failure, keep previous image
             } finally {
               setUploadingAvatar(false);
             }
@@ -1822,42 +2083,48 @@ export default function ProfilePage() {
             {[profile.firstName, profile.lastName].filter(Boolean).join(" ") ||
               "—"}
           </p>
-          <p className="text-xs text-gray-400 truncate">{profile.email}</p>
+          <p className="text-xs text-gray-400 truncate">
+            {profile.primaryEmail}
+          </p>
           <div className="flex items-center gap-2 mt-1.5">
             <span
-              className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full
-              ${profile.status === "APPROVED" ? "bg-green-50 text-green-700" : "bg-yellow-50 text-yellow-700"}`}
+              className={
+                "inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full " +
+                (profile.status === "APPROVED"
+                  ? "bg-green-50 text-green-700"
+                  : "bg-yellow-50 text-yellow-700")
+              }
             >
               <BadgeCheck size={11} />
               {profile.status.replaceAll("_", " ")}
             </span>
-            {profile.vendorType && (
+           {profile.vendorType ? (
               <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full bg-blue-50 text-blue-700">
                 <Building2 size={11} />
-                {profile.vendorType
-                  .replaceAll("_", " ")
-                  .toLowerCase()
-                  .replace(/^\w/, (c) => c.toUpperCase())}
+                {profile.vendorType === "FREELANCER" 
+                  ? "Professional" 
+                  : "Service Provider"}
               </span>
-            )}
+            ) : null}
           </div>
         </div>
-        {profile.planDetails && (
+        {profile.planDetails ? (
           <div className="ml-auto text-right shrink-0">
             <p className="text-xs font-semibold text-orange-600">
               {profile.planDetails}
             </p>
             <p
-              className={`text-xs mt-0.5 ${expired ? "text-red-500" : "text-gray-400"}`}
+              className={
+                "text-xs mt-0.5 " + (expired ? "text-red-500" : "text-gray-400")
+              }
             >
               {expired ? "Expired" : "Valid until"}{" "}
               {formatDate(profile.planExpiry)}
             </p>
           </div>
-        )}
+        ) : null}
       </div>
 
-      {/* ── 1. Personal Information ── */}
       <SectionCard title="Personal Information" icon={User} defaultOpen>
         <div className="grid sm:grid-cols-2 gap-4">
           <NameField
@@ -1871,33 +2138,30 @@ export default function ProfilePage() {
             onChange={(v) => update("lastName", v)}
           />
           <Field
-            label="Primary Email"
+            label="Email Address"
             value={profile.primaryEmail ?? ""}
-            onChange={(v) => update("primaryEmail", v)}
+            onChange={(v) => {
+              update("primaryEmail", v);
+              update("email", v);
+            }}
             type="email"
             icon={Mail}
             readOnly
+            required
+            error={validationErrors.primaryEmail}
           />
           <PhoneField
-            label="Telephone"
-            countryCode={profile.telephoneCountryCode ?? "+971"}
+            label="Contact Number"
+            countryCode={profile.phoneCountryCode ?? "+971"}
             number={profile.telephone ?? ""}
-            onCountryCodeChange={(v) => update("telephoneCountryCode", v)}
-            onNumberChange={(v) => update("telephone", v)}
+            onCountryCodeChange={setSharedCountryCode}
+            onNumberChange={setPersonalContactNumber}
             options={countryCodes}
-          />
-          <PhoneField
-            label="Primary Mobile"
-            countryCode={profile.primaryMobileCountryCode ?? "+971"}
-            number={profile.primaryMobile ?? ""}
-            onCountryCodeChange={(v) => update("primaryMobileCountryCode", v)}
-            onNumberChange={(v) => update("primaryMobile", v)}
-            options={countryCodes}
+            error={validationErrors.telephone}
           />
         </div>
       </SectionCard>
 
-      {/* ── 2. Business Information ── */}
       <SectionCard title="Business Information" icon={Building2}>
         <div className="grid sm:grid-cols-2 gap-4">
           <Field
@@ -1905,32 +2169,27 @@ export default function ProfilePage() {
             value={profile.companyName}
             onChange={(v) => update("companyName", v)}
             icon={Building2}
+            required
+            error={validationErrors.companyName}
           />
           <Field
             label="Contact Person"
             value={profile.contactPerson}
             onChange={(v) => update("contactPerson", v)}
+            required
+            error={validationErrors.contactPerson}
           />
-          <Field
-            label="Email Address"
-            value={profile.email}
-            onChange={(v) => update("email", v)}
-            icon={Mail}
-            type="email"
-            readOnly
-          />
-
-          {/* ✅ Replaced regular Field with PhoneField for Phone Number */}
           <PhoneField
             label="Phone Number"
             countryCode={profile.phoneCountryCode ?? "+971"}
             number={profile.phone ?? ""}
-            onCountryCodeChange={(v) => update("phoneCountryCode", v)}
+            onCountryCodeChange={setSharedCountryCode}
             onNumberChange={(v) => update("phone", v)}
             options={countryCodes}
             placeholder="Phone number"
+            required
+            error={validationErrors.phone}
           />
-
           <SearchableSelectField
             label="Specialization"
             value={
@@ -1947,220 +2206,145 @@ export default function ProfilePage() {
             placeholder="Select category"
           />
 
-          {/* ── Business Location: Country → State → City (searchable) ── */}
-          <div className="sm:col-span-2 grid sm:grid-cols-3 gap-4">
-            <SearchableSelectField
-              label="Country"
-              icon={Globe}
-              value={selectedCountryId}
-              onChange={(v) => {
-                setSelectedCountryId(v);
-                setSelectedStateId("");
-                setSelectedCityName("");
-                update("businessLocation", "");
-              }}
-              options={locationCountries.map((c) => ({
-                value: String(c.id),
-                label: c.name,
-              }))}
-              placeholder="Search country..."
-            />
-            <SearchableSelectField
-              label="State"
-              icon={MapPin}
-              value={selectedStateId}
-              onChange={(v) => {
-                setSelectedStateId(v);
-                setSelectedCityName("");
-                update("businessLocation", "");
-              }}
-              options={locationStates.map((s) => ({
-                value: String(s.id),
-                label: s.name,
-              }))}
-              placeholder={
-                !selectedCountryId
-                  ? "Select country first"
-                  : statesLoading
-                    ? "Loading..."
-                    : statesUnavailable
-                      ? "State list unavailable"
-                      : locationStates.length === 0
-                        ? "No states found"
-                        : "Search state..."
-              }
-              disabled={!selectedCountryId || statesLoading || statesUnavailable}
-            />
-            <SearchableSelectField
-              label="City (Business Location)"
-              icon={MapPin}
-              value={selectedCityName}
-              onChange={(cityName) => {
-                setSelectedCityName(cityName);
-                const countryName =
-                  locationCountries.find(
-                    (c) => String(c.id) === selectedCountryId,
-                  )?.name ?? "";
-                const stateName =
-                  locationStates.find((s) => String(s.id) === selectedStateId)
-                    ?.name ?? "";
-                update(
-                  "businessLocation",
-                  [countryName, stateName, cityName]
-                    .filter(Boolean)
-                    .join(", "),
-                );
-              }}
-              options={locationCities.map((c) => ({
-                value: c.name,
-                label: c.name,
-              }))}
-              placeholder={
-                !selectedCountryId
-                  ? "Select country first"
-                  : locCitiesLoading
-                    ? "Loading..."
-                    : locationCities.length === 0
-                      ? "No cities found"
-                      : "Search city..."
-              }
-              disabled={!selectedCountryId || locCitiesLoading}
-            />
-          </div>
-
-          {/* ── Vendor Address: Country → State → City (searchable) ──
-              Same pattern as Business Location above, writes to profile.address. */}
+          {/* Business Location (Country/State/City + UAE Address) — single combined card */}
           <div className="sm:col-span-2">
-            <p className="text-xs font-semibold text-gray-600 mb-2">
-              Vendor Address
-            </p>
-            <div className="grid sm:grid-cols-3 gap-4">
-              <SearchableSelectField
-                label="Country"
-                icon={Globe}
-                value={addressCountryId}
-                onChange={(v) => {
-                  setAddressCountryId(v);
-                  setAddressStateId("");
-                  setAddressCityName("");
-                  update("address", "");
-                }}
-                options={locationCountries.map((c) => ({
-                  value: String(c.id),
-                  label: c.name,
-                }))}
-                placeholder="Search country..."
-              />
-              <SearchableSelectField
-                label="State"
-                icon={MapPin}
-                value={addressStateId}
-                onChange={(v) => {
-                  setAddressStateId(v);
-                  setAddressCityName("");
-                  update("address", "");
-                }}
-                options={addressStates.map((s) => ({
-                  value: String(s.id),
-                  label: s.name,
-                }))}
-                placeholder={
-                  !addressCountryId
-                    ? "Select country first"
-                    : addressStatesLoading
-                      ? "Loading..."
-                      : addressStatesUnavailable
-                        ? "State list unavailable"
-                        : addressStates.length === 0
-                          ? "No states found"
-                          : "Search state..."
-                }
-                disabled={
-                  !addressCountryId || addressStatesLoading || addressStatesUnavailable
-                }
-              />
-              <SearchableSelectField
-                label="City (Vendor Address)"
-                icon={MapPin}
-                value={addressCityName}
-                onChange={(cityName) => {
-                  setAddressCityName(cityName);
-                  const countryName =
-                    locationCountries.find(
-                      (c) => String(c.id) === addressCountryId,
-                    )?.name ?? "";
-                  const stateName =
-                    addressStates.find((s) => String(s.id) === addressStateId)
-                      ?.name ?? "";
-                  update(
-                    "address",
-                    [countryName, stateName, cityName]
-                      .filter(Boolean)
-                      .join(", "),
-                  );
-                }}
-                options={addressCities.map((c) => ({
-                  value: c.name,
-                  label: c.name,
-                }))}
-                placeholder={
-                  !addressCountryId
-                    ? "Select country first"
-                    : addressCitiesLoading
-                      ? "Loading..."
-                      : addressCities.length === 0
-                        ? "No cities found"
-                        : "Search city..."
-                }
-                disabled={!addressCountryId || addressCitiesLoading}
-              />
+            <div className="rounded-2xl border border-orange-100 bg-orange-50/40 p-4 sm:p-5">
+              <div className="flex items-center gap-2 mb-4">
+                <div className="w-6 h-6 rounded-lg bg-orange-100 flex items-center justify-center shrink-0">
+                  <MapPin size={12} className="text-orange-600" />
+                </div>
+                <p className="text-sm font-semibold text-gray-800">
+                  Business Location
+                </p>
+              </div>
+
+              <div className="grid sm:grid-cols-3 gap-4">
+                <SearchableSelectField
+                  label="Country"
+                  icon={Globe}
+                  value={selectedCountryId}
+                  onChange={(v) => {
+                    setSelectedCountryId(v);
+                    setSelectedStateId("");
+                    setSelectedCityName("");
+                    update("businessLocation", "");
+                  }}
+                  options={locationCountries.map((c) => ({
+                    value: String(c.id),
+                    label: c.name,
+                  }))}
+                  placeholder="Search country..."
+                />
+                <SearchableSelectField
+                  label="State"
+                  icon={MapPin}
+                  value={selectedStateId}
+                  onChange={(v) => {
+                    setSelectedStateId(v);
+                    setSelectedCityName("");
+                    update("businessLocation", "");
+                  }}
+                  options={locationStates.map((s) => ({
+                    value: String(s.id),
+                    label: s.name,
+                  }))}
+                  placeholder={
+                    !selectedCountryId
+                      ? "Select country first"
+                      : statesLoading
+                        ? "Loading..."
+                        : statesUnavailable
+                          ? "State list unavailable"
+                          : locationStates.length === 0
+                            ? "No states found"
+                            : "Search state..."
+                  }
+                  disabled={
+                    !selectedCountryId || statesLoading || statesUnavailable
+                  }
+                />
+                <SearchableSelectField
+                  label="City (Business Location)"
+                  icon={MapPin}
+                  value={selectedCityName}
+                  onChange={(cityName) => {
+                    setSelectedCityName(cityName);
+                    const countryName =
+                      locationCountries.find(
+                        (c) => String(c.id) === selectedCountryId,
+                      )?.name ?? "";
+                    const stateName =
+                      locationStates.find(
+                        (s) => String(s.id) === selectedStateId,
+                      )?.name ?? "";
+                    update(
+                      "businessLocation",
+                      [countryName, stateName, cityName]
+                        .filter(Boolean)
+                        .join(", "),
+                    );
+                    update("city", cityName);
+                  }}
+                  options={locationCities.map((c) => ({
+                    value: c.name,
+                    label: c.name,
+                  }))}
+                  placeholder={
+                    !selectedCountryId
+                      ? "Select country first"
+                      : locCitiesLoading
+                        ? "Loading..."
+                        : locationCities.length === 0
+                          ? "No cities found"
+                          : "Search city..."
+                  }
+                  disabled={!selectedCountryId || locCitiesLoading}
+                />
+              </div>
+
+              <div className="grid sm:grid-cols-2 gap-4 mt-4">
+                <Field
+                  label="Address Line 1"
+                  value={profile.addressLine1 ?? ""}
+                  onChange={(v) => update("addressLine1", v)}
+                  icon={MapPin}
+                  placeholder="e.g. Building name, street number"
+                />
+                <Field
+                  label="Address Line 2" // ✅ Changed from "Address Line 2" (already correct)
+                  value={profile.addressLine2 ?? ""} // ✅ Changed from area
+                  onChange={(v) => update("addressLine2", v)} // ✅ Changed from area
+                  icon={MapPin}
+                  placeholder="e.g. Business Bay, Al Barsha"
+                />
+                <Field
+                  label="Landmark"
+                  value={profile.landmark ?? ""}
+                  onChange={(v) => update("landmark", v)}
+                  icon={MapPin}
+                  placeholder="e.g. Near Mall of the Emirates"
+                />
+                <Field
+                  label="PO Box"
+                  value={profile.poBox ?? ""}
+                  onChange={(v) =>
+                    update("poBox", sanitizeDigitsInput(v).slice(0, 10))
+                  }
+                  icon={Mail}
+                  type="tel"
+                  placeholder="e.g. 12345"
+                />
+              </div>
             </div>
           </div>
         </div>
 
-        <div className="mt-4">
-          {/* Service Cities — Country → State → City cascading picker, same
-              pattern as Business Location / Vendor Address, full width. */}
-          <div>
-            <label className="text-xs font-medium text-gray-500 mb-1 block">
-              Service Cities
+        <div className="mt-5">
+          <div className="rounded-2xl border border-gray-100 bg-gray-50/60 p-4 sm:p-5">
+            <label className="text-sm font-semibold text-gray-800 mb-3 flex items-center gap-1.5">
+              Service Cities <span className="text-red-500">*</span>
             </label>
 
-            {/* Selected cities as removable chips */}
-            <div className="flex flex-wrap items-center gap-2 w-full px-3 py-2 border border-gray-200 rounded-xl bg-white min-h-[44px] mb-2">
-              <Globe size={13} className="text-gray-400 shrink-0" />
-              {(!profile.cities || profile.cities.length === 0) && (
-                <span className="text-sm text-gray-400">
-                  No service cities selected yet
-                </span>
-              )}
-              {profile.cities &&
-                profile.cities.map((cityName) => {
-                  const cityData = allCities.find((c) => c.name === cityName);
-                  return (
-                    <span
-                      key={cityName}
-                      className="inline-flex items-center gap-1 pl-2.5 pr-1.5 py-1 rounded-full bg-orange-50 text-orange-700 text-xs font-medium"
-                    >
-                      {cityData?.countryName && (
-                        <span className="text-gray-400 text-[10px]">
-                          {cityData.countryName.substring(0, 3).toUpperCase()}
-                        </span>
-                      )}
-                      {cityName}
-                      <button
-                        type="button"
-                        onClick={() => toggleCity(cityName)}
-                        className="text-orange-400 hover:text-orange-600"
-                      >
-                        <X size={12} />
-                      </button>
-                    </span>
-                  );
-                })}
-            </div>
-
-            {/* Country → State → City cascading add */}
             <div className="grid sm:grid-cols-3 gap-4">
               <SearchableSelectField
                 label="Country"
@@ -2210,22 +2394,65 @@ export default function ProfilePage() {
                         : "Select city to add"
                 }
                 disabled={
-                  citiesLoading || !serviceCountryId || serviceCityOptions.length === 0
+                  citiesLoading ||
+                  !serviceCountryId ||
+                  serviceCityOptions.length === 0
                 }
               />
             </div>
-            <p className="text-xs text-gray-400 mt-1">
+            <p className="text-xs text-gray-400 mt-2 mb-3">
               Pick a country, state, then city to add it — repeat to add more
               cities (global coverage).
             </p>
+
+            <div
+              className={
+                "flex flex-wrap items-center gap-2 w-full px-3 py-2.5 border rounded-xl bg-white min-h-[48px] " +
+                (!profile.cities || profile.cities.length === 0
+                  ? "border-red-300"
+                  : "border-gray-200")
+              }
+            >
+              <Globe size={13} className="text-gray-400 shrink-0" />
+              {!profile.cities || profile.cities.length === 0 ? (
+                <span className="text-sm text-red-400">
+                  At least one service city is required
+                </span>
+              ) : null}
+              {profile.cities
+                ? profile.cities.map((cityName) => {
+                    const cityData = allCities.find((c) => c.name === cityName);
+                    return (
+                      <span
+                        key={cityName}
+                        className="inline-flex items-center gap-1.5 pl-2.5 pr-1.5 py-1.5 rounded-full bg-orange-50 border border-orange-100 text-orange-700 text-xs font-medium"
+                      >
+                        {cityData?.countryName ? (
+                          <span className="text-orange-400 text-[10px] font-semibold">
+                            {cityData.countryName.substring(0, 3).toUpperCase()}
+                          </span>
+                        ) : null}
+                        {cityName}
+                        <button
+                          type="button"
+                          onClick={() => toggleCity(cityName)}
+                          className="text-orange-400 hover:text-orange-600 hover:bg-orange-100 rounded-full p-0.5 transition-colors"
+                        >
+                          <X size={11} />
+                        </button>
+                      </span>
+                    );
+                  })
+                : null}
+            </div>
           </div>
         </div>
 
-        {/* Capacity */}
         <div className="grid sm:grid-cols-2 gap-4 mt-4">
           <div>
             <label className="text-xs font-medium text-gray-500 mb-1 block">
-              Daily Booking Capacity
+              Daily Booking Capacity{" "}
+              <span className="text-red-500 ml-1">*</span>
             </label>
             <input
               type="number"
@@ -2234,12 +2461,21 @@ export default function ProfilePage() {
               onChange={(e) =>
                 update("capacityPerDay", Math.max(1, Number(e.target.value)))
               }
-              className="w-full px-4 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-orange-400"
+              className={
+                "w-full px-4 py-2.5 text-sm border rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-orange-400 " +
+                (!profile.capacityPerDay || profile.capacityPerDay < 1
+                  ? "border-red-300"
+                  : "border-gray-200")
+              }
             />
+            {!profile.capacityPerDay || profile.capacityPerDay < 1 ? (
+              <p className="text-xs text-red-500 mt-1">
+                Capacity must be at least 1
+              </p>
+            ) : null}
           </div>
         </div>
 
-        {/* About */}
         <div className="mt-4">
           <label className="text-xs font-medium text-gray-500 mb-1 block">
             Business Description
@@ -2252,22 +2488,22 @@ export default function ProfilePage() {
             className="w-full px-4 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-200 resize-none"
           />
           <p
-            className={`text-xs mt-1 text-right ${
-              (profile.about ?? "").length >= 500
+            className={
+              "text-xs mt-1 text-right " +
+              ((profile.about ?? "").length >= 500
                 ? "text-red-500"
-                : "text-gray-400"
-            }`}
+                : "text-gray-400")
+            }
           >
             {(profile.about ?? "").length}/500 characters
           </p>
         </div>
       </SectionCard>
 
-      {/* ── 3. Legal & Compliance ── */}
       <SectionCard title="Work & Compensation" icon={BadgeCheck}>
         {profile.vendorType === "FREELANCER" ? (
           <div className="grid sm:grid-cols-2 gap-4">
-            <SelectField
+            <SearchableSelectField
               label="Contract Type"
               value={profile.contractType ?? ""}
               onChange={(v) => update("contractType", v)}
@@ -2281,28 +2517,62 @@ export default function ProfilePage() {
             <Field
               label="Hourly / Monthly Rate (AED)"
               value={profile.hourlyRate?.toString() ?? ""}
-              onChange={(v) => update("hourlyRate", v === "" ? null : Number(v))}
-              type="number"
+              onChange={(v) => {
+                const cleaned = sanitizePositiveNumber(v);
+                update("hourlyRate", cleaned === "" ? null : Number(cleaned));
+              }}
+              type="text"
               icon={CreditCard}
+              error={
+                validationErrors.hourlyRate ||
+                (profile.hourlyRate !== null &&
+                profile.hourlyRate !== undefined &&
+                profile.hourlyRate <= 0
+                  ? "Rate must be greater than 0"
+                  : undefined)
+              }
             />
             <Field
               label="Available Hours per Week"
               value={profile.availableHoursPerWeek?.toString() ?? ""}
-              onChange={(v) => update("availableHoursPerWeek", v === "" ? null : Number(v))}
-              type="number"
+              onChange={(v) => {
+                const cleaned = sanitizePositiveNumber(v);
+                update(
+                  "availableHoursPerWeek",
+                  cleaned === "" ? null : Number(cleaned),
+                );
+              }}
+              type="text"
               icon={CalendarClock}
+              error={
+                profile.availableHoursPerWeek !== null &&
+                profile.availableHoursPerWeek !== undefined &&
+                profile.availableHoursPerWeek <= 0
+                  ? "Must be greater than 0"
+                  : undefined
+              }
             />
             <Field
               label="Project Rate (AED)"
               value={profile.projectRate?.toString() ?? ""}
-              onChange={(v) => update("projectRate", v === "" ? null : Number(v))}
-              type="number"
+              onChange={(v) => {
+                const cleaned = sanitizePositiveNumber(v);
+                update("projectRate", cleaned === "" ? null : Number(cleaned));
+              }}
+              type="text"
               icon={CreditCard}
+              error={
+                profile.projectRate !== null &&
+                profile.projectRate !== undefined &&
+                profile.projectRate <= 0
+                  ? "Rate must be greater than 0"
+                  : undefined
+              }
             />
           </div>
         ) : (
           <div className="grid sm:grid-cols-2 gap-4">
-            <SelectField
+            <SearchableSelectField
               label="Salary Type"
               value={profile.salaryType ?? ""}
               onChange={(v) => update("salaryType", v)}
@@ -2315,50 +2585,120 @@ export default function ProfilePage() {
             <Field
               label="Basic Salary (AED)"
               value={profile.basicSalary?.toString() ?? ""}
-              onChange={(v) => update("basicSalary", v === "" ? null : Number(v))}
-              type="number"
+              onChange={(v) => {
+                const cleaned = sanitizePositiveNumber(v);
+                update("basicSalary", cleaned === "" ? null : Number(cleaned));
+              }}
+              type="text"
               icon={CreditCard}
+              error={
+                profile.basicSalary !== null &&
+                profile.basicSalary !== undefined &&
+                profile.basicSalary <= 0
+                  ? "Salary must be greater than 0"
+                  : undefined
+              }
             />
             <Field
               label="Housing Allowance (AED)"
               value={profile.housingAllowance?.toString() ?? ""}
-              onChange={(v) => update("housingAllowance", v === "" ? null : Number(v))}
-              type="number"
-              icon={Landmark}
+              onChange={(v) => {
+                const cleaned = sanitizePositiveNumber(v);
+                update(
+                  "housingAllowance",
+                  cleaned === "" ? null : Number(cleaned),
+                );
+              }}
+              type="text"
+              icon={LandmarkIcon}
+              error={
+                profile.housingAllowance !== null &&
+                profile.housingAllowance !== undefined &&
+                profile.housingAllowance <= 0
+                  ? "Must be greater than 0"
+                  : undefined
+              }
             />
             <Field
               label="Transportation Allowance (AED)"
               value={profile.transportationAllowance?.toString() ?? ""}
-              onChange={(v) => update("transportationAllowance", v === "" ? null : Number(v))}
-              type="number"
+              onChange={(v) => {
+                const cleaned = sanitizePositiveNumber(v);
+                update(
+                  "transportationAllowance",
+                  cleaned === "" ? null : Number(cleaned),
+                );
+              }}
+              type="text"
               icon={MapPin}
+              error={
+                profile.transportationAllowance !== null &&
+                profile.transportationAllowance !== undefined &&
+                profile.transportationAllowance <= 0
+                  ? "Must be greater than 0"
+                  : undefined
+              }
             />
             <Field
               label="Other Allowances (AED)"
               value={profile.otherAllowances?.toString() ?? ""}
-              onChange={(v) => update("otherAllowances", v === "" ? null : Number(v))}
-              type="number"
+              onChange={(v) => {
+                const cleaned = sanitizePositiveNumber(v);
+                update(
+                  "otherAllowances",
+                  cleaned === "" ? null : Number(cleaned),
+                );
+              }}
+              type="text"
               icon={BadgeCheck}
+              error={
+                profile.otherAllowances !== null &&
+                profile.otherAllowances !== undefined &&
+                profile.otherAllowances <= 0
+                  ? "Must be greater than 0"
+                  : undefined
+              }
             />
             <Field
               label="Annual Leaves (days)"
               value={profile.annualLeaves?.toString() ?? ""}
-              onChange={(v) => update("annualLeaves", v === "" ? null : Number(v))}
-              type="number"
+              onChange={(v) => {
+                const cleaned = sanitizePositiveNumber(v);
+                update("annualLeaves", cleaned === "" ? null : Number(cleaned));
+              }}
+              type="text"
               icon={CalendarClock}
+              error={
+                profile.annualLeaves !== null &&
+                profile.annualLeaves !== undefined &&
+                profile.annualLeaves <= 0
+                  ? "Must be greater than 0"
+                  : undefined
+              }
             />
             <Field
               label="Working Hours per Week"
               value={profile.workingHours?.toString() ?? ""}
-              onChange={(v) => update("workingHours", v === "" ? null : Number(v))}
-              type="number"
+              onChange={(v) => {
+                const cleaned = sanitizePositiveNumber(v);
+                update("workingHours", cleaned === "" ? null : Number(cleaned));
+              }}
+              type="text"
               icon={CalendarClock}
+              error={
+                profile.workingHours !== null &&
+                profile.workingHours !== undefined &&
+                profile.workingHours <= 0
+                  ? "Must be greater than 0"
+                  : undefined
+              }
             />
             <DateField
               label="Joining Date"
               value={profile.joiningDate?.slice(0, 10) ?? ""}
               onChange={(v) => update("joiningDate", v)}
               icon={CalendarClock}
+              allowPast
             />
           </div>
         )}
@@ -2366,7 +2706,7 @@ export default function ProfilePage() {
 
       <SectionCard title="Legal & Compliance" icon={FileText}>
         <div className="grid sm:grid-cols-2 gap-4">
-          {profile.vendorType !== "FREELANCER" && (
+          {profile.vendorType !== "FREELANCER" ? (
             <>
               <Field
                 label="Trade License Number"
@@ -2385,13 +2725,14 @@ export default function ProfilePage() {
                 fileUrl={profile.tradeLicenseFileUrl}
                 folder="vendor-docs"
                 maxSizeMb={3}
+                readOnly
                 onUploaded={({ url, key }) => {
                   update("tradeLicenseFileUrl", url);
                   update("tradeLicenseFileKey", key);
                 }}
               />
             </>
-          )}
+          ) : null}
           <Field
             label="VAT Number"
             value={profile.vatNumber ?? ""}
@@ -2430,7 +2771,6 @@ export default function ProfilePage() {
         </div>
       </SectionCard>
 
-      {/* ── 4. Plan & Commission ── */}
       <SectionCard title="Plan & Commission" icon={CalendarClock}>
         <div className="grid sm:grid-cols-2 gap-4">
           <Field
@@ -2473,14 +2813,13 @@ export default function ProfilePage() {
         </div>
       </SectionCard>
 
-      {/* ── 5. Bank Details ── */}
-      <SectionCard title="Bank Details" icon={Landmark}>
+      <SectionCard title="Bank Details" icon={LandmarkIcon}>
         <div className="grid sm:grid-cols-2 gap-4">
           <Field
             label="Bank Name"
             value={profile.bankName ?? ""}
             onChange={(v) => update("bankName", v)}
-            icon={Landmark}
+            icon={LandmarkIcon}
           />
           <Field
             label="Account Name"
@@ -2491,7 +2830,10 @@ export default function ProfilePage() {
           <Field
             label="Account Number"
             value={profile.accountNumber ?? ""}
-            onChange={(v) => update("accountNumber", v)}
+            onChange={(v) =>
+              update("accountNumber", sanitizeDigitsInput(v).slice(0, 20))
+            }
+            type="tel"
             icon={CreditCard}
           />
           <Field
@@ -2517,20 +2859,31 @@ export default function ProfilePage() {
               />
               <textarea
                 value={profile.branchAddress ?? ""}
-                onChange={(e) => update("branchAddress", e.target.value)}
+                onChange={(e) =>
+                  update("branchAddress", e.target.value.slice(0, 500))
+                }
                 rows={3}
+                maxLength={500}
                 placeholder="Full branch address (street, area, city, PO box)"
                 className="w-full py-2.5 pl-9 pr-4 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-orange-400 resize-none leading-relaxed"
               />
             </div>
+            <p
+              className={
+                "text-xs mt-1 text-right " +
+                ((profile.branchAddress ?? "").length >= 500
+                  ? "text-red-500"
+                  : "text-gray-400")
+              }
+            >
+              {(profile.branchAddress ?? "").length}/500 characters
+            </p>
           </div>
         </div>
       </SectionCard>
 
-      {/* ── 6. Change Password ── */}
       <ChangePasswordCard />
 
-      {/* ── Save button ── */}
       <button
         onClick={handleSave}
         disabled={saving}
@@ -2544,8 +2897,7 @@ export default function ProfilePage() {
         {saving ? "Saving..." : "Save Changes"}
       </button>
 
-      {/* ── View Photo Modal ── */}
-      {showPhoto && profile.vendorProfileImage && (
+      {showPhoto && profile.vendorProfileImage ? (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
           <div
             className="absolute inset-0 bg-black/60 backdrop-blur-sm"
@@ -2565,7 +2917,7 @@ export default function ProfilePage() {
             />
           </div>
         </div>
-      )}
+      ) : null}
     </div>
   );
 }

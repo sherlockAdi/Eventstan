@@ -1,20 +1,33 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import {
   ChevronLeft, ChevronRight, Lock, Unlock,
-  X, AlertTriangle, CheckCircle2, Clock, CalendarDays, Info,
+  X, AlertTriangle, CheckCircle2, Clock, CalendarDays, Info, Loader2,
+  Sunrise, Sun, Sunset, Moon, MoonStar, CalendarRange, type LucideIcon,
 } from 'lucide-react';
+import { vendorApi } from '@/api/vendorApi'; // adjust import path to match your project
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
-type SlotKey = 'morning' | 'afternoon' | 'evening' | 'night' | 'late_night' | 'whole_day';
+type SlotKey = string; // dynamic: API event-slot id (as string), or 'whole_day'
+
+interface ApiEventSlot {
+  id: number;
+  name: string;
+  startTime: string; // "HH:mm"
+  endTime: string;   // "HH:mm"
+  duration: string;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+}
 
 interface SlotConfig {
   key: SlotKey;
   label: string;
   time: string;
-  icon: string;
+  icon: LucideIcon;
   color: string;
   bg: string;
   border: string;
@@ -33,29 +46,90 @@ const MONTHS = [
   'July','August','September','October','November','December',
 ];
 
-const SLOTS: SlotConfig[] = [
-  { key: 'morning',    label: 'Morning',    time: '6:00 AM – 12:00 PM', icon: '🌅', color: 'text-amber-700',  bg: 'bg-amber-50',   border: 'border-amber-200' },
-  { key: 'afternoon',  label: 'Afternoon',  time: '12:00 PM – 5:00 PM', icon: '☀️', color: 'text-orange-700', bg: 'bg-orange-50',  border: 'border-orange-200' },
-  { key: 'evening',    label: 'Evening',    time: '5:00 PM – 9:00 PM',  icon: '🌆', color: 'text-rose-700',   bg: 'bg-rose-50',    border: 'border-rose-200' },
-  { key: 'night',      label: 'Night',      time: '9:00 PM – 12:00 AM', icon: '🌙', color: 'text-indigo-700', bg: 'bg-indigo-50',  border: 'border-indigo-200' },
-  { key: 'late_night', label: 'Late Night', time: '12:00 AM – 6:00 AM', icon: '🌃', color: 'text-purple-700', bg: 'bg-purple-50',  border: 'border-purple-200' },
-  { key: 'whole_day',  label: 'Whole Day',  time: 'All Day (24 hrs)',    icon: '📅', color: 'text-gray-700',   bg: 'bg-gray-100',   border: 'border-gray-300' },
+const WHOLE_DAY_KEY = 'whole_day';
+
+// Cosmetic styles cycled across dynamic slots (API doesn't return icon/color)
+const SLOT_STYLES: { icon: LucideIcon; color: string; bg: string; border: string }[] = [
+  { icon: Sunrise,  color: 'text-amber-700',  bg: 'bg-amber-50',  border: 'border-amber-200' },
+  { icon: Sun,      color: 'text-orange-700', bg: 'bg-orange-50', border: 'border-orange-200' },
+  { icon: Sunset,   color: 'text-rose-700',   bg: 'bg-rose-50',   border: 'border-rose-200' },
+  { icon: Moon,     color: 'text-indigo-700', bg: 'bg-indigo-50', border: 'border-indigo-200' },
+  { icon: MoonStar, color: 'text-purple-700', bg: 'bg-purple-50', border: 'border-purple-200' },
 ];
 
-// Sample booked dates with slots
-const INITIAL_BOOKED: Record<string, Set<SlotKey>> = {
-  '2026-05-10': new Set(['morning', 'afternoon']),
-  '2026-05-15': new Set(['whole_day']),
-  '2026-05-22': new Set(['evening', 'night']),
-  '2026-05-30': new Set(['afternoon']),
-};
+// Sample booked dates with slots (kept as placeholder; swap for real booking data)
+const INITIAL_BOOKED: Record<string, SlotKey[]> = {};
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 const fmt = (y: number, m: number, d: number) =>
   `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
 
-const slotsByKey = Object.fromEntries(SLOTS.map(s => [s.key, s])) as Record<SlotKey, SlotConfig>;
+function formatTime12h(hhmm: string): string {
+  const [hStr, m] = hhmm.split(':');
+  let h = parseInt(hStr, 10);
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  h = h % 12 || 12;
+  return `${h}:${m} ${ampm}`;
+}
+
+function toMinutes(hhmm: string): number {
+  const [h, m] = hhmm.split(':').map(Number);
+  return h * 60 + m;
+}
+
+// If the active API slots, sorted, chain together end-to-end and cover a
+// full 24h loop back to their own start, we can derive a "Whole Day" slot
+// purely from the API data — no hardcoded slot needed. e.g.
+// 09:00–12:00, 12:00–16:00, 16:00–20:00, 20:00–00:00 → covers 09:00→00:00 (full 24h span, contiguous)
+function deriveWholeDaySlot(dynamic: SlotConfig[], apiSlots: ApiEventSlot[]): SlotConfig | null {
+  const active = apiSlots.filter(s => s.status === 'Active');
+  if (active.length === 0) return null;
+
+  const sorted = [...active].sort((a, b) => toMinutes(a.startTime) - toMinutes(b.startTime));
+
+  // Check contiguity: each slot's end must equal the next slot's start
+  // (00:00 end is treated as end-of-day / midnight rollover).
+  for (let i = 0; i < sorted.length - 1; i++) {
+    const currentEnd = sorted[i].endTime === '00:00' ? 24 * 60 : toMinutes(sorted[i].endTime);
+    const nextStart = toMinutes(sorted[i + 1].startTime);
+    if (currentEnd !== nextStart) return null; // gap or overlap → not a full continuous day
+  }
+
+  const firstStart = sorted[0].startTime;
+  const lastEnd = sorted[sorted.length - 1].endTime;
+  const totalMinutes =
+    (lastEnd === '00:00' ? 24 * 60 : toMinutes(lastEnd)) - toMinutes(firstStart);
+
+  if (totalMinutes < 24 * 60) return null; // doesn't actually span a full day
+
+  return {
+    key: WHOLE_DAY_KEY,
+    label: 'Whole Day',
+    time: `${formatTime12h(firstStart)} – ${formatTime12h(lastEnd)} (24 hrs)`,
+    icon: CalendarRange,
+    color: 'text-gray-700',
+    bg: 'bg-gray-100',
+    border: 'border-gray-300',
+  };
+}
+
+function buildSlotsFromApi(apiSlots: ApiEventSlot[]): SlotConfig[] {
+  const active = apiSlots.filter(s => s.status === 'Active');
+
+  const dynamic: SlotConfig[] = active.map((s, i) => {
+    const style = SLOT_STYLES[i % SLOT_STYLES.length];
+    return {
+      key: String(s.id),
+      label: s.name,
+      time: `${formatTime12h(s.startTime)} – ${formatTime12h(s.endTime)}`,
+      ...style,
+    };
+  });
+
+  const wholeDay = deriveWholeDaySlot(dynamic, apiSlots);
+  return wholeDay ? [...dynamic, wholeDay] : dynamic;
+}
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
@@ -67,11 +141,41 @@ export default function CalendarPage() {
     new Date(today.getFullYear(), today.getMonth(), 1)
   );
 
+  // ── Dynamic slots from API ──
+  const [SLOTS, setSLOTS] = useState<SlotConfig[]>([]);
+  const [slotsLoading, setSlotsLoading] = useState(true);
+  const [slotsError, setSlotsError] = useState('');
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        setSlotsLoading(true);
+        setSlotsError('');
+        const data = await vendorApi.masterData.eventSlots<ApiEventSlot[]>();
+        if (!cancelled) setSLOTS(buildSlotsFromApi(data));
+      } catch (err) {
+        if (!cancelled) {
+          setSlotsError(err instanceof Error ? err.message : 'Failed to load slots');
+          setSLOTS([]); // nothing to derive Whole Day from if the API call itself failed
+        }
+      } finally {
+        if (!cancelled) setSlotsLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  const slotsByKey = useMemo(
+    () => Object.fromEntries(SLOTS.map(s => [s.key, s])) as Record<SlotKey, SlotConfig>,
+    [SLOTS]
+  );
+
   // dateEntries: dateKey → { blocked: Set<SlotKey>, booked: Set<SlotKey> }
   const [dateEntries, setDateEntries] = useState<Record<string, DateEntry>>(() => {
     const entries: Record<string, DateEntry> = {};
     Object.entries(INITIAL_BOOKED).forEach(([k, slots]) => {
-      entries[k] = { blocked: new Set(), booked: slots };
+      entries[k] = { blocked: new Set(), booked: new Set(slots) };
     });
     return entries;
   });
@@ -110,12 +214,10 @@ export default function CalendarPage() {
   // Open modal
   const openModal = (d: number) => {
     if (isPast(d)) return;
-    const key   = fmt(year, month, d);
-    const entry = getEntry(key);
+    const key = fmt(year, month, d);
     setModalDate(key);
     setSelectedSlots(new Set());
-    // Default mode: if has blocked → show unblock option; else block
-    setModalMode(entry.blocked.size > 0 ? 'block' : 'block');
+    setModalMode('block');
   };
 
   const closeModal = () => {
@@ -136,11 +238,11 @@ export default function CalendarPage() {
   const smartToggleSlot = (slot: SlotKey) => {
     setSelectedSlots(prev => {
       const next = new Set(prev);
-      if (slot === 'whole_day') {
-        if (next.has('whole_day')) next.delete('whole_day');
-        else { next.clear(); next.add('whole_day'); }
+      if (slot === WHOLE_DAY_KEY) {
+        if (next.has(WHOLE_DAY_KEY)) next.delete(WHOLE_DAY_KEY);
+        else { next.clear(); next.add(WHOLE_DAY_KEY); }
       } else {
-        next.delete('whole_day');
+        next.delete(WHOLE_DAY_KEY);
         if (next.has(slot)) next.delete(slot);
         else next.add(slot);
       }
@@ -154,8 +256,8 @@ export default function CalendarPage() {
       const entry = prev[modalDate] ?? { blocked: new Set(), booked: new Set() };
       const newBlocked = new Set([...entry.blocked, ...selectedSlots]);
       // If whole_day selected, remove other blocked slots
-      if (selectedSlots.has('whole_day')) {
-        return { ...prev, [modalDate]: { ...entry, blocked: new Set(['whole_day' as SlotKey]) } };
+      if (selectedSlots.has(WHOLE_DAY_KEY)) {
+        return { ...prev, [modalDate]: { ...entry, blocked: new Set([WHOLE_DAY_KEY]) } };
       }
       return { ...prev, [modalDate]: { ...entry, blocked: newBlocked } };
     });
@@ -204,7 +306,7 @@ export default function CalendarPage() {
     const list: { key: string; slots: SlotKey[] }[] = [];
     Object.entries(dateEntries).forEach(([key, entry]) => {
       if (entry.booked.size > 0 && key >= todayStr) {
-        list.push({ key, slots: [...entry.booked] as SlotKey[] });
+        list.push({ key, slots: [...entry.booked] });
       }
     });
     return list.sort((a, b) => a.key.localeCompare(b.key)).slice(0, 5);
@@ -230,6 +332,13 @@ export default function CalendarPage() {
       {successMsg && (
         <div className="flex items-center gap-2 bg-green-50 border border-green-200 text-green-700 text-sm px-4 py-3 rounded-xl">
           <CheckCircle2 size={16} /> {successMsg}
+        </div>
+      )}
+
+      {/* Slots load error banner */}
+      {slotsError && (
+        <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-xl">
+          <AlertTriangle size={16} /> Couldn't load time slots: {slotsError}
         </div>
       )}
 
@@ -352,22 +461,31 @@ export default function CalendarPage() {
             </div>
           </div>
 
-          {/* Slot legend */}
+          {/* Slot legend — now dynamic */}
           <div className="bg-white rounded-2xl border border-gray-100 p-5">
             <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
               <Clock size={16} className="text-orange-500" /> Time Slots
             </h3>
-            <div className="space-y-2">
-              {SLOTS.map(slot => (
-                <div key={slot.key} className={`flex items-center gap-3 px-3 py-2 rounded-xl ${slot.bg} border ${slot.border}`}>
-                  <span className="text-base">{slot.icon}</span>
-                  <div>
-                    <p className={`text-xs font-semibold ${slot.color}`}>{slot.label}</p>
-                    <p className="text-xs text-gray-400">{slot.time}</p>
+
+            {slotsLoading && (
+              <div className="flex items-center gap-2 text-sm text-gray-400 py-4">
+                <Loader2 size={14} className="animate-spin" /> Loading slots...
+              </div>
+            )}
+
+            {!slotsLoading && (
+              <div className="space-y-2">
+                {SLOTS.map(slot => (
+                  <div key={slot.key} className={`flex items-center gap-3 px-3 py-2 rounded-xl ${slot.bg} border ${slot.border}`}>
+                    <slot.icon size={18} className={slot.color} />
+                    <div>
+                      <p className={`text-xs font-semibold ${slot.color}`}>{slot.label}</p>
+                      <p className="text-xs text-gray-400">{slot.time}</p>
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Upcoming bookings */}
@@ -381,11 +499,16 @@ export default function CalendarPage() {
                       {formatDateLabel(key)}
                     </p>
                     <div className="flex flex-wrap gap-1">
-                      {slots.map(s => (
-                        <span key={s} className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
-                          {slotsByKey[s]?.icon} {slotsByKey[s]?.label}
-                        </span>
-                      ))}
+                      {slots.map(s => {
+                        const slotInfo = slotsByKey[s];
+                        const SlotIcon = slotInfo?.icon;
+                        return (
+                          <span key={s} className="flex items-center gap-1 text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
+                            {SlotIcon && <SlotIcon size={12} />}
+                            {slotInfo?.label ?? s}
+                          </span>
+                        );
+                      })}
                     </div>
                   </div>
                 ))}
@@ -475,7 +598,18 @@ export default function CalendarPage() {
             {modalMode === 'block' && (
               <div className="px-6 py-4 space-y-3 max-h-[55vh] overflow-y-auto">
                 <p className="text-xs text-gray-500">Select slots to block on this date:</p>
-                {SLOTS.map(slot => {
+
+                {slotsLoading && (
+                  <div className="flex items-center gap-2 text-sm text-gray-400 py-6 justify-center">
+                    <Loader2 size={16} className="animate-spin" /> Loading slots...
+                  </div>
+                )}
+
+                {!slotsLoading && slotsError && SLOTS.length <= 1 && (
+                  <p className="text-sm text-center text-red-500 py-6">Could not load slots. Please retry later.</p>
+                )}
+
+                {!slotsLoading && SLOTS.map(slot => {
                   const isBooked    = modalEntry.booked.has(slot.key);
                   const isAlrBlocked = modalEntry.blocked.has(slot.key);
                   const isSelected  = selectedSlots.has(slot.key);
@@ -493,7 +627,7 @@ export default function CalendarPage() {
                             : `border-gray-200 hover:border-gray-300 hover:bg-gray-50`
                         }`}
                     >
-                      <span className="text-xl">{slot.icon}</span>
+                      <slot.icon size={20} className={isSelected ? 'text-red-600' : 'text-gray-500'} />
                       <div className="flex-1">
                         <p className={`font-semibold text-sm ${isSelected ? 'text-red-700' : 'text-gray-800'}`}>
                           {slot.label}
@@ -530,7 +664,7 @@ export default function CalendarPage() {
                       className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl border-2 text-left transition-all
                         ${isSelected ? 'border-green-400 bg-green-50' : 'border-red-200 bg-red-50 hover:border-red-300'}`}
                     >
-                      <span className="text-xl">{slot.icon}</span>
+                      <slot.icon size={20} className={isSelected ? 'text-green-600' : 'text-red-500'} />
                       <div className="flex-1">
                         <p className={`font-semibold text-sm ${isSelected ? 'text-green-700' : 'text-red-700'}`}>
                           {slot.label}
@@ -558,7 +692,7 @@ export default function CalendarPage() {
                 {SLOTS.filter(s => modalEntry.booked.has(s.key)).map(slot => (
                   <div key={slot.key}
                     className={`flex items-center gap-3 px-4 py-3.5 rounded-xl border ${slot.border} ${slot.bg}`}>
-                    <span className="text-xl">{slot.icon}</span>
+                    <slot.icon size={20} className={slot.color} />
                     <div className="flex-1">
                       <p className={`font-semibold text-sm ${slot.color}`}>{slot.label}</p>
                       <p className="text-xs text-gray-400">{slot.time}</p>

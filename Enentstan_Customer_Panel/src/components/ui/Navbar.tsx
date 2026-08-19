@@ -26,7 +26,7 @@ export default function Navbar() {
     { href: "/promotions", label: "Promotions" },
     { href: "/bookings", label: "My Bookings" },
     { href: "/blog", label: "Blog" },
-    { href: "/contact", label: "Contact" },
+    // { href: "/contact", label: "Contact" },
   ];
 
   useEffect(() => {

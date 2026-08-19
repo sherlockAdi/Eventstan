@@ -103,7 +103,7 @@ export default function Footer() {
                 <li key={link.href}>
                   <Link
                     href={link.href}
-                    className="hover:text-orange-400 transition-colors block py-0.5"
+                    className="hover:text-orange-400 transition-colors inline-block py-0.5"
                   >
                     {link.label}
                   </Link>
@@ -128,7 +128,7 @@ export default function Footer() {
                 <li key={link.href}>
                   <Link
                     href={link.href}
-                    className="hover:text-orange-400 transition-colors block py-0.5"
+                    className="hover:text-orange-400 transition-colors inline-block py-0.5"
                   >
                     {link.label}
                   </Link>
@@ -163,7 +163,14 @@ export default function Footer() {
               </li>
               <li className="flex items-center justify-center sm:justify-start gap-2">
                 <FaMapMarkerAlt className="w-4 h-4 text-orange-500 shrink-0" />
-                <span>In5 Tech, Dubai - UAE</span>
+                <a
+                  href="https://www.google.com/maps/search/?api=1&query=In5+Tech+Dubai+UAE"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:text-orange-400 transition-colors"
+                >
+                  In5 Tech, Dubai - UAE
+                </a>
               </li>
             </ul>
           </div>

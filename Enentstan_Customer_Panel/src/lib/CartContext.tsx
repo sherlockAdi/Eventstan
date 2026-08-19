@@ -1,7 +1,7 @@
 "use client";
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { CartItem, Package, Service } from "@/types";
-import { customerApi, CustomerCartItemResponse } from "@/api/customerApi";
+import { customerApi, CustomerCartItemResponse, getPackages, getServices } from "@/api/customerApi";
 import { useAuth } from "@/lib/AuthContext";
 
 const GUEST_CART_KEY = "es_guest_cart";
@@ -126,7 +126,23 @@ export function CartProvider({ children }: { children: ReactNode }) {
       try {
         const res = await customerApi.cart.get(user.id);
         if (!active) return;
-        const serverItems = res.data.items.map((row) => toCartItem(row));
+
+        // The cart endpoint doesn't return images, so look them up via the
+        // packages/services list (packageId -> service_id -> image_url).
+        let imageByPackageId = new Map<string, string>();
+        try {
+          const [packages, services] = await Promise.all([getPackages(), getServices()]);
+          const imageByServiceId = new Map(services.map((s) => [s.id, s.image_url]));
+          imageByPackageId = new Map(
+            packages.map((p) => [p.id, imageByServiceId.get(p.service_id) ?? ""])
+          );
+        } catch (error) {
+          console.error("Failed to load images for cart items:", error);
+        }
+
+        const serverItems = res.data.items.map((row) =>
+          toCartItem(row, { image_url: imageByPackageId.get(row.packageId) })
+        );
         setItems([...serverItems, ...guestServices]);
       } catch {
         if (active) setItems(guestServices);

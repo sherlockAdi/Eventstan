@@ -215,6 +215,8 @@ export const vendorApi = {
     categories: <T = unknown[]>() => cachedRequest<T>('categories', 'master-data/categories'),
     priceUnits: <T = unknown[]>() => cachedRequest<T>('price-units', 'master-data/price-units'),
     visaTypes: <T = unknown[]>() => cachedRequest<T>('visa-types', 'master-data/visa-types'),
+    // NEW: dynamic event slots (Morning/Afternoon/Evening/Night/...) from backend
+    eventSlots: <T = unknown[]>() => cachedRequest<T>('event-slots', 'master-data/event-slots'),
     states: <T = unknown[]>(countryId?: number) =>
       cachedRequest<T>(
         `states:${countryId ?? 'all'}`,

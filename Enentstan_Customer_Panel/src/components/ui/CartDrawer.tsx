@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 
 export default function CartDrawer() {
   const router = useRouter();
+  const { user } = useAuth();
   const { items, isOpen, closeCart, removeItem, updateQuantity, clearCart, total, count } =
     useCart();
   const [mounted, setMounted] = useState(false);
@@ -29,6 +30,10 @@ export default function CartDrawer() {
 
   const handleProceedToCheckout = () => {
     closeCart();
+    if (!user) {
+      router.push("/auth/login?redirect=/checkout");
+      return;
+    }
     router.push("/checkout");
   };
 
