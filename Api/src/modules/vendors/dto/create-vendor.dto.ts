@@ -6,6 +6,7 @@ import {
   IsEmail,
   IsIn,
   IsInt,
+  IsNotEmpty,
   IsNumber,
   IsOptional,
   IsString,
@@ -37,10 +38,10 @@ export class CreateVendorDto {
   @IsString()
   phone!: string;
 
-  @ApiProperty({ example: '+971', required: false })
-  @IsOptional()
+  @ApiProperty({ example: '+971' })
   @IsString()
-  countryCode?: string;
+  @IsNotEmpty()
+  phoneCountryCode!: string;
 
   @ApiProperty({ example: 'Premium wedding planning professional in Dubai.', required: false })
   @IsOptional()
@@ -76,6 +77,11 @@ export class CreateVendorDto {
   @IsOptional()
   @IsString()
   primaryMobile?: string;
+
+  @ApiProperty({ example: '+971' })
+  @IsString()
+  @IsNotEmpty()
+  primaryMobileCountryCode!: string;
 
   @ApiProperty({ example: 'Wedding Planner', required: false })
   @IsOptional()
@@ -166,6 +172,26 @@ export class CreateVendorDto {
   @IsOptional()
   @IsString()
   address?: string;
+
+  @ApiProperty({ example: 'Business Bay' })
+  @IsString()
+  @IsNotEmpty()
+  addressLine1!: string;
+
+  @ApiProperty({ example: 'Tower A, Office 1204' })
+  @IsString()
+  @IsNotEmpty()
+  addressLine2!: string;
+
+  @ApiPropertyOptional({ example: 'Near Dubai Mall' })
+  @IsOptional()
+  @IsString()
+  landmark?: string;
+
+  @ApiProperty({ example: '12345' })
+  @IsString()
+  @IsNotEmpty()
+  poBox!: string;
 
   @ApiProperty({
     example: 'https://api.eventstan.com/api/v1/uploads/images/services/2026-06-29/00f51b35-8817-4597-9ecf-6e4d60feb643.webp',

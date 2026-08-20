@@ -162,6 +162,7 @@ model Vendor {
   contactPerson      String
   email              String       @unique
   phone              String
+  phoneCountryCode   String
   about              String?
   firstName          String?
   lastName           String?
@@ -169,6 +170,7 @@ model Vendor {
   primaryEmail       String?
   telephone          String?
   primaryMobile      String?
+  primaryMobileCountryCode String
   specialization     String?
   vendorType         String?
   contractType       String?
@@ -186,6 +188,10 @@ model Vendor {
   businessLocation   String?
   visaType           String?
   address            String?
+  addressLine1       String
+  addressLine2       String
+  landmark           String?
+  poBox              String
   vendorProfileImage String?
   tradeLicenseNumber String?
   tradeLicenseExpiry DateTime?
@@ -212,7 +218,6 @@ model Vendor {
   swift              String?
   branchAddress      String?
   appleId            String?
-  countryCode        String?
   deviceToken        String?
   estCardExpiry      String?
   facebookId         String?
