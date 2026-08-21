@@ -1,7 +1,7 @@
-'use client';
+"use client";
 
-import { useEffect, useState, useRef } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useEffect, useState, useRef } from "react";
+import { useParams, useRouter } from "next/navigation";
 import {
   AlertTriangle,
   ArrowLeft,
@@ -19,10 +19,10 @@ import {
   ChevronDown,
   Search,
   Globe,
-} from 'lucide-react';
-import { vendorApi } from '@/api/vendorApi';
-import { getUser } from '@/lib/auth';
-import { showError, showSuccess } from '@/lib/toast';
+} from "lucide-react";
+import { vendorApi } from "@/api/vendorApi";
+import { getUser } from "@/lib/auth";
+import { showError, showSuccess } from "@/lib/toast";
 
 interface PriceUnitMaster {
   id: string;
@@ -95,8 +95,8 @@ interface ApiPackage {
   status: string;
   isPromotional?: boolean;
   is_promotional?: boolean;
-  promotionDiscountType?: 'FLAT' | 'PERCENTAGE' | null;
-  promotion_discount_type?: 'FLAT' | 'PERCENTAGE' | null;
+  promotionDiscountType?: "FLAT" | "PERCENTAGE" | null;
+  promotion_discount_type?: "FLAT" | "PERCENTAGE" | null;
   promotionDiscountValue?: number | null;
   promotion_discount_value?: number | null;
   promotionStartDate?: string;
@@ -144,32 +144,32 @@ interface ApiPackage {
 const DESCRIPTION_CHAR_LIMIT = 1500;
 
 const DELIVERY_FEE_TYPES = [
-  { value: 'base', label: 'Base Fee' },
-  { value: 'free', label: 'Free Delivery' },
+  { value: "base", label: "Base Fee" },
+  { value: "free", label: "Free Delivery" },
 ];
 
 const RENTAL_CATEGORY_IDS = [
-  'rental',
-  'equipment-rental',
-  'vehicle-rental',
-  'venue-rental',
+  "rental",
+  "equipment-rental",
+  "vehicle-rental",
+  "venue-rental",
 ];
 const RENTAL_CATEGORY_NAMES = [
-  'Rental',
-  'Equipment Rental',
-  'Vehicle Rental',
-  'Venue Rental',
+  "Rental",
+  "Equipment Rental",
+  "Vehicle Rental",
+  "Venue Rental",
 ];
 
-type RangeType = 'hours' | 'persons' | 'pieces' | 'day' | null;
+type RangeType = "hours" | "persons" | "pieces" | "day" | null;
 
 function getRangeType(code?: string): RangeType {
   if (!code) return null;
   const normalized = code.toLowerCase();
-  if (normalized.includes('hour')) return 'hours';
-  if (normalized.includes('person')) return 'persons';
-  if (normalized.includes('piece')) return 'pieces';
-  if (normalized.includes('day')) return 'day';
+  if (normalized.includes("hour")) return "hours";
+  if (normalized.includes("person")) return "persons";
+  if (normalized.includes("piece")) return "pieces";
+  if (normalized.includes("day")) return "day";
   return null;
 }
 
@@ -188,7 +188,7 @@ function SearchableSelect({
   value,
   onChange,
   options,
-  placeholder = 'Select...',
+  placeholder = "Select...",
   disabled = false,
 }: {
   value: string;
@@ -198,7 +198,7 @@ function SearchableSelect({
   disabled?: boolean;
 }) {
   const [open, setOpen] = useState(false);
-  const [query, setQuery] = useState('');
+  const [query, setQuery] = useState("");
   const wrapperRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -208,14 +208,14 @@ function SearchableSelect({
         !wrapperRef.current.contains(e.target as Node)
       ) {
         setOpen(false);
-        setQuery('');
+        setQuery("");
       }
     }
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const selectedLabel = options.find((o) => o.value === value)?.label || '';
+  const selectedLabel = options.find((o) => o.value === value)?.label || "";
 
   const filteredOptions = options.filter((o) =>
     o.label.toLowerCase().includes(query.toLowerCase()),
@@ -229,12 +229,12 @@ function SearchableSelect({
         onClick={() => setOpen((current) => !current)}
         className="flex w-full items-center justify-between rounded-2xl border border-gray-200 bg-white px-4 py-3 text-left text-sm text-gray-900 outline-none transition focus:border-orange-400 focus:ring-4 focus:ring-orange-100 disabled:cursor-not-allowed disabled:bg-gray-50 disabled:text-gray-400"
       >
-        <span className={selectedLabel ? '' : 'text-gray-400'}>
+        <span className={selectedLabel ? "" : "text-gray-400"}>
           {selectedLabel || placeholder}
         </span>
         <ChevronDown
           size={16}
-          className={`text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`}
+          className={`text-gray-400 transition-transform ${open ? "rotate-180" : ""}`}
         />
       </button>
 
@@ -252,7 +252,9 @@ function SearchableSelect({
           </div>
           <div className="max-h-56 overflow-y-auto py-1">
             {filteredOptions.length === 0 && (
-              <p className="px-4 py-2.5 text-sm text-gray-400">No results found.</p>
+              <p className="px-4 py-2.5 text-sm text-gray-400">
+                No results found.
+              </p>
             )}
             {filteredOptions.map((option) => (
               <button
@@ -262,13 +264,13 @@ function SearchableSelect({
                 onClick={() => {
                   onChange(option.value);
                   setOpen(false);
-                  setQuery('');
+                  setQuery("");
                 }}
                 className={`block w-full px-4 py-2.5 text-left text-sm transition ${
                   option.value === value
-                    ? 'bg-orange-50 text-orange-700'
-                    : 'text-gray-700 hover:bg-gray-50'
-                } ${option.disabled ? 'cursor-not-allowed opacity-50' : ''}`}
+                    ? "bg-orange-50 text-orange-700"
+                    : "text-gray-700 hover:bg-gray-50"
+                } ${option.disabled ? "cursor-not-allowed opacity-50" : ""}`}
               >
                 {option.label}
               </button>
@@ -293,7 +295,7 @@ export default function EditPackagePage() {
   const [loadingCities, setLoadingCities] = useState(false);
   const [loadingCountries, setLoadingCountries] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [formError, _setFormError] = useState('');
+  const [formError, _setFormError] = useState("");
   // Wrapping the raw setter means every existing setFormError(...) call in
   // this file also pops an error toast that stays on screen until the user
   // closes it — no need to touch each call site individually.
@@ -305,48 +307,48 @@ export default function EditPackagePage() {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [existingImage, setExistingImage] = useState<string | null>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
-  const [newIncludedItem, setNewIncludedItem] = useState('');
-  const [newFeature, setNewFeature] = useState('');
+  const [newIncludedItem, setNewIncludedItem] = useState("");
+  const [newFeature, setNewFeature] = useState("");
 
   const [form, setForm] = useState({
-    title: '',
-    description: '',
-    price: '',
-    currency: 'AED',
-    priceUnit: 'per event',
-    status: 'ACTIVE',
-    serviceId: '',
-    categoryId: '',
-    maxGuests: '',
-    durationHours: '',
-    minHours: '',
-    maxHours: '',
-    minPersons: '',
-    maxPersons: '',
-    minPieces: '',
-    maxPieces: '',
-    minDays: '',
-    maxDays: '',
+    title: "",
+    description: "",
+    price: "",
+    currency: "AED",
+    priceUnit: "per event",
+    status: "ACTIVE",
+    serviceId: "",
+    categoryId: "",
+    maxGuests: "",
+    durationHours: "",
+    minHours: "",
+    maxHours: "",
+    minPersons: "",
+    maxPersons: "",
+    minPieces: "",
+    maxPieces: "",
+    minDays: "",
+    maxDays: "",
     includedItems: [] as string[],
     features: [] as string[],
-    vendorPhone: '',
-    vendorCountryCode: 'AE',
+    vendorPhone: "",
+    vendorCountryCode: "AE",
     isPromotional: false,
-    promotionDiscountType: 'PERCENTAGE',
-    promotionDiscountValue: '',
-    promotionStartDate: '',
-    promotionEndDate: '',
+    promotionDiscountType: "PERCENTAGE",
+    promotionDiscountValue: "",
+    promotionStartDate: "",
+    promotionEndDate: "",
     isRental: false,
-    deliveryFeeType: 'base',
-    deliveryFixedFee: '',
+    deliveryFeeType: "base",
+    deliveryFixedFee: "",
     pickupAvailable: true,
     deliveryAvailable: true,
-    rentalLocation: '',
-    rentalLocationId: '',
-    serviceArea: '',
-    deliveryRadius: '',
+    rentalLocation: "",
+    rentalLocationId: "",
+    serviceArea: "",
+    deliveryRadius: "",
     requiresDeposit: false,
-    depositAmount: '',
+    depositAmount: "",
   });
 
   useEffect(() => {
@@ -354,25 +356,30 @@ export default function EditPackagePage() {
       if (!id) return;
 
       try {
-        const [pkg, rows, fetchedPriceUnits, fetchedCategories] = await Promise.all([
-          vendorApi.packages.get<ApiPackage>(id),
-          vendorApi.services.list<ApiService[]>(),
-          vendorApi.masterData.priceUnits<PriceUnitMaster[]>(),
-          vendorApi.masterData.categories<ApiCategory[]>(),
-        ]);
+        const [pkg, rows, fetchedPriceUnits, fetchedCategories] =
+          await Promise.all([
+            vendorApi.packages.get<ApiPackage>(id),
+            vendorApi.services.list<ApiService[]>(),
+            vendorApi.masterData.priceUnits<PriceUnitMaster[]>(),
+            vendorApi.masterData.categories<ApiCategory[]>(),
+          ]);
 
-        const activePriceUnits = fetchedPriceUnits.filter((unit) => unit.isActive);
+        const activePriceUnits = fetchedPriceUnits.filter(
+          (unit) => unit.isActive,
+        );
         setPriceUnits(activePriceUnits);
 
-        const selectedServiceId = pkg.serviceId || pkg.items?.[0]?.serviceId || pkg.itemIds?.[0] || '';
+        const selectedServiceId =
+          pkg.serviceId || pkg.items?.[0]?.serviceId || pkg.itemIds?.[0] || "";
         const activeRows = rows.filter(
-          (service) => service.status === 'ACTIVE' || service.id === selectedServiceId
+          (service) =>
+            service.status === "ACTIVE" || service.id === selectedServiceId,
         );
         setServices(activeRows);
 
         const servicesByCategory = new Map<string, ApiService[]>();
         activeRows.forEach((service) => {
-          const categoryId = service.categoryId || 'uncategorized';
+          const categoryId = service.categoryId || "uncategorized";
           if (!servicesByCategory.has(categoryId)) {
             servicesByCategory.set(categoryId, []);
           }
@@ -392,15 +399,24 @@ export default function EditPackagePage() {
           }),
         );
 
-        const pkgCategoryId = pkg.categoryId || pkg.category_id || pkg.category?.id || '';
-        if (pkgCategoryId && !categoryList.some(cat => cat.id === pkgCategoryId)) {
-          const pkgCategory = fetchedCategories.find(c => c.id === pkgCategoryId);
+        const pkgCategoryId =
+          pkg.categoryId || pkg.category_id || pkg.category?.id || "";
+        if (
+          pkgCategoryId &&
+          !categoryList.some((cat) => cat.id === pkgCategoryId)
+        ) {
+          const pkgCategory = fetchedCategories.find(
+            (c) => c.id === pkgCategoryId,
+          );
           if (pkgCategory) {
             categoryList.push({
               id: pkgCategory.id,
               name: pkgCategory.name,
               services: servicesByCategory.get(pkgCategory.id) || [],
-              isRental: checkIfRentalCategory(pkgCategory.slug, pkgCategory.name),
+              isRental: checkIfRentalCategory(
+                pkgCategory.slug,
+                pkgCategory.name,
+              ),
             });
           }
         }
@@ -411,13 +427,15 @@ export default function EditPackagePage() {
         let selectedCategoryIsRental = false;
 
         if (selectedCategoryId) {
-          const category = categoryList.find(cat => cat.id === selectedCategoryId);
+          const category = categoryList.find(
+            (cat) => cat.id === selectedCategoryId,
+          );
           if (category) {
             selectedCategoryIsRental = category.isRental || false;
           }
         } else {
           for (const category of categoryList) {
-            if (category.services.some(s => s.id === selectedServiceId)) {
+            if (category.services.some((s) => s.id === selectedServiceId)) {
               selectedCategoryId = category.id;
               selectedCategoryIsRental = category.isRental || false;
               break;
@@ -425,36 +443,41 @@ export default function EditPackagePage() {
           }
         }
 
-        let vendorAddress = '';
-        let vendorPhoneNumber = '';
+        let vendorAddress = "";
+        let vendorPhoneNumber = "";
+        let vendorPhoneCountryCode = "";
         try {
           const profile = await vendorApi.profile.get();
           if (profile) {
             vendorAddress =
               (profile as any).businessLocation ||
               (profile as any).address ||
-              '';
+              "";
             vendorPhoneNumber =
               (profile as any).phone ||
               (profile as any).primaryMobile ||
               (profile as any).telephone ||
-              '';
+              "";
+            vendorPhoneCountryCode =
+              (profile as any).phoneCountryCode ||
+              (profile as any).primaryMobileCountryCode ||
+              "";
           }
         } catch (error) {
-          console.warn('Could not fetch vendor profile:', error);
+          console.warn("Could not fetch vendor profile:", error);
         }
 
         if (!vendorAddress) {
           const user: any = getUser();
           if (user) {
-            vendorAddress = user.address || user.city || '';
+            vendorAddress = user.address || user.city || "";
           }
         }
 
         if (!vendorPhoneNumber) {
           const user: any = getUser();
           if (user) {
-            vendorPhoneNumber = user.phone || user.mobile || '';
+            vendorPhoneNumber = user.phone || user.mobile || "";
           }
         }
 
@@ -467,90 +490,130 @@ export default function EditPackagePage() {
         const endDate = pkg.promotionEndDate || pkg.promotion_end_date;
 
         const fetchedCountries = await loadCountries();
-        const rawPhone = pkg.vendorPhone || vendorPhoneNumber || '';
-        let matchedCountryCode = 'AE';
-        let displayPhone = rawPhone;
-        if (rawPhone && fetchedCountries.length > 0) {
-          const sortedByLength = [...fetchedCountries].sort(
-            (a, b) => (b.phoneCode?.length || 0) - (a.phoneCode?.length || 0),
-          );
-          const match = sortedByLength.find(
-            (country) => country.phoneCode && rawPhone.startsWith(country.phoneCode),
-          );
-          if (match) {
-            matchedCountryCode = match.code;
-            displayPhone = rawPhone.slice(match.phoneCode.length).trim();
-          }
-        }
+
+let displayPhone = vendorPhoneNumber || "";
+let matchedCountryCode = "AE";
+
+if (vendorPhoneCountryCode && fetchedCountries.length > 0) {
+  const normalizedCode = vendorPhoneCountryCode.startsWith("+")
+    ? vendorPhoneCountryCode
+    : `+${vendorPhoneCountryCode}`;
+
+  const match = fetchedCountries.find(
+    (country) =>
+      country.phoneCode === normalizedCode ||
+      country.code === vendorPhoneCountryCode ||
+      country.code === normalizedCode.replace("+", "")
+  );
+
+  if (match) {
+    matchedCountryCode = match.code;
+  }
+}
+
+if (displayPhone && fetchedCountries.length > 0) {
+  const normalizedPhone = displayPhone.startsWith("+")
+    ? displayPhone
+    : `+${displayPhone}`;
+
+  const country = fetchedCountries.find(
+    (item) =>
+      item.code === matchedCountryCode &&
+      item.phoneCode &&
+      normalizedPhone.startsWith(item.phoneCode)
+  );
+
+  if (country) {
+    displayPhone = normalizedPhone
+      .slice(country.phoneCode.length)
+      .trim();
+  }
+}
 
         const isRental = pkg.isRental || selectedCategoryIsRental || false;
 
-        let deliveryFeeType = 'base';
-        let deliveryFixedFee = '';
+        let deliveryFeeType = "base";
+        let deliveryFixedFee = "";
 
         const rawFeeType = pkg.deliveryFeeType;
-        if (rawFeeType === 'free') {
-          deliveryFeeType = 'free';
-        } else if (rawFeeType === 'base' || rawFeeType === 'fixed') {
-          deliveryFeeType = 'base';
+        if (rawFeeType === "free") {
+          deliveryFeeType = "free";
+        } else if (rawFeeType === "base" || rawFeeType === "fixed") {
+          deliveryFeeType = "base";
         } else if (pkg.deliveryFee === 0) {
-          deliveryFeeType = 'free';
+          deliveryFeeType = "free";
         } else {
-          deliveryFeeType = 'base';
+          deliveryFeeType = "base";
         }
 
-        if (deliveryFeeType === 'base' && pkg.deliveryFee !== undefined && pkg.deliveryFee !== null) {
+        if (
+          deliveryFeeType === "base" &&
+          pkg.deliveryFee !== undefined &&
+          pkg.deliveryFee !== null
+        ) {
           deliveryFixedFee = String(pkg.deliveryFee);
         }
 
         setForm({
-          title: pkg.title || pkg.name || '',
-          description: pkg.description || '',
+          title: pkg.title || pkg.name || "",
+          description: pkg.description || "",
           price: String(pkg.money?.amount ?? pkg.amount ?? pkg.price ?? 0),
-          currency: pkg.money?.currency ?? pkg.currency ?? 'AED',
+          currency: pkg.money?.currency ?? pkg.currency ?? "AED",
           priceUnit:
-            findPriceUnit(activePriceUnits, pkg.priceUnit || pkg.price_unit)?.code ||
+            findPriceUnit(activePriceUnits, pkg.priceUnit || pkg.price_unit)
+              ?.code ||
             activePriceUnits[0]?.code ||
-            'per event',
-          status: pkg.status || 'ACTIVE',
+            "per event",
+          status: pkg.status || "ACTIVE",
           serviceId: selectedServiceId,
           categoryId: selectedCategoryId,
-          maxGuests: String(pkg.maxGuests || ''),
-          durationHours: String(pkg.durationHours || ''),
-          minHours: String(pkg.minHours || ''),
-          maxHours: String(pkg.maxHours || ''),
-          minPersons: String(pkg.minPersons || ''),
-          maxPersons: String(pkg.maxPersons || ''),
-          minPieces: String(pkg.minPieces || ''),
-          maxPieces: String(pkg.maxPieces || ''),
-          minDays: String(pkg.minDays || ''),
-          maxDays: String(pkg.maxDays || ''),
+          maxGuests: String(pkg.maxGuests || ""),
+          durationHours: String(pkg.durationHours || ""),
+          minHours: String(pkg.minHours || ""),
+          maxHours: String(pkg.maxHours || ""),
+          minPersons: String(pkg.minPersons || ""),
+          maxPersons: String(pkg.maxPersons || ""),
+          minPieces: String(pkg.minPieces || ""),
+          maxPieces: String(pkg.maxPieces || ""),
+          minDays: String(pkg.minDays || ""),
+          maxDays: String(pkg.maxDays || ""),
           includedItems: pkg.includedItems || pkg.inclusions || [],
           features: pkg.features || [],
           vendorPhone: displayPhone,
           vendorCountryCode: matchedCountryCode,
           isPromotional: Boolean(pkg.isPromotional || pkg.is_promotional),
-          promotionDiscountType: pkg.promotionDiscountType || pkg.promotion_discount_type || 'PERCENTAGE',
-          promotionDiscountValue: String(pkg.promotionDiscountValue ?? pkg.promotion_discount_value ?? ''),
-          promotionStartDate: startDate ? new Date(startDate).toISOString().split('T')[0] : '',
-          promotionEndDate: endDate ? new Date(endDate).toISOString().split('T')[0] : '',
+          promotionDiscountType:
+            pkg.promotionDiscountType ||
+            pkg.promotion_discount_type ||
+            "PERCENTAGE",
+          promotionDiscountValue: String(
+            pkg.promotionDiscountValue ?? pkg.promotion_discount_value ?? "",
+          ),
+          promotionStartDate: startDate
+            ? new Date(startDate).toISOString().split("T")[0]
+            : "",
+          promotionEndDate: endDate
+            ? new Date(endDate).toISOString().split("T")[0]
+            : "",
           isRental: isRental,
-          rentalLocation: pkg.rentalLocation || vendorAddress || '',
-          rentalLocationId: pkg.rentalLocationId || '',
-          serviceArea: pkg.serviceArea || '',
-          deliveryRadius: String(pkg.deliveryRadius || ''),
+          rentalLocation: pkg.rentalLocation || vendorAddress || "",
+          rentalLocationId: pkg.rentalLocationId || "",
+          serviceArea: pkg.serviceArea || "",
+          deliveryRadius: String(pkg.deliveryRadius || ""),
           deliveryFeeType: deliveryFeeType,
           deliveryFixedFee: deliveryFixedFee,
-          pickupAvailable: pkg.pickupAvailable !== undefined ? pkg.pickupAvailable : true,
-          deliveryAvailable: pkg.deliveryAvailable !== undefined ? pkg.deliveryAvailable : true,
+          pickupAvailable:
+            pkg.pickupAvailable !== undefined ? pkg.pickupAvailable : true,
+          deliveryAvailable:
+            pkg.deliveryAvailable !== undefined ? pkg.deliveryAvailable : true,
           requiresDeposit: pkg.requiresDeposit || false,
-          depositAmount: String(pkg.depositAmount || ''),
+          depositAmount: String(pkg.depositAmount || ""),
         });
 
         await loadCities();
       } catch (error) {
         setFormError(
-          error instanceof Error ? error.message : 'Failed to load package'
+          error instanceof Error ? error.message : "Failed to load package",
         );
       } finally {
         setLoading(false);
@@ -563,10 +626,13 @@ export default function EditPackagePage() {
   async function loadCities() {
     try {
       setLoadingCities(true);
-      const fetchedCities = await vendorApi.masterData.cities<City[]>(1, 'cmryken0n06s7pzsoxhdw44op');
+      const fetchedCities = await vendorApi.masterData.cities<City[]>(
+        1,
+        "cmryken0n06s7pzsoxhdw44op",
+      );
       setCities(fetchedCities);
     } catch (error) {
-      console.error('Failed to load cities:', error);
+      console.error("Failed to load cities:", error);
     } finally {
       setLoadingCities(false);
     }
@@ -575,11 +641,14 @@ export default function EditPackagePage() {
   async function loadCountries() {
     try {
       setLoadingCountries(true);
-      const fetchedCountries = await vendorApi.masterData.countries<CountryMaster[]>();
-      setCountries(fetchedCountries.filter((country) => country.isActive !== false));
+      const fetchedCountries =
+        await vendorApi.masterData.countries<CountryMaster[]>();
+      setCountries(
+        fetchedCountries.filter((country) => country.isActive !== false),
+      );
       return fetchedCountries;
     } catch (error) {
-      console.error('Failed to load countries:', error);
+      console.error("Failed to load countries:", error);
       return [];
     } finally {
       setLoadingCountries(false);
@@ -597,7 +666,7 @@ export default function EditPackagePage() {
       )
     )
       return true;
-    if (categoryName.toLowerCase().includes('rental')) return true;
+    if (categoryName.toLowerCase().includes("rental")) return true;
     return false;
   };
 
@@ -611,7 +680,7 @@ export default function EditPackagePage() {
     value: string | boolean | string[],
   ) => {
     setForm((current) => ({ ...current, [key]: value }));
-    setFormError('');
+    setFormError("");
   };
 
   const handleCategoryChange = (categoryId: string) => {
@@ -624,7 +693,7 @@ export default function EditPackagePage() {
     setForm((current) => ({
       ...current,
       categoryId,
-      serviceId: firstService?.id || '',
+      serviceId: firstService?.id || "",
       currency: firstService?.price?.currency || current.currency,
       priceUnit:
         findPriceUnit(priceUnits, firstService?.price_unit)?.code ||
@@ -633,15 +702,15 @@ export default function EditPackagePage() {
       ...(isRental
         ? {}
         : {
-            rentalLocation: '',
-            rentalLocationId: '',
-            serviceArea: '',
-            deliveryRadius: '',
-            deliveryFixedFee: '',
-            depositAmount: '',
+            rentalLocation: "",
+            rentalLocationId: "",
+            serviceArea: "",
+            deliveryRadius: "",
+            deliveryFixedFee: "",
+            depositAmount: "",
           }),
     }));
-    setFormError('');
+    setFormError("");
   };
 
   const handleCitySelect = (cityId: string) => {
@@ -652,7 +721,7 @@ export default function EditPackagePage() {
         serviceArea: selectedCity.name,
         rentalLocationId: selectedCity.id,
       }));
-      setFormError('');
+      setFormError("");
     }
   };
 
@@ -660,15 +729,15 @@ export default function EditPackagePage() {
     const trimmed = newIncludedItem.trim();
     if (!trimmed) return;
     if (form.includedItems.includes(trimmed)) {
-      setFormError('This item is already added.');
+      setFormError("This item is already added.");
       return;
     }
     setForm((current) => ({
       ...current,
       includedItems: [...current.includedItems, trimmed],
     }));
-    setNewIncludedItem('');
-    setFormError('');
+    setNewIncludedItem("");
+    setFormError("");
   };
 
   const removeIncludedItem = (index: number) => {
@@ -679,7 +748,7 @@ export default function EditPackagePage() {
   };
 
   const handleIncludedKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
+    if (e.key === "Enter") {
       e.preventDefault();
       addIncludedItem();
     }
@@ -689,15 +758,15 @@ export default function EditPackagePage() {
     const trimmed = newFeature.trim();
     if (!trimmed) return;
     if (form.features.includes(trimmed)) {
-      setFormError('This feature is already added.');
+      setFormError("This feature is already added.");
       return;
     }
     setForm((current) => ({
       ...current,
       features: [...current.features, trimmed],
     }));
-    setNewFeature('');
-    setFormError('');
+    setNewFeature("");
+    setFormError("");
   };
 
   const removeFeature = (index: number) => {
@@ -708,7 +777,7 @@ export default function EditPackagePage() {
   };
 
   const handleFeatureKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
+    if (e.key === "Enter") {
       e.preventDefault();
       addFeature();
     }
@@ -718,13 +787,13 @@ export default function EditPackagePage() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (!file.type.startsWith('image/')) {
-      setFormError('Please select a valid image file.');
+    if (!file.type.startsWith("image/")) {
+      setFormError("Please select a valid image file.");
       return;
     }
 
     if (file.size > 5 * 1024 * 1024) {
-      setFormError('Image size should be less than 5MB.');
+      setFormError("Image size should be less than 5MB.");
       return;
     }
 
@@ -735,7 +804,7 @@ export default function EditPackagePage() {
       setImagePreview(reader.result as string);
     };
     reader.readAsDataURL(file);
-    setFormError('');
+    setFormError("");
   };
 
   const removeImage = () => {
@@ -743,21 +812,22 @@ export default function EditPackagePage() {
     setImagePreview(null);
     setExistingImage(null);
     if (fileInputRef.current) {
-      fileInputRef.current.value = '';
+      fileInputRef.current.value = "";
     }
   };
 
   const selectedPriceUnit = findPriceUnit(priceUnits, form.priceUnit);
   const codeRangeType = getRangeType(selectedPriceUnit?.code);
   const rangeType: RangeType =
-    selectedPriceUnit?.requireRange || (form.isRental && codeRangeType === 'day')
+    selectedPriceUnit?.requireRange ||
+    (form.isRental && codeRangeType === "day")
       ? codeRangeType
       : null;
 
-  const showHourFields = rangeType === 'hours';
-  const showPersonFields = rangeType === 'persons';
-  const showPieceFields = rangeType === 'pieces';
-  const showDayFields = rangeType === 'day';
+  const showHourFields = rangeType === "hours";
+  const showPersonFields = rangeType === "persons";
+  const showPieceFields = rangeType === "pieces";
+  const showDayFields = rangeType === "day";
 
   const cityOptions: SearchableOption[] = cities.map((city) => ({
     value: city.id,
@@ -766,43 +836,45 @@ export default function EditPackagePage() {
 
   const selectedVendorCountry =
     countries.find((country) => country.code === form.vendorCountryCode) ||
-    countries.find((country) => country.code === 'AE');
+    countries.find((country) => country.code === "AE");
 
   const fullVendorPhone = form.vendorPhone
-    ? `${selectedVendorCountry?.phoneCode || '+971'}${form.vendorPhone}`
-    : '';
+    ? `${selectedVendorCountry?.phoneCode || "+971"}${form.vendorPhone}`
+    : "";
 
   const handleSave = async () => {
     if (!form.title.trim()) {
-      setFormError('Package title is required.');
+      setFormError("Package title is required.");
       return;
     }
     if (!form.price || Number(form.price) <= 0) {
-      setFormError('Valid package price is required.');
+      setFormError("Valid package price is required.");
       return;
     }
     if (form.description.length > DESCRIPTION_CHAR_LIMIT) {
-      setFormError(`Description cannot exceed ${DESCRIPTION_CHAR_LIMIT} characters.`);
+      setFormError(
+        `Description cannot exceed ${DESCRIPTION_CHAR_LIMIT} characters.`,
+      );
       return;
     }
     if (!form.priceUnit) {
-      setFormError('Please select a price unit.');
+      setFormError("Please select a price unit.");
       return;
     }
 
     if (form.isRental) {
       if (!form.rentalLocation) {
-        setFormError('Please specify the rental pickup/delivery location.');
+        setFormError("Please specify the rental pickup/delivery location.");
         return;
       }
 
       if (!form.serviceArea) {
-        setFormError('Please select a service area/city.');
+        setFormError("Please select a service area/city.");
         return;
       }
 
-      if (form.deliveryFeeType === 'base' && !form.deliveryFixedFee) {
-        setFormError('Please enter a fixed delivery fee.');
+      if (form.deliveryFeeType === "base" && !form.deliveryFixedFee) {
+        setFormError("Please enter a fixed delivery fee.");
         return;
       }
 
@@ -810,77 +882,77 @@ export default function EditPackagePage() {
         form.requiresDeposit &&
         (!form.depositAmount || Number(form.depositAmount) <= 0)
       ) {
-        setFormError('Please enter a valid deposit amount.');
+        setFormError("Please enter a valid deposit amount.");
         return;
       }
     }
 
     if (showHourFields) {
       if (!form.minHours || Number(form.minHours) <= 0) {
-        setFormError('Minimum hours is required and must be greater than 0.');
+        setFormError("Minimum hours is required and must be greater than 0.");
         return;
       }
       if (!form.maxHours || Number(form.maxHours) <= 0) {
-        setFormError('Maximum hours is required and must be greater than 0.');
+        setFormError("Maximum hours is required and must be greater than 0.");
         return;
       }
       if (Number(form.minHours) > Number(form.maxHours)) {
-        setFormError('Minimum hours cannot be greater than maximum hours.');
+        setFormError("Minimum hours cannot be greater than maximum hours.");
         return;
       }
     }
 
     if (showPersonFields) {
       if (!form.minPersons || Number(form.minPersons) <= 0) {
-        setFormError('Minimum persons is required and must be greater than 0.');
+        setFormError("Minimum persons is required and must be greater than 0.");
         return;
       }
       if (!form.maxPersons || Number(form.maxPersons) <= 0) {
-        setFormError('Maximum persons is required and must be greater than 0.');
+        setFormError("Maximum persons is required and must be greater than 0.");
         return;
       }
       if (Number(form.minPersons) > Number(form.maxPersons)) {
-        setFormError('Minimum persons cannot be greater than maximum persons.');
+        setFormError("Minimum persons cannot be greater than maximum persons.");
         return;
       }
     }
 
     if (showPieceFields) {
       if (!form.minPieces || Number(form.minPieces) <= 0) {
-        setFormError('Minimum pieces is required and must be greater than 0.');
+        setFormError("Minimum pieces is required and must be greater than 0.");
         return;
       }
       if (!form.maxPieces || Number(form.maxPieces) <= 0) {
-        setFormError('Maximum pieces is required and must be greater than 0.');
+        setFormError("Maximum pieces is required and must be greater than 0.");
         return;
       }
       if (Number(form.minPieces) > Number(form.maxPieces)) {
-        setFormError('Minimum pieces cannot be greater than maximum pieces.');
+        setFormError("Minimum pieces cannot be greater than maximum pieces.");
         return;
       }
     }
 
     if (showDayFields) {
       if (!form.minDays || Number(form.minDays) <= 0) {
-        setFormError('Minimum days is required and must be greater than 0.');
+        setFormError("Minimum days is required and must be greater than 0.");
         return;
       }
       if (!form.maxDays || Number(form.maxDays) <= 0) {
-        setFormError('Maximum days is required and must be greater than 0.');
+        setFormError("Maximum days is required and must be greater than 0.");
         return;
       }
       if (Number(form.minDays) > Number(form.maxDays)) {
-        setFormError('Minimum days cannot be greater than maximum days.');
+        setFormError("Minimum days cannot be greater than maximum days.");
         return;
       }
     }
 
     if (form.maxGuests && Number(form.maxGuests) <= 0) {
-      setFormError('Max guests must be greater than 0.');
+      setFormError("Max guests must be greater than 0.");
       return;
     }
     if (form.durationHours && Number(form.durationHours) <= 0) {
-      setFormError('Duration must be greater than 0.');
+      setFormError("Duration must be greater than 0.");
       return;
     }
 
@@ -889,21 +961,21 @@ export default function EditPackagePage() {
         !form.promotionDiscountValue ||
         Number(form.promotionDiscountValue) <= 0
       ) {
-        setFormError('Enter a valid promotional discount value.');
+        setFormError("Enter a valid promotional discount value.");
         return;
       }
       if (!form.promotionStartDate) {
-        setFormError('Promotion start date is required.');
+        setFormError("Promotion start date is required.");
         return;
       }
       if (!form.promotionEndDate) {
-        setFormError('Promotion end date is required.');
+        setFormError("Promotion end date is required.");
         return;
       }
       if (
         new Date(form.promotionStartDate) >= new Date(form.promotionEndDate)
       ) {
-        setFormError('Promotion end date must be after start date.');
+        setFormError("Promotion end date must be after start date.");
         return;
       }
     }
@@ -912,16 +984,16 @@ export default function EditPackagePage() {
     try {
       const vendorId = getUser()?.vendorId;
       if (!vendorId)
-        throw new Error('Vendor profile not found. Please sign in again.');
+        throw new Error("Vendor profile not found. Please sign in again.");
 
-      let uploadedImageUrl = '';
+      let uploadedImageUrl = "";
       if (imageFile) {
         setUploadingImage(true);
         try {
-          const result = await vendorApi.uploads.image(imageFile, 'packages');
+          const result = await vendorApi.uploads.image(imageFile, "packages");
           uploadedImageUrl = result.url;
         } catch (error) {
-          setFormError('Failed to upload image. Please try again.');
+          setFormError("Failed to upload image. Please try again.");
           setSaving(false);
           setUploadingImage(false);
           return;
@@ -980,19 +1052,23 @@ export default function EditPackagePage() {
           ? Number(form.depositAmount)
           : undefined;
 
-        if (form.deliveryFeeType === 'free') {
-          packageData.deliveryFeeType = 'free';
+        if (form.deliveryFeeType === "free") {
+          packageData.deliveryFeeType = "free";
           packageData.deliveryFee = 0;
-        } else if (form.deliveryFeeType === 'base') {
-          packageData.deliveryFeeType = 'base';
+        } else if (form.deliveryFeeType === "base") {
+          packageData.deliveryFeeType = "base";
           packageData.deliveryFee = Number(form.deliveryFixedFee);
         }
       }
 
       packageData.minHours = showHourFields ? Number(form.minHours) : null;
       packageData.maxHours = showHourFields ? Number(form.maxHours) : null;
-      packageData.minPersons = showPersonFields ? Number(form.minPersons) : null;
-      packageData.maxPersons = showPersonFields ? Number(form.maxPersons) : null;
+      packageData.minPersons = showPersonFields
+        ? Number(form.minPersons)
+        : null;
+      packageData.maxPersons = showPersonFields
+        ? Number(form.maxPersons)
+        : null;
       packageData.minDays = showDayFields ? Number(form.minDays) : null;
       packageData.maxDays = showDayFields ? Number(form.maxDays) : null;
       if (showPieceFields) {
@@ -1003,10 +1079,10 @@ export default function EditPackagePage() {
       await vendorApi.packages.update(id, packageData);
 
       showSuccess(`Package "${form.title}" updated successfully!`);
-      router.push('/vendor/packages');
+      router.push("/vendor/packages");
     } catch (error) {
       setFormError(
-        error instanceof Error ? error.message : 'Failed to update package.',
+        error instanceof Error ? error.message : "Failed to update package.",
       );
       setSaving(false);
     }
@@ -1080,8 +1156,7 @@ export default function EditPackagePage() {
                 />
                 {form.isRental && (
                   <p className="mt-1 text-xs text-orange-600">
-                    Rental category selected - delivery/pickup options
-                    available
+                    Rental category selected - delivery/pickup options available
                   </p>
                 )}
               </div>
@@ -1102,10 +1177,10 @@ export default function EditPackagePage() {
                       currency:
                         nextService?.price?.currency || current.currency,
                       priceUnit:
-                        findPriceUnit(priceUnits, nextService?.price_unit)?.code ||
-                        current.priceUnit,
+                        findPriceUnit(priceUnits, nextService?.price_unit)
+                          ?.code || current.priceUnit,
                     }));
-                    setFormError('');
+                    setFormError("");
                   }}
                   placeholder="Select service"
                   options={getServicesForCategory(form.categoryId).map(
@@ -1124,7 +1199,7 @@ export default function EditPackagePage() {
               </label>
               <input
                 value={form.title}
-                onChange={(e) => setField('title', e.target.value)}
+                onChange={(e) => setField("title", e.target.value)}
                 placeholder="e.g. Romance in Bloom"
                 className="w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-orange-400 focus:ring-4 focus:ring-orange-100"
               />
@@ -1139,10 +1214,13 @@ export default function EditPackagePage() {
                 onChange={(e) => {
                   const value = e.target.value;
                   if (value.length > DESCRIPTION_CHAR_LIMIT) {
-                    setField('description', value.slice(0, DESCRIPTION_CHAR_LIMIT));
+                    setField(
+                      "description",
+                      value.slice(0, DESCRIPTION_CHAR_LIMIT),
+                    );
                     return;
                   }
-                  setField('description', value);
+                  setField("description", value);
                 }}
                 maxLength={DESCRIPTION_CHAR_LIMIT}
                 rows={3}
@@ -1152,8 +1230,8 @@ export default function EditPackagePage() {
               <p
                 className={`mt-1 text-right text-xs ${
                   descriptionCharCount >= DESCRIPTION_CHAR_LIMIT
-                    ? 'text-red-500'
-                    : 'text-gray-400'
+                    ? "text-red-500"
+                    : "text-gray-400"
                 }`}
               >
                 {descriptionCharCount}/{DESCRIPTION_CHAR_LIMIT} characters
@@ -1169,7 +1247,7 @@ export default function EditPackagePage() {
                   type="number"
                   min="0"
                   value={form.price}
-                  onChange={(e) => setField('price', e.target.value)}
+                  onChange={(e) => setField("price", e.target.value)}
                   placeholder="2500"
                   className="w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-orange-400 focus:ring-4 focus:ring-orange-100"
                 />
@@ -1182,17 +1260,17 @@ export default function EditPackagePage() {
                 <SearchableSelect
                   value={form.priceUnit}
                   onChange={(nextUnit) => {
-                    setField('priceUnit', nextUnit);
+                    setField("priceUnit", nextUnit);
                     setForm((current) => ({
                       ...current,
-                      minHours: '',
-                      maxHours: '',
-                      minPersons: '',
-                      maxPersons: '',
-                      minPieces: '',
-                      maxPieces: '',
-                      minDays: '',
-                      maxDays: '',
+                      minHours: "",
+                      maxHours: "",
+                      minPersons: "",
+                      maxPersons: "",
+                      minPieces: "",
+                      maxPieces: "",
+                      minDays: "",
+                      maxDays: "",
                     }));
                   }}
                   placeholder="Select unit"
@@ -1211,7 +1289,7 @@ export default function EditPackagePage() {
                   type="number"
                   min="0"
                   value={form.maxGuests}
-                  onChange={(e) => setField('maxGuests', e.target.value)}
+                  onChange={(e) => setField("maxGuests", e.target.value)}
                   placeholder="100"
                   className="w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-orange-400 focus:ring-4 focus:ring-orange-100"
                 />
@@ -1226,7 +1304,7 @@ export default function EditPackagePage() {
                   min="0"
                   step="0.5"
                   value={form.durationHours}
-                  onChange={(e) => setField('durationHours', e.target.value)}
+                  onChange={(e) => setField("durationHours", e.target.value)}
                   placeholder="6"
                   className="w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-orange-400 focus:ring-4 focus:ring-orange-100"
                 />
@@ -1244,7 +1322,7 @@ export default function EditPackagePage() {
                     min="0"
                     step="0.5"
                     value={form.minHours}
-                    onChange={(e) => setField('minHours', e.target.value)}
+                    onChange={(e) => setField("minHours", e.target.value)}
                     placeholder="2"
                     className="w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-orange-400 focus:ring-4 focus:ring-orange-100"
                   />
@@ -1258,7 +1336,7 @@ export default function EditPackagePage() {
                     min="0"
                     step="0.5"
                     value={form.maxHours}
-                    onChange={(e) => setField('maxHours', e.target.value)}
+                    onChange={(e) => setField("maxHours", e.target.value)}
                     placeholder="8"
                     className="w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-orange-400 focus:ring-4 focus:ring-orange-100"
                   />
@@ -1276,7 +1354,7 @@ export default function EditPackagePage() {
                     type="number"
                     min="0"
                     value={form.minPersons}
-                    onChange={(e) => setField('minPersons', e.target.value)}
+                    onChange={(e) => setField("minPersons", e.target.value)}
                     placeholder="10"
                     className="w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-orange-400 focus:ring-4 focus:ring-orange-100"
                   />
@@ -1289,7 +1367,7 @@ export default function EditPackagePage() {
                     type="number"
                     min="0"
                     value={form.maxPersons}
-                    onChange={(e) => setField('maxPersons', e.target.value)}
+                    onChange={(e) => setField("maxPersons", e.target.value)}
                     placeholder="50"
                     className="w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-orange-400 focus:ring-4 focus:ring-orange-100"
                   />
@@ -1307,7 +1385,7 @@ export default function EditPackagePage() {
                     type="number"
                     min="0"
                     value={form.minPieces}
-                    onChange={(e) => setField('minPieces', e.target.value)}
+                    onChange={(e) => setField("minPieces", e.target.value)}
                     placeholder="1"
                     className="w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-orange-400 focus:ring-4 focus:ring-orange-100"
                   />
@@ -1320,7 +1398,7 @@ export default function EditPackagePage() {
                     type="number"
                     min="0"
                     value={form.maxPieces}
-                    onChange={(e) => setField('maxPieces', e.target.value)}
+                    onChange={(e) => setField("maxPieces", e.target.value)}
                     placeholder="10"
                     className="w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-orange-400 focus:ring-4 focus:ring-orange-100"
                   />
@@ -1338,7 +1416,7 @@ export default function EditPackagePage() {
                     type="number"
                     min="0"
                     value={form.minDays}
-                    onChange={(e) => setField('minDays', e.target.value)}
+                    onChange={(e) => setField("minDays", e.target.value)}
                     placeholder="1"
                     className="w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-orange-400 focus:ring-4 focus:ring-orange-100"
                   />
@@ -1351,7 +1429,7 @@ export default function EditPackagePage() {
                     type="number"
                     min="0"
                     value={form.maxDays}
-                    onChange={(e) => setField('maxDays', e.target.value)}
+                    onChange={(e) => setField("maxDays", e.target.value)}
                     placeholder="7"
                     className="w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-orange-400 focus:ring-4 focus:ring-orange-100"
                   />
@@ -1377,7 +1455,7 @@ export default function EditPackagePage() {
                 <div className="space-y-4">
                   <div>
                     <label className="mb-1.5 block text-xs font-semibold tracking-wide text-gray-600">
-                      Rental Location Address{' '}
+                      Rental Location Address{" "}
                       <span className="text-red-500">*</span>
                     </label>
                     <div className="relative">
@@ -1408,7 +1486,9 @@ export default function EditPackagePage() {
                       <SearchableSelect
                         value={form.rentalLocationId}
                         onChange={handleCitySelect}
-                        placeholder={loadingCities ? 'Loading cities...' : 'Select city'}
+                        placeholder={
+                          loadingCities ? "Loading cities..." : "Select city"
+                        }
                         options={cityOptions}
                         disabled={loadingCities}
                       />
@@ -1416,21 +1496,22 @@ export default function EditPackagePage() {
 
                     <div>
                       <label className="mb-1.5 block text-xs font-semibold tracking-wide text-gray-600">
-                        Delivery Fee Type <span className="text-red-500">*</span>
+                        Delivery Fee Type{" "}
+                        <span className="text-red-500">*</span>
                       </label>
                       <SearchableSelect
                         value={form.deliveryFeeType}
-                        onChange={(value) => setField('deliveryFeeType', value)}
+                        onChange={(value) => setField("deliveryFeeType", value)}
                         placeholder="Select fee type"
                         options={DELIVERY_FEE_TYPES}
                       />
                     </div>
                   </div>
 
-                  {form.deliveryFeeType === 'base' && (
+                  {form.deliveryFeeType === "base" && (
                     <div>
                       <label className="mb-1.5 block text-xs font-semibold tracking-wide text-gray-600">
-                        Fixed Delivery Fee{' '}
+                        Fixed Delivery Fee{" "}
                         <span className="text-red-500">*</span>
                       </label>
                       <div className="relative">
@@ -1442,7 +1523,7 @@ export default function EditPackagePage() {
                           min="0"
                           value={form.deliveryFixedFee}
                           onChange={(e) =>
-                            setField('deliveryFixedFee', e.target.value)
+                            setField("deliveryFixedFee", e.target.value)
                           }
                           placeholder="50"
                           className="w-full rounded-2xl border border-gray-200 bg-white pl-12 pr-4 py-3 text-sm text-gray-900 outline-none transition focus:border-orange-400 focus:ring-4 focus:ring-orange-100"
@@ -1555,11 +1636,11 @@ export default function EditPackagePage() {
                   <Globe size={14} className="text-gray-400" />
                   <span className="font-medium text-gray-700">
                     {loadingCountries
-                      ? '...'
-                      : selectedVendorCountry?.phoneCode || '+971'}
+                      ? "..."
+                      : selectedVendorCountry?.phoneCode || "+971"}
                   </span>
                   <span className="text-xs font-semibold text-gray-400">
-                    {selectedVendorCountry?.code || 'AE'}
+                    {selectedVendorCountry?.code || "AE"}
                   </span>
                 </div>
                 <div className="relative flex-1">
@@ -1593,12 +1674,12 @@ export default function EditPackagePage() {
               </label>
               <SearchableSelect
                 value={form.status}
-                onChange={(value) => setField('status', value)}
+                onChange={(value) => setField("status", value)}
                 placeholder="Select status"
                 options={[
-                  { value: 'ACTIVE', label: 'Active' },
-                  { value: 'INACTIVE', label: 'Inactive' },
-                  { value: 'DRAFT', label: 'Draft' },
+                  { value: "ACTIVE", label: "Active" },
+                  { value: "INACTIVE", label: "Inactive" },
+                  { value: "DRAFT", label: "Draft" },
                 ]}
               />
             </div>
@@ -1608,10 +1689,10 @@ export default function EditPackagePage() {
                 Package Image
               </label>
               <div className="mt-1">
-                {(imagePreview || existingImage) ? (
+                {imagePreview || existingImage ? (
                   <div className="relative inline-block">
                     <img
-                      src={imagePreview || existingImage || ''}
+                      src={imagePreview || existingImage || ""}
                       alt="Package preview"
                       className="h-40 w-40 rounded-2xl object-cover border border-gray-200"
                     />
@@ -1674,7 +1755,7 @@ export default function EditPackagePage() {
                     type="checkbox"
                     checked={form.isPromotional}
                     onChange={(e) =>
-                      setField('isPromotional', e.target.checked)
+                      setField("isPromotional", e.target.checked)
                     }
                     className="h-4 w-4 rounded border-gray-300 text-orange-500 focus:ring-orange-400"
                   />
@@ -1699,16 +1780,16 @@ export default function EditPackagePage() {
                         }
                         placeholder="Select type"
                         options={[
-                          { value: 'PERCENTAGE', label: 'Percentage' },
-                          { value: 'FLAT', label: 'Flat' },
+                          { value: "PERCENTAGE", label: "Percentage" },
+                          { value: "FLAT", label: "Flat" },
                         ]}
                       />
                     </div>
                     <div>
                       <label className="mb-1.5 block text-xs font-semibold tracking-wide text-gray-600">
-                        {form.promotionDiscountType === 'FLAT'
-                          ? 'Flat discount'
-                          : 'Discount percentage'}
+                        {form.promotionDiscountType === "FLAT"
+                          ? "Flat discount"
+                          : "Discount percentage"}
                       </label>
                       <input
                         type="number"
@@ -1721,7 +1802,7 @@ export default function EditPackagePage() {
                           }))
                         }
                         placeholder={
-                          form.promotionDiscountType === 'FLAT' ? '150' : '20'
+                          form.promotionDiscountType === "FLAT" ? "150" : "20"
                         }
                         className="w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-orange-400 focus:ring-4 focus:ring-orange-100"
                       />
@@ -1737,9 +1818,9 @@ export default function EditPackagePage() {
                         type="date"
                         value={form.promotionStartDate}
                         onChange={(e) =>
-                          setField('promotionStartDate', e.target.value)
+                          setField("promotionStartDate", e.target.value)
                         }
-                        min={new Date().toISOString().split('T')[0]}
+                        min={new Date().toISOString().split("T")[0]}
                         className="w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-orange-400 focus:ring-4 focus:ring-orange-100"
                       />
                     </div>
@@ -1751,11 +1832,11 @@ export default function EditPackagePage() {
                         type="date"
                         value={form.promotionEndDate}
                         onChange={(e) =>
-                          setField('promotionEndDate', e.target.value)
+                          setField("promotionEndDate", e.target.value)
                         }
                         min={
                           form.promotionStartDate ||
-                          new Date().toISOString().split('T')[0]
+                          new Date().toISOString().split("T")[0]
                         }
                         className="w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-orange-400 focus:ring-4 focus:ring-orange-100"
                       />
@@ -1768,7 +1849,7 @@ export default function EditPackagePage() {
             <input
               type="hidden"
               value={form.currency}
-              onChange={(e) => setField('currency', e.target.value)}
+              onChange={(e) => setField("currency", e.target.value)}
             />
           </div>
 
@@ -1791,10 +1872,10 @@ export default function EditPackagePage() {
                   <CheckCircle2 size={16} />
                 )}
                 {uploadingImage
-                  ? 'Uploading Image...'
+                  ? "Uploading Image..."
                   : saving
-                    ? 'Updating...'
-                    : 'Update Package'}
+                    ? "Updating..."
+                    : "Update Package"}
               </span>
             </button>
           </div>
