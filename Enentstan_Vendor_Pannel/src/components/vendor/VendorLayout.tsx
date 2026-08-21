@@ -10,6 +10,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { vendorApi } from '@/api/vendorApi';
 import { clearSession, getToken, getUser, isVendorProfileComplete, onVendorSessionChange, saveSession, type VendorUser } from '@/lib/auth';
 import { canAccessPermission, canAccessRoute } from '@/lib/permissions';
+import { showError, showSuccess } from '@/lib/toast';
 
 const navItems = [
   { href: '/vendor/dashboard', label: 'Dashboard', icon: LayoutDashboard, permissionKey: 'dashboard-vendor' },
@@ -134,6 +135,7 @@ export default function VendorLayout({ children }: { children: React.ReactNode }
       // ignore
     }
     clearSession();
+    showSuccess('Logged out successfully.');
     router.replace('/vendor/login');
   }
 

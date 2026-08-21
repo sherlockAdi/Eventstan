@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  AlertTriangle,
   CheckCircle2,
   ChevronDown,
   ChevronUp,
@@ -26,6 +25,7 @@ import {
   RotateCcw,
 } from "lucide-react";
 import { vendorApi } from "@/api/vendorApi";
+import { showError, showSuccess } from "@/lib/toast";
 import Pagination from "@/components/vendor/Pagination";
 
 type SortKey = "title" | "category" | "amount" | "status" | "city";
@@ -207,8 +207,6 @@ export default function ServicesPage() {
   const router = useRouter();
   const [services, setServices] = useState<ApiService[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState("");
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
@@ -221,11 +219,10 @@ export default function ServicesPage() {
   const fetchServices = async () => {
     try {
       setLoading(true);
-      setError(null);
       const data = await vendorApi.services.list<ApiService[]>();
       setServices(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load services");
+      showError(err instanceof Error ? err.message : "Failed to load services");
     } finally {
       setLoading(false);
     }
@@ -304,12 +301,10 @@ export default function ServicesPage() {
     try {
       await vendorApi.services.delete(deleteTarget.id);
       setServices((cur) => cur.filter((s) => s.id !== deleteTarget.id));
-      setSuccess(`"${deleteTarget.title}" deleted`);
+      showSuccess(`"${deleteTarget.title}" deleted`);
       setDeleteTarget(null);
-      window.setTimeout(() => setSuccess(""), 3000);
     } catch {
-      setError("Failed to delete service");
-      window.setTimeout(() => setError(null), 3000);
+      showError("Failed to delete service");
     }
   };
 
@@ -321,12 +316,10 @@ export default function ServicesPage() {
       setServices((cur) =>
         cur.map((s) => (s.id === toggleTarget.id ? { ...s, status: newStatus } : s))
       );
-      setSuccess(`"${toggleTarget.title}" ${newStatus === "ACTIVE" ? "activated" : "deactivated"}`);
+      showSuccess(`"${toggleTarget.title}" ${newStatus === "ACTIVE" ? "activated" : "deactivated"}`);
       setToggleTarget(null);
-      window.setTimeout(() => setSuccess(""), 3000);
     } catch {
-      setError("Failed to update service status");
-      window.setTimeout(() => setError(null), 3000);
+      showError("Failed to update service status");
     }
   };
 
@@ -364,18 +357,6 @@ export default function ServicesPage() {
           <Plus size={16} /> Add New Service
         </Link>
       </div>
-
-      {/* Flash Messages */}
-      {success && (
-        <div className="flex items-center gap-2 bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-xl text-sm">
-          <CheckCircle2 size={15} className="shrink-0" /> <span>{success}</span>
-        </div>
-      )}
-      {error && (
-        <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm">
-          <AlertTriangle size={15} className="shrink-0" /> <span>{error}</span>
-        </div>
-      )}
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">

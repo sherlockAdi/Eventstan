@@ -15,6 +15,20 @@ import {
 } from "lucide-react";
 import { vendorApi } from "@/api/vendorApi";
 import { findPriceUnit, PriceUnitMaster } from "@/lib/priceUnits";
+import SearchableSelectField from "@/components/vendor/SearchableSelectField";
+import { showError, showSuccess } from "@/lib/toast";
+
+interface ApiCity {
+  id: string;
+  name: string;
+  status: string;
+}
+
+interface ApiCountry {
+  id: number;
+  code: string;
+  defaultCurrency: string;
+}
 
 interface ApiService {
   id: string;
@@ -22,6 +36,7 @@ interface ApiService {
   vendorId: string;
   categoryId: string;
   category?: string;
+  status: string;
   title: string;
   description?: string;
   city?: string;
@@ -35,7 +50,6 @@ interface ApiService {
   minPieces?: number;
   maxPieces?: number;
   image_url?: string;
-  status: string;
   tags?: string[];
   gallery?: string[];
   features?: string[];
@@ -58,6 +72,7 @@ const emptyForm = {
   tags: [] as string[],
   features: [] as string[],
   imageUrl: "",
+  categoryId: "",
 };
 
 function slugify(value: string) {
@@ -78,6 +93,10 @@ export default function EditServicePage() {
 
   const [service, setService] = useState<ApiService | null>(null);
   const [priceUnits, setPriceUnits] = useState<PriceUnitMaster[]>([]);
+  const [categories, setCategories] = useState<
+    Array<{ id: string; name: string }>
+  >([]);
+  const [cities, setCities] = useState<ApiCity[]>([]);
   const [form, setForm] = useState(emptyForm);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -104,13 +123,19 @@ export default function EditServicePage() {
       try {
         setLoading(true);
         setError("");
-        const [data, fetchedPriceUnits] = await Promise.all([
-          vendorApi.services.get<ApiService>(id),
-          vendorApi.masterData.priceUnits<PriceUnitMaster[]>(),
-        ]);
+        const [data, fetchedPriceUnits, categoryRows, countryRows] =
+          await Promise.all([
+            vendorApi.services.get<ApiService>(id),
+            vendorApi.masterData.priceUnits<PriceUnitMaster[]>(),
+            vendorApi.masterData.categories<
+              Array<{ id: string; name: string }>
+            >(),
+            vendorApi.masterData.countries<ApiCountry[]>(),
+          ]);
         setService(data);
-        setPriceUnits(fetchedPriceUnits.filter((unit) => unit.isActive));
         const activePriceUnits = fetchedPriceUnits.filter((unit) => unit.isActive);
+        setPriceUnits(activePriceUnits);
+        setCategories(categoryRows);
         setForm({
           title: data.title || "",
           slug: data.slug || slugify(data.title || ""),
@@ -129,12 +154,28 @@ export default function EditServicePage() {
           tags: data.tags || [],
           features: data.features || [],
           imageUrl: data.image_url || "",
+          categoryId: data.categoryId || "",
         });
         if (data.image_url) {
           setMainImage({ file: null, preview: data.image_url });
         }
         if (data.gallery?.length) {
           setExistingGallery(data.gallery);
+        }
+
+        // Fetch cities independently so a failure here never blocks the
+        // rest of the form (service data, price units, categories) from loading.
+        try {
+          const uae = countryRows.find((country) => country.code === "AE");
+          const cityRows = await vendorApi.masterData.cities<ApiCity[]>(uae?.id);
+          setCities(
+            Array.isArray(cityRows)
+              ? cityRows.filter((c) => c.status === "Active")
+              : [],
+          );
+        } catch (cityErr) {
+          console.error("Error fetching cities:", cityErr);
+          setCities([]);
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to load service");
@@ -208,7 +249,9 @@ export default function EditServicePage() {
       const result = await vendorApi.uploads.image(file, "services");
       setFormField("imageUrl", result.url);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Image upload failed");
+      const msg = err instanceof Error ? err.message : "Image upload failed";
+      setError(msg);
+      showError(msg);
     } finally {
       setUploading(false);
     }
@@ -280,11 +323,14 @@ export default function EditServicePage() {
   };
 
   const validate = () => {
+    if (!form.categoryId) return "Category is required.";
     if (!form.title.trim()) return "Service title is required.";
     if (!slugify(form.slug)) return "Service slug is required.";
     if (slugStatus === "taken") return "Service slug is already in use.";
+    if (!form.imageUrl) return "Main image is required.";
     if (!form.description.trim()) return "Description is required.";
     if (!form.city.trim()) return "City is required.";
+    if (!form.status) return "Status is required.";
     if (!form.amount || Number(form.amount) <= 0)
       return "Valid starting price is required.";
     if (form.priceMax && Number(form.priceMax) < Number(form.amount))
@@ -309,6 +355,7 @@ export default function EditServicePage() {
     const validationError = validate();
     if (validationError) {
       setError(validationError);
+      showError(validationError);
       return;
     }
 
@@ -325,6 +372,7 @@ export default function EditServicePage() {
       const selectedPriceUnit = findPriceUnit(priceUnits, form.priceUnit);
 
       const servicePayload: Record<string, unknown> = {
+        categoryId: form.categoryId,
         title: form.title.trim(),
         slug: slugify(form.slug),
         description: form.description.trim(),
@@ -347,9 +395,12 @@ export default function EditServicePage() {
 
       await vendorApi.services.update(id, servicePayload);
 
+      showSuccess("Service updated successfully!");
       router.push("/vendor/services");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to update service");
+      const msg = err instanceof Error ? err.message : "Failed to update service";
+      setError(msg);
+      showError(msg);
     } finally {
       setSaving(false);
     }
@@ -404,12 +455,6 @@ export default function EditServicePage() {
         </div>
       </div>
 
-      {error && (
-        <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-xl">
-          <AlertTriangle size={15} /> {error}
-        </div>
-      )}
-
       <div className="space-y-4">
         <div className="bg-white rounded-[22px] border border-gray-100 p-5 shadow-sm space-y-4">
           <h2 className="font-semibold text-gray-800 text-sm uppercase tracking-wide">
@@ -421,16 +466,19 @@ export default function EditServicePage() {
               <div className="space-y-4">
                 <div>
                   <label className="text-xs font-semibold text-gray-700 mb-1.5 block">
-                    Category
+                    Category *
                   </label>
-                  <input
-                    value={service?.category || service?.categoryId || ""}
-                    disabled
-                    className="w-full px-4 py-2.5 text-sm border border-gray-200 rounded-xl bg-gray-50 text-gray-500"
+                  <SearchableSelectField
+                    value={form.categoryId}
+                    onChange={(v) => setFormField("categoryId", v)}
+                    options={categories.map((category) => ({
+                      value: category.id,
+                      label: category.name,
+                    }))}
+                    placeholder="Select category"
+                    searchPlaceholder="Search categories..."
+                    emptyLabel="No categories found"
                   />
-                  <p className="text-xs text-gray-400 mt-1">
-                    Category cannot be changed after creation.
-                  </p>
                 </div>
 
                 <div>
@@ -474,10 +522,16 @@ export default function EditServicePage() {
                     <label className="text-xs font-semibold text-gray-700 mb-1.5 block">
                       City *
                     </label>
-                    <input
+                    <SearchableSelectField
                       value={form.city}
-                      onChange={(e) => setFormField("city", e.target.value)}
-                      className="w-full px-4 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-orange-400"
+                      onChange={(v) => setFormField("city", v)}
+                      options={cities.map((city) => ({
+                        value: city.name,
+                        label: city.name,
+                      }))}
+                      placeholder="Select city"
+                      searchPlaceholder="Search cities..."
+                      emptyLabel="No cities found"
                     />
                   </div>
 
@@ -485,19 +539,17 @@ export default function EditServicePage() {
                     <label className="text-xs font-semibold text-gray-700 mb-1.5 block">
                       Price Unit *
                     </label>
-                    <select
+                    <SearchableSelectField
                       value={form.priceUnit}
-                      onChange={(e) =>
-                        setFormField("priceUnit", e.target.value)
-                      }
-                      className="w-full px-4 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-orange-400"
-                    >
-                      {priceUnits.map((unit) => (
-                        <option key={unit.id} value={unit.code}>
-                          {unit.label}
-                        </option>
-                      ))}
-                    </select>
+                      onChange={(v) => setFormField("priceUnit", v)}
+                      options={priceUnits.map((unit) => ({
+                        value: unit.code,
+                        label: unit.label,
+                      }))}
+                      placeholder="Select price unit"
+                      searchPlaceholder="Search price units..."
+                      emptyLabel="No price units found"
+                    />
                   </div>
                 </div>
 
@@ -574,14 +626,16 @@ export default function EditServicePage() {
                     <label className="text-xs font-semibold text-gray-700 mb-1.5 block">
                       Status *
                     </label>
-                    <select
+                    <SearchableSelectField
                       value={form.status}
-                      onChange={(e) => setFormField("status", e.target.value)}
-                      className="w-full px-4 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-orange-400"
-                    >
-                      <option value="ACTIVE">Active</option>
-                      <option value="INACTIVE">Inactive</option>
-                    </select>
+                      onChange={(v) => setFormField("status", v)}
+                      options={[
+                        { value: "ACTIVE", label: "Active" },
+                        { value: "INACTIVE", label: "Inactive" },
+                      ]}
+                      placeholder="Select status"
+                      searchPlaceholder="Search status..."
+                    />
                   </div>
                 </div>
               </div>
@@ -616,7 +670,7 @@ export default function EditServicePage() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <div>
               <label className="text-xs font-semibold text-gray-700 mb-2 block">
-                Main Image
+                Main Image <span className="text-red-500">*</span>
               </label>
               <input
                 ref={fileRef}

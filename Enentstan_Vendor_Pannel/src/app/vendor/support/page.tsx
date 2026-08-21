@@ -9,6 +9,7 @@ import {
   Paperclip, PlusCircle, Send, LifeBuoy
 } from "lucide-react";
 import { vendorApi } from "@/api/vendorApi";
+import { showError, showSuccess } from '@/lib/toast';
 
 type SupportStatus = "OPEN" | "IN_PROGRESS" | "WAITING_FOR_ADMIN" | "WAITING_FOR_VENDOR" | "RESOLVED" | "CLOSED";
 
@@ -74,8 +75,18 @@ export default function VendorSupportPage() {
   const [tickets, setTickets] = useState<SupportTicket[]>([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
+  const [error, _setError] = useState("");
+  // Wrapping the raw setter means every existing setError(...) call
+  // further down also pops an error toast that holds until closed.
+  const setError = (msg: string) => {
+    _setError(msg);
+    if (msg) showError(msg);
+  };
+  const [success, _setSuccess] = useState("");
+  const setSuccess = (msg: string) => {
+    _setSuccess(msg);
+    if (msg) showSuccess(msg);
+  };
   const [subject, setSubject] = useState("");
   const [message, setMessage] = useState("");
   const [files, setFiles] = useState<File[]>([]);
@@ -193,9 +204,6 @@ export default function VendorSupportPage() {
           </div>
         </div>
       </div>
-
-      {error && <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
-      {success && <div className="rounded-2xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">{success}</div>}
 
       <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
         <form onSubmit={handleCreate} className="rounded-3xl bg-white border border-gray-100 shadow-sm p-6 space-y-4">

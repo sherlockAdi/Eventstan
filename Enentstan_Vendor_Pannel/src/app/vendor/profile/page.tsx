@@ -33,6 +33,7 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import { vendorApi } from "@/api/vendorApi";
+import { showError, showSuccess } from "@/lib/toast";
 import { updateSessionUser } from "@/lib/auth";
 
 interface CountryOption {
@@ -75,8 +76,13 @@ interface VendorProfile {
   about?: string | null;
   businessLocation?: string | null;
   address?: string | null;
+  addressLine1?: string | null;
+  addressLine2?: string | null;
+  landmark?: string | null;
+  poBox?: string | null;
   specialization?: string | null;
   primaryMobile?: string | null;
+  primaryMobileCountryCode?: string | null;
   cities: string[];
   capacityPerDay: number;
   status: string;
@@ -96,10 +102,6 @@ interface VendorProfile {
   firstName?: string | null;
   lastName?: string | null;
   userName?: string | null;
-  primaryEmail?: string | null;
-  telephone?: string | null;
-  telephoneCountryCode?: string | null;
-  primaryMobileCountryCode?: string | null;
   tradeLicenseNumber?: string | null;
   tradeLicenseExpiry?: string | null;
   tradeLicenseFileUrl?: string | null;
@@ -121,12 +123,7 @@ interface VendorProfile {
   accountNumber?: string | null;
   swift?: string | null;
   branchAddress?: string | null;
-  // Dubai address fields
-  addressLine1?: string | null;
-  addressLine2?: string | null;
-  landmark?: string | null;
   city?: string | null;
-  poBox?: string | null;
 }
 
 interface CountryMasterRow {
@@ -212,7 +209,6 @@ function stripCountryCode(value: string | null | undefined, code: string) {
 }
 
 function sanitizePositiveNumber(value: string) {
-  // Strip everything except digits and a single decimal point; no minus sign allowed
   let cleaned = value.replace(/[^0-9.]/g, "");
   const firstDot = cleaned.indexOf(".");
   if (firstDot !== -1) {
@@ -227,7 +223,6 @@ const NAME_MAX_LENGTH = 40;
 const PHONE_MIN_DIGITS = 7;
 const PHONE_MAX_DIGITS = 15;
 
-// UAE Cities list
 const UAE_CITIES = [
   "Dubai",
   "Abu Dhabi",
@@ -1123,39 +1118,34 @@ function ChangePasswordCard() {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
 
   const handleChangePassword = async () => {
-    setError("");
-    setSuccess("");
-
     if (!currentPassword || !newPassword || !confirmPassword) {
-      setError("Please fill in all password fields.");
+      showError("Please fill in all password fields.");
       return;
     }
     if (newPassword.length < 8) {
-      setError("New password must be at least 8 characters.");
+      showError("New password must be at least 8 characters.");
       return;
     }
     if (newPassword !== confirmPassword) {
-      setError("New password and confirmation do not match.");
+      showError("New password and confirmation do not match.");
       return;
     }
     if (newPassword === currentPassword) {
-      setError("New password must be different from your current password.");
+      showError("New password must be different from your current password.");
       return;
     }
 
     setSaving(true);
     try {
       await vendorApi.auth.changePassword({ currentPassword, newPassword });
-      setSuccess("Password changed successfully.");
+      showSuccess("Password changed successfully.");
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
     } catch (cause) {
-      setError(
+      showError(
         cause instanceof Error ? cause.message : "Unable to change password",
       );
     } finally {
@@ -1166,16 +1156,6 @@ function ChangePasswordCard() {
   return (
     <SectionCard title="Change Password" icon={Lock}>
       <div className="space-y-4">
-        {success ? (
-          <div className="flex items-center gap-2 bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-xl text-sm">
-            <CheckCircle2 size={15} /> {success}
-          </div>
-        ) : null}
-        {error ? (
-          <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm">
-            <AlertTriangle size={15} /> {error}
-          </div>
-        ) : null}
         <div className="grid sm:grid-cols-2 gap-4">
           <PasswordField
             label="Current Password"
@@ -1220,8 +1200,19 @@ export default function ProfilePage() {
   const [profile, setProfile] = useState<VendorProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState("");
-  const [error, setError] = useState("");
+  const [message, _setMessage] = useState("");
+  const [error, _setError] = useState("");
+  // Wrapping the raw setters means every existing setMessage/setError(...)
+  // call further down in this component also pops a toast that mirrors the
+  // banner — success auto-dismisses, error holds until the user closes it.
+  const setMessage = (msg: string) => {
+    _setMessage(msg);
+    if (msg) showSuccess(msg);
+  };
+  const setError = (msg: string) => {
+    _setError(msg);
+    if (msg) showError(msg);
+  };
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [avatarMenuOpen, setAvatarMenuOpen] = useState(false);
   const [showPhoto, setShowPhoto] = useState(false);
@@ -1263,17 +1254,6 @@ export default function ProfilePage() {
   const [locCitiesLoading, setLocCitiesLoading] = useState(false);
   const [locationPrefilled, setLocationPrefilled] = useState(false);
 
-  const [addressStates, setAddressStates] = useState<StateMasterRow[]>([]);
-  const [addressCities, setAddressCities] = useState<CityMasterRow[]>([]);
-  const [addressCountryId, setAddressCountryId] = useState<string>("");
-  const [addressStateId, setAddressStateId] = useState<string>("");
-  const [addressCityName, setAddressCityName] = useState<string>("");
-  const [addressStatesLoading, setAddressStatesLoading] = useState(false);
-  const [addressStatesUnavailable, setAddressStatesUnavailable] =
-    useState(false);
-  const [addressCitiesLoading, setAddressCitiesLoading] = useState(false);
-  const [addressPrefilled, setAddressPrefilled] = useState(false);
-
   const [validationErrors, setValidationErrors] = useState<
     Record<string, string>
   >({});
@@ -1306,23 +1286,14 @@ export default function ProfilePage() {
     vendorApi.profile
       .get<VendorProfile>()
       .then((data) => {
-        const code =
-          data.phoneCountryCode ||
-          data.telephoneCountryCode ||
-          data.primaryMobileCountryCode ||
-          "+971";
-
-        if (data.primaryEmail) {
-          data.email = data.primaryEmail;
-        }
+        const phoneCode = data.phoneCountryCode || "+971";
+        const mobileCode = data.primaryMobileCountryCode || "+971";
 
         setProfile({
           ...data,
-          phoneCountryCode: code,
-          telephoneCountryCode: code,
-          primaryMobileCountryCode: code,
-          telephone: stripCountryCode(data.telephone, code),
-          primaryMobile: stripCountryCode(data.primaryMobile, code),
+          phoneCountryCode: phoneCode,
+          primaryMobileCountryCode: mobileCode,
+          primaryMobile: stripCountryCode(data.primaryMobile, mobileCode),
         });
       })
       .catch((cause: unknown) =>
@@ -1502,84 +1473,6 @@ export default function ProfilePage() {
   }, [profile?.businessLocation, locationCountries, locationPrefilled]);
 
   useEffect(() => {
-    if (!addressCountryId) {
-      setAddressStates([]);
-      setAddressStatesUnavailable(false);
-      return;
-    }
-    setAddressStatesLoading(true);
-    setAddressStatesUnavailable(false);
-    vendorApi.masterData
-      .states<StateMasterRow[]>(Number(addressCountryId))
-      .then((data) =>
-        setAddressStates(
-          data.filter((s) => !s.status || s.status === "Active"),
-        ),
-      )
-      .catch(() => {
-        setAddressStates([]);
-        setAddressStatesUnavailable(true);
-      })
-      .finally(() => setAddressStatesLoading(false));
-  }, [addressCountryId]);
-
-  useEffect(() => {
-    if (!addressCountryId) {
-      setAddressCities([]);
-      return;
-    }
-    setAddressCitiesLoading(true);
-    vendorApi.masterData
-      .cities<CityMasterRow[]>(
-        Number(addressCountryId),
-        addressStateId || undefined,
-      )
-      .then((data) =>
-        setAddressCities(data.filter((c) => c.status === "Active")),
-      )
-      .catch(() => setAddressCities([]))
-      .finally(() => setAddressCitiesLoading(false));
-  }, [addressCountryId, addressStateId]);
-
-  useEffect(() => {
-    if (addressPrefilled) return;
-    if (!profile?.address || locationCountries.length === 0) return;
-    setAddressPrefilled(true);
-
-    const parts = profile.address.split(",").map((p) => p.trim());
-    const cityGuess = parts[parts.length - 1];
-    const countryGuess = parts.length >= 3 ? parts[0] : null;
-
-    (async () => {
-      const candidateCountries = countryGuess
-        ? locationCountries.filter(
-            (c) => c.name.toLowerCase() === countryGuess.toLowerCase(),
-          )
-        : locationCountries;
-      const searchList = candidateCountries.length
-        ? candidateCountries
-        : locationCountries;
-
-      for (const country of searchList) {
-        try {
-          const cities = await vendorApi.masterData.cities<CityMasterRow[]>(
-            country.id,
-          );
-          const match = cities.find(
-            (c) => c.name.toLowerCase() === cityGuess.toLowerCase(),
-          );
-          if (match) {
-            setAddressCountryId(String(country.id));
-            setAddressStateId(match.stateId ? String(match.stateId) : "");
-            setAddressCityName(match.name);
-            return;
-          }
-        } catch {}
-      }
-    })();
-  }, [profile?.address, locationCountries, addressPrefilled]);
-
-  useEffect(() => {
     if (!serviceCountryId) {
       setServiceStates([]);
       setServiceStateId("");
@@ -1609,29 +1502,18 @@ export default function ProfilePage() {
     value: VendorProfile[K],
   ) => setProfile((cur) => (cur ? { ...cur, [key]: value } : cur));
 
-  const setSharedCountryCode = (code: string) => {
+  const setPhoneCountryCode = (code: string) => {
+    setProfile((cur) => (cur ? { ...cur, phoneCountryCode: code } : cur));
+  };
+
+  const setPrimaryMobileCountryCode = (code: string) => {
     setProfile((cur) =>
-      cur
-        ? {
-            ...cur,
-            phoneCountryCode: code,
-            telephoneCountryCode: code,
-            primaryMobileCountryCode: code,
-          }
-        : cur,
+      cur ? { ...cur, primaryMobileCountryCode: code } : cur,
     );
   };
 
   const setPersonalContactNumber = (value: string) => {
-    setProfile((cur) =>
-      cur
-        ? {
-            ...cur,
-            telephone: value,
-            primaryMobile: value,
-          }
-        : cur,
-    );
+    setProfile((cur) => (cur ? { ...cur, primaryMobile: value } : cur));
   };
 
   const toggleCity = (cityName: string) => {
@@ -1675,8 +1557,8 @@ export default function ProfilePage() {
     if (!profile?.contactPerson?.trim()) {
       errors.contactPerson = "Contact Person is required";
     }
-    if (!profile?.primaryEmail?.trim()) {
-      errors.primaryEmail = "Email Address is required";
+    if (!profile?.email?.trim()) {
+      errors.email = "Email Address is required";
     }
     if (!profile?.phone?.trim()) {
       errors.phone = "Phone Number is required";
@@ -1692,11 +1574,11 @@ export default function ProfilePage() {
         " digits";
     }
     if (
-      profile?.telephone &&
-      (profile.telephone.length < PHONE_MIN_DIGITS ||
-        profile.telephone.length > PHONE_MAX_DIGITS)
+      profile?.primaryMobile &&
+      (profile.primaryMobile.length < PHONE_MIN_DIGITS ||
+        profile.primaryMobile.length > PHONE_MAX_DIGITS)
     ) {
-      errors.telephone =
+      errors.primaryMobile =
         "Number must be " +
         PHONE_MIN_DIGITS +
         "-" +
@@ -1709,31 +1591,6 @@ export default function ProfilePage() {
     if (!profile?.capacityPerDay || profile.capacityPerDay < 1) {
       errors.capacityPerDay = "Daily Booking Capacity is required";
     }
-
-    const positiveNumericFields: Array<{
-      key: keyof VendorProfile;
-      label: string;
-    }> = isFreelancerCheck
-      ? [
-          { key: "hourlyRate", label: "Hourly / Monthly Rate" },
-          { key: "availableHoursPerWeek", label: "Available Hours per Week" },
-          { key: "projectRate", label: "Project Rate" },
-        ]
-      : [
-          { key: "basicSalary", label: "Basic Salary" },
-          { key: "housingAllowance", label: "Housing Allowance" },
-          { key: "transportationAllowance", label: "Transportation Allowance" },
-          { key: "otherAllowances", label: "Other Allowances" },
-          { key: "annualLeaves", label: "Annual Leaves" },
-          { key: "workingHours", label: "Working Hours per Week" },
-        ];
-
-    positiveNumericFields.forEach(({ key, label }) => {
-      const value = profile?.[key] as number | null | undefined;
-      if (value !== null && value !== undefined && value <= 0) {
-        errors[key as string] = label + " must be greater than 0";
-      }
-    });
 
     setValidationErrors(errors);
     return Object.keys(errors).length === 0;
@@ -1760,24 +1617,28 @@ export default function ProfilePage() {
         contractTypeValue = "hourly";
       }
 
-      const sharedCode = profile.phoneCountryCode ?? "+971";
+      const phoneCode = profile.phoneCountryCode ?? "+971";
+      const mobileCode = profile.primaryMobileCountryCode ?? "+971";
 
       const updated = await vendorApi.profile.update<VendorProfile>({
         companyName: profile.companyName,
         contactPerson: profile.contactPerson,
-        primaryEmail: profile.primaryEmail ?? "",
-        email: profile.primaryEmail ?? "",
+        email: profile.email ?? "",
         phone: profile.phone,
-        countryCode: sharedCode,
+        phoneCountryCode: phoneCode,
         vendorProfileImage: profile.vendorProfileImage ?? "",
         firstName: profile.firstName ?? "",
         lastName: profile.lastName ?? "",
         userName: profile.userName ?? "",
-        telephone: sharedCode + (profile.telephone ?? ""),
-        primaryMobile: sharedCode + (profile.telephone ?? ""),
+        primaryMobile: profile.primaryMobile ?? "",
+        primaryMobileCountryCode: mobileCode,
         about: profile.about ?? "",
         businessLocation: profile.businessLocation ?? "",
         address: profile.address ?? "",
+        addressLine1: profile.addressLine1 ?? "",
+        addressLine2: profile.addressLine2 ?? "",
+        landmark: profile.landmark ?? "",
+        poBox: profile.poBox ?? "",
         specialization: profile.specialization ?? "",
         cities: profile.cities,
         capacityPerDay: profile.capacityPerDay,
@@ -1794,9 +1655,6 @@ export default function ProfilePage() {
         vatNumber: profile.vatNumber ?? "",
         visaType: profile.visaType ?? "",
         contractType: contractTypeValue,
-        hourlyRate: profile.hourlyRate ?? undefined,
-        availableHoursPerWeek: profile.availableHoursPerWeek ?? undefined,
-        projectRate: profile.projectRate ?? undefined,
         salaryType: profile.salaryType ?? "",
         basicSalary: profile.basicSalary ?? undefined,
         housingAllowance: profile.housingAllowance ?? undefined,
@@ -1819,26 +1677,23 @@ export default function ProfilePage() {
         accountNumber: profile.accountNumber ?? "",
         swift: profile.swift ?? "",
         branchAddress: profile.branchAddress ?? "",
-        // Dubai address fields
-        addressLine1: profile.addressLine1 ?? "",
-        addressLine2: profile.addressLine2 ?? "",
-        landmark: profile.landmark ?? "",
-        poBox: profile.poBox ?? "",
       });
 
-      const code = updated.phoneCountryCode || sharedCode;
+      const resolvedPhoneCode = updated.phoneCountryCode || phoneCode;
+      const resolvedMobileCode = updated.primaryMobileCountryCode || mobileCode;
 
       setProfile({
         ...updated,
-        phoneCountryCode: code,
-        telephoneCountryCode: code,
-        primaryMobileCountryCode: code,
-        telephone: stripCountryCode(updated.telephone, code),
-        primaryMobile: stripCountryCode(updated.primaryMobile, code),
+        phoneCountryCode: resolvedPhoneCode,
+        primaryMobileCountryCode: resolvedMobileCode,
+        primaryMobile: stripCountryCode(
+          updated.primaryMobile,
+          resolvedMobileCode,
+        ),
       });
       updateSessionUser({
         companyName: updated.companyName,
-        email: updated.primaryEmail ?? "",
+        email: updated.email ?? "",
         phone: updated.phone,
         image: updated.vendorProfileImage,
         updatedProfile: true,
@@ -1874,7 +1729,7 @@ export default function ProfilePage() {
   const completionChecks = [
     { label: "Business name", done: hasValue(profile.companyName) },
     { label: "Contact person", done: hasValue(profile.contactPerson) },
-    { label: "Email", done: hasValue(profile.primaryEmail) },
+    { label: "Email", done: hasValue(profile.email) },
     { label: "Phone number", done: hasValue(profile.phone) },
     { label: "Description", done: hasValue(profile.about) },
     { label: "Business location", done: hasValue(profile.businessLocation) },
@@ -1882,7 +1737,6 @@ export default function ProfilePage() {
     { label: "Address Line 1", done: hasValue(profile.addressLine1) },
     { label: "Address Line 2", done: hasValue(profile.addressLine2) },
     { label: "Landmark", done: hasValue(profile.landmark) },
-    { label: "City", done: hasValue(profile.city) },
     { label: "PO Box", done: hasValue(profile.poBox) },
     { label: "Specialization", done: hasValue(profile.specialization) },
     { label: "Service cities", done: hasValue(profile.cities) },
@@ -1973,17 +1827,6 @@ export default function ProfilePage() {
           </div>
         ) : null}
       </div>
-
-      {message ? (
-        <div className="bg-green-50 border border-green-200 rounded-xl p-4 text-green-800 text-sm flex items-center gap-2">
-          <Shield size={15} /> {message}
-        </div>
-      ) : null}
-      {error ? (
-        <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-red-700 text-sm">
-          {error}
-        </div>
-      ) : null}
 
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex items-center gap-4">
         <div className="relative shrink-0" ref={avatarMenuRef}>
@@ -2083,9 +1926,7 @@ export default function ProfilePage() {
             {[profile.firstName, profile.lastName].filter(Boolean).join(" ") ||
               "—"}
           </p>
-          <p className="text-xs text-gray-400 truncate">
-            {profile.primaryEmail}
-          </p>
+          <p className="text-xs text-gray-400 truncate">{profile.email}</p>
           <div className="flex items-center gap-2 mt-1.5">
             <span
               className={
@@ -2139,25 +1980,22 @@ export default function ProfilePage() {
           />
           <Field
             label="Email Address"
-            value={profile.primaryEmail ?? ""}
-            onChange={(v) => {
-              update("primaryEmail", v);
-              update("email", v);
-            }}
+            value={profile.email ?? ""}
+            onChange={(v) => update("email", v)}
             type="email"
             icon={Mail}
             readOnly
             required
-            error={validationErrors.primaryEmail}
+            error={validationErrors.email}
           />
           <PhoneField
             label="Contact Number"
-            countryCode={profile.phoneCountryCode ?? "+971"}
-            number={profile.telephone ?? ""}
-            onCountryCodeChange={setSharedCountryCode}
+            countryCode={profile.primaryMobileCountryCode ?? "+971"}
+            number={profile.primaryMobile ?? ""}
+            onCountryCodeChange={setPrimaryMobileCountryCode}
             onNumberChange={setPersonalContactNumber}
             options={countryCodes}
-            error={validationErrors.telephone}
+            error={validationErrors.primaryMobile}
           />
         </div>
       </SectionCard>
@@ -2183,7 +2021,7 @@ export default function ProfilePage() {
             label="Phone Number"
             countryCode={profile.phoneCountryCode ?? "+971"}
             number={profile.phone ?? ""}
-            onCountryCodeChange={setSharedCountryCode}
+            onCountryCodeChange={setPhoneCountryCode}
             onNumberChange={(v) => update("phone", v)}
             options={countryCodes}
             placeholder="Phone number"
@@ -2206,7 +2044,6 @@ export default function ProfilePage() {
             placeholder="Select category"
           />
 
-          {/* Business Location (Country/State/City + UAE Address) — single combined card */}
           <div className="sm:col-span-2">
             <div className="rounded-2xl border border-orange-100 bg-orange-50/40 p-4 sm:p-5">
               <div className="flex items-center gap-2 mb-4">
@@ -2308,31 +2145,28 @@ export default function ProfilePage() {
                   value={profile.addressLine1 ?? ""}
                   onChange={(v) => update("addressLine1", v)}
                   icon={MapPin}
-                  placeholder="e.g. Building name, street number"
+                  placeholder="Building, street name"
                 />
                 <Field
-                  label="Address Line 2" // ✅ Changed from "Address Line 2" (already correct)
-                  value={profile.addressLine2 ?? ""} // ✅ Changed from area
-                  onChange={(v) => update("addressLine2", v)} // ✅ Changed from area
+                  label="Address Line 2"
+                  value={profile.addressLine2 ?? ""}
+                  onChange={(v) => update("addressLine2", v)}
                   icon={MapPin}
-                  placeholder="e.g. Business Bay, Al Barsha"
+                  placeholder="Area, floor, office no. (optional)"
                 />
                 <Field
                   label="Landmark"
                   value={profile.landmark ?? ""}
                   onChange={(v) => update("landmark", v)}
                   icon={MapPin}
-                  placeholder="e.g. Near Mall of the Emirates"
+                  placeholder="Nearby landmark (optional)"
                 />
                 <Field
                   label="PO Box"
                   value={profile.poBox ?? ""}
-                  onChange={(v) =>
-                    update("poBox", sanitizeDigitsInput(v).slice(0, 10))
-                  }
-                  icon={Mail}
-                  type="tel"
-                  placeholder="e.g. 12345"
+                  onChange={(v) => update("poBox", v)}
+                  icon={LandmarkIcon}
+                  placeholder="PO Box number"
                 />
               </div>
             </div>
@@ -2498,210 +2332,6 @@ export default function ProfilePage() {
             {(profile.about ?? "").length}/500 characters
           </p>
         </div>
-      </SectionCard>
-
-      <SectionCard title="Work & Compensation" icon={BadgeCheck}>
-        {profile.vendorType === "FREELANCER" ? (
-          <div className="grid sm:grid-cols-2 gap-4">
-            <SearchableSelectField
-              label="Contract Type"
-              value={profile.contractType ?? ""}
-              onChange={(v) => update("contractType", v)}
-              options={[
-                { value: "hourly", label: "Hourly" },
-                { value: "monthly", label: "Monthly" },
-                { value: "project", label: "Per Project" },
-              ]}
-              placeholder="Select contract type"
-            />
-            <Field
-              label="Hourly / Monthly Rate (AED)"
-              value={profile.hourlyRate?.toString() ?? ""}
-              onChange={(v) => {
-                const cleaned = sanitizePositiveNumber(v);
-                update("hourlyRate", cleaned === "" ? null : Number(cleaned));
-              }}
-              type="text"
-              icon={CreditCard}
-              error={
-                validationErrors.hourlyRate ||
-                (profile.hourlyRate !== null &&
-                profile.hourlyRate !== undefined &&
-                profile.hourlyRate <= 0
-                  ? "Rate must be greater than 0"
-                  : undefined)
-              }
-            />
-            <Field
-              label="Available Hours per Week"
-              value={profile.availableHoursPerWeek?.toString() ?? ""}
-              onChange={(v) => {
-                const cleaned = sanitizePositiveNumber(v);
-                update(
-                  "availableHoursPerWeek",
-                  cleaned === "" ? null : Number(cleaned),
-                );
-              }}
-              type="text"
-              icon={CalendarClock}
-              error={
-                profile.availableHoursPerWeek !== null &&
-                profile.availableHoursPerWeek !== undefined &&
-                profile.availableHoursPerWeek <= 0
-                  ? "Must be greater than 0"
-                  : undefined
-              }
-            />
-            <Field
-              label="Project Rate (AED)"
-              value={profile.projectRate?.toString() ?? ""}
-              onChange={(v) => {
-                const cleaned = sanitizePositiveNumber(v);
-                update("projectRate", cleaned === "" ? null : Number(cleaned));
-              }}
-              type="text"
-              icon={CreditCard}
-              error={
-                profile.projectRate !== null &&
-                profile.projectRate !== undefined &&
-                profile.projectRate <= 0
-                  ? "Rate must be greater than 0"
-                  : undefined
-              }
-            />
-          </div>
-        ) : (
-          <div className="grid sm:grid-cols-2 gap-4">
-            <SearchableSelectField
-              label="Salary Type"
-              value={profile.salaryType ?? ""}
-              onChange={(v) => update("salaryType", v)}
-              options={[
-                { value: "monthly", label: "Monthly" },
-                { value: "yearly", label: "Yearly" },
-              ]}
-              placeholder="Select salary type"
-            />
-            <Field
-              label="Basic Salary (AED)"
-              value={profile.basicSalary?.toString() ?? ""}
-              onChange={(v) => {
-                const cleaned = sanitizePositiveNumber(v);
-                update("basicSalary", cleaned === "" ? null : Number(cleaned));
-              }}
-              type="text"
-              icon={CreditCard}
-              error={
-                profile.basicSalary !== null &&
-                profile.basicSalary !== undefined &&
-                profile.basicSalary <= 0
-                  ? "Salary must be greater than 0"
-                  : undefined
-              }
-            />
-            <Field
-              label="Housing Allowance (AED)"
-              value={profile.housingAllowance?.toString() ?? ""}
-              onChange={(v) => {
-                const cleaned = sanitizePositiveNumber(v);
-                update(
-                  "housingAllowance",
-                  cleaned === "" ? null : Number(cleaned),
-                );
-              }}
-              type="text"
-              icon={LandmarkIcon}
-              error={
-                profile.housingAllowance !== null &&
-                profile.housingAllowance !== undefined &&
-                profile.housingAllowance <= 0
-                  ? "Must be greater than 0"
-                  : undefined
-              }
-            />
-            <Field
-              label="Transportation Allowance (AED)"
-              value={profile.transportationAllowance?.toString() ?? ""}
-              onChange={(v) => {
-                const cleaned = sanitizePositiveNumber(v);
-                update(
-                  "transportationAllowance",
-                  cleaned === "" ? null : Number(cleaned),
-                );
-              }}
-              type="text"
-              icon={MapPin}
-              error={
-                profile.transportationAllowance !== null &&
-                profile.transportationAllowance !== undefined &&
-                profile.transportationAllowance <= 0
-                  ? "Must be greater than 0"
-                  : undefined
-              }
-            />
-            <Field
-              label="Other Allowances (AED)"
-              value={profile.otherAllowances?.toString() ?? ""}
-              onChange={(v) => {
-                const cleaned = sanitizePositiveNumber(v);
-                update(
-                  "otherAllowances",
-                  cleaned === "" ? null : Number(cleaned),
-                );
-              }}
-              type="text"
-              icon={BadgeCheck}
-              error={
-                profile.otherAllowances !== null &&
-                profile.otherAllowances !== undefined &&
-                profile.otherAllowances <= 0
-                  ? "Must be greater than 0"
-                  : undefined
-              }
-            />
-            <Field
-              label="Annual Leaves (days)"
-              value={profile.annualLeaves?.toString() ?? ""}
-              onChange={(v) => {
-                const cleaned = sanitizePositiveNumber(v);
-                update("annualLeaves", cleaned === "" ? null : Number(cleaned));
-              }}
-              type="text"
-              icon={CalendarClock}
-              error={
-                profile.annualLeaves !== null &&
-                profile.annualLeaves !== undefined &&
-                profile.annualLeaves <= 0
-                  ? "Must be greater than 0"
-                  : undefined
-              }
-            />
-            <Field
-              label="Working Hours per Week"
-              value={profile.workingHours?.toString() ?? ""}
-              onChange={(v) => {
-                const cleaned = sanitizePositiveNumber(v);
-                update("workingHours", cleaned === "" ? null : Number(cleaned));
-              }}
-              type="text"
-              icon={CalendarClock}
-              error={
-                profile.workingHours !== null &&
-                profile.workingHours !== undefined &&
-                profile.workingHours <= 0
-                  ? "Must be greater than 0"
-                  : undefined
-              }
-            />
-            <DateField
-              label="Joining Date"
-              value={profile.joiningDate?.slice(0, 10) ?? ""}
-              onChange={(v) => update("joiningDate", v)}
-              icon={CalendarClock}
-              allowPast
-            />
-          </div>
-        )}
       </SectionCard>
 
       <SectionCard title="Legal & Compliance" icon={FileText}>

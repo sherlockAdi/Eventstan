@@ -24,6 +24,7 @@ import {
   Clock,
 } from 'lucide-react';
 import { vendorApi } from '@/api/vendorApi';
+import { showError } from '@/lib/toast';
 
 interface Service {
   id: string;
@@ -169,7 +170,9 @@ export default function ServiceDetailPage() {
         setService(transformedService);
       } catch (err: unknown) {
         console.error('Error fetching service:', err);
-        setError(err instanceof Error ? err.message : 'Failed to load service');
+        const msg = err instanceof Error ? err.message : 'Failed to load service';
+        setError(msg);
+        showError(msg);
       } finally {
         setLoading(false);
       }

@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState, useRef } from "react";
 import Link from "next/link";
 import {
-  AlertTriangle,
   CheckCircle2,
   ChevronDown,
   ChevronUp,
@@ -23,6 +22,7 @@ import {
   Search,
 } from "lucide-react";
 import { vendorApi } from "@/api/vendorApi";
+import { showError, showSuccess } from "@/lib/toast";
 import Pagination from "@/components/vendor/Pagination";
 
 type SortKey = "title" | "price" | "status" | "services";
@@ -471,8 +471,6 @@ function SortIcon({
 export default function PackagesPage() {
   const [packages, setPackages] = useState<ApiPackage[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("title");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
   const [currentPage, setCurrentPage] = useState(1);
@@ -563,10 +561,9 @@ export default function PackagesPage() {
   const fetchPackages = async () => {
     try {
       setLoading(true);
-      setError(null);
       setPackages(await vendorApi.packages.list<ApiPackage[]>());
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load packages");
+      showError(err instanceof Error ? err.message : "Failed to load packages");
     } finally {
       setLoading(false);
     }
@@ -676,12 +673,10 @@ export default function PackagesPage() {
     try {
       await vendorApi.packages.delete(deleteTarget.id);
       setPackages((cur) => cur.filter((pkg) => pkg.id !== deleteTarget.id));
-      setSuccess(`"${deleteTarget.title}" deleted`);
+      showSuccess(`"${deleteTarget.title}" deleted`);
       setDeleteTarget(null);
-      window.setTimeout(() => setSuccess(""), 3000);
     } catch {
-      setError("Failed to delete package.");
-      window.setTimeout(() => setError(null), 4000);
+      showError("Failed to delete package.");
     }
   };
 
@@ -757,19 +752,17 @@ export default function PackagesPage() {
       await vendorApi.packages.update(pkg.id, payload);
       const fresh = await vendorApi.packages.list<ApiPackage[]>();
       setPackages(fresh);
-      setSuccess(
+      showSuccess(
         `"${pkg.title}" ${newStatus === "ACTIVE" ? "activated" : "deactivated"}`,
       );
       setToggleTarget(null);
-      window.setTimeout(() => setSuccess(""), 3000);
     } catch (err) {
       console.error("Failed to update package status:", err);
-      setError(
+      showError(
         err instanceof Error
           ? `Failed to update package status: ${err.message}`
           : "Failed to update package status.",
       );
-      window.setTimeout(() => setError(null), 5000);
     }
   };
 
@@ -806,18 +799,6 @@ export default function PackagesPage() {
           <Plus size={16} /> Create Package
         </Link>
       </div>
-
-      {/* Alerts */}
-      {success && (
-        <div className="flex items-center gap-2 bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-xl text-sm">
-          <CheckCircle2 size={15} /> {success}
-        </div>
-      )}
-      {error && (
-        <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm">
-          <AlertTriangle size={15} /> {error}
-        </div>
-      )}
 
       {/* Stats */}
       <div className="grid grid-cols-3 gap-3">

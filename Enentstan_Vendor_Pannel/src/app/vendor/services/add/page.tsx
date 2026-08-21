@@ -16,21 +16,24 @@ import {
 import { vendorApi } from "@/api/vendorApi";
 import { getUser } from "@/lib/auth";
 import { findPriceUnit, PriceUnitMaster } from "@/lib/priceUnits";
+import SearchableSelectField from "@/components/vendor/SearchableSelectField";
+import { showError, showSuccess } from "@/lib/toast";
 
-const CITIES = [
-  { id: "dubai", name: "Dubai" },
-  { id: "abu_dhabi", name: "Abu Dhabi" },
-  { id: "sharjah", name: "Sharjah" },
-  { id: "ajman", name: "Ajman" },
-  { id: "ras_al_khaimah", name: "Ras Al Khaimah" },
-  { id: "fujairah", name: "Fujairah" },
-  { id: "umm_al_quwain", name: "Umm Al Quwain" },
-] as const;
+interface ApiCity {
+  id: string;
+  name: string;
+  status: string;
+}
+
+interface ApiCountry {
+  id: number;
+  code: string;
+  defaultCurrency: string;
+}
 
 const STATUS_OPTIONS = [
   { id: "ACTIVE", name: "Active" },
   { id: "INACTIVE", name: "Inactive" },
-  { id: "DRAFT", name: "Draft" },
 ] as const;
 
 const emptyForm = {
@@ -78,6 +81,7 @@ export default function AddServicePage() {
     Array<{ id: string; name: string }>
   >([]);
   const [priceUnits, setPriceUnits] = useState<PriceUnitMaster[]>([]);
+  const [cities, setCities] = useState<ApiCity[]>([]);
   const [mainImage, setMainImage] = useState<{
     file: File | null;
     preview: string;
@@ -95,27 +99,29 @@ export default function AddServicePage() {
   useEffect(() => {
     const id = getVendorId();
     if (!id) {
-      queueMicrotask(() =>
-        setError(
-          "Vendor information not found. Please ensure you are logged in as a vendor.",
-        ),
-      );
+      queueMicrotask(() => {
+        const msg =
+          "Vendor information not found. Please ensure you are logged in as a vendor.";
+        setError(msg);
+        showError(msg);
+      });
     } else {
       queueMicrotask(() => setVendorId(id));
     }
 
     const fetchMasterData = async () => {
+      let uaeCountryId: number | undefined;
       try {
-        const [countryRows, categoryRows, fetchedPriceUnits] = await Promise.all([
-          vendorApi.masterData.countries<
-            Array<{ code: string; defaultCurrency: string }>
-          >(),
-          vendorApi.masterData.categories<
-            Array<{ id: string; name: string }>
-          >(),
-          vendorApi.masterData.priceUnits<PriceUnitMaster[]>(),
-        ]);
+        const [countryRows, categoryRows, fetchedPriceUnits] =
+          await Promise.all([
+            vendorApi.masterData.countries<ApiCountry[]>(),
+            vendorApi.masterData.categories<
+              Array<{ id: string; name: string }>
+            >(),
+            vendorApi.masterData.priceUnits<PriceUnitMaster[]>(),
+          ]);
         const uae = countryRows.find((country) => country.code === "AE");
+        uaeCountryId = uae?.id;
         const activePriceUnits = fetchedPriceUnits.filter((unit) => unit.isActive);
         setCategories(categoryRows);
         setPriceUnits(activePriceUnits);
@@ -127,6 +133,22 @@ export default function AddServicePage() {
         }));
       } catch (err) {
         console.error("Error fetching master data:", err);
+      }
+
+      // Fetch cities independently — if this fails (e.g. endpoint missing),
+      // it should not block category / price unit / currency from loading.
+      // Pass the UAE countryId (when known) so we only fetch UAE cities
+      // instead of the entire global city list.
+      try {
+        const cityRows = await vendorApi.masterData.cities<ApiCity[]>(uaeCountryId);
+        setCities(
+          Array.isArray(cityRows)
+            ? cityRows.filter((c) => c.status === "Active")
+            : [],
+        );
+      } catch (err) {
+        console.error("Error fetching cities:", err);
+        setCities([]);
       }
     };
 
@@ -197,7 +219,9 @@ export default function AddServicePage() {
       const result = await vendorApi.uploads.image(file, "services");
       setFormField("imageUrl", result.url);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Image upload failed");
+      const msg = err instanceof Error ? err.message : "Image upload failed";
+      setError(msg);
+      showError(msg);
     } finally {
       setUploading(false);
     }
@@ -264,6 +288,7 @@ export default function AddServicePage() {
     if (!form.title.trim()) return "Service title is required.";
     if (!slugify(form.slug)) return "Service slug is required.";
     if (slugStatus === "taken") return "Service slug is already in use.";
+    if (!form.imageUrl) return "Main image is required.";
     if (!form.description.trim()) return "Description is required.";
     if (!form.city.trim()) return "City is required.";
     if (!form.status) return "Status is required.";
@@ -290,11 +315,14 @@ export default function AddServicePage() {
     const validationError = validate();
     if (validationError) {
       setError(validationError);
+      showError(validationError);
       return;
     }
 
     if (!vendorId) {
-      setError("Vendor information not found. Please logout and login again.");
+      const msg = "Vendor information not found. Please logout and login again.";
+      setError(msg);
+      showError(msg);
       return;
     }
 
@@ -330,10 +358,13 @@ export default function AddServicePage() {
 
       await vendorApi.services.create(servicePayload);
 
+      showSuccess("Service created successfully!");
       router.push("/vendor/services");
     } catch (err) {
       console.error("Save error:", err);
-      setError(err instanceof Error ? err.message : "Failed to create service");
+      const msg = err instanceof Error ? err.message : "Failed to create service";
+      setError(msg);
+      showError(msg);
     } finally {
       setSaving(false);
     }
@@ -361,12 +392,6 @@ export default function AddServicePage() {
         </div>
       </div>
 
-      {error && (
-        <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-xl">
-          <AlertTriangle size={15} /> {error}
-        </div>
-      )}
-
       <div className="space-y-4">
         <div className="bg-white rounded-[22px] border border-gray-100 p-5 shadow-sm space-y-4">
           <h2 className="font-semibold text-gray-800 text-sm uppercase tracking-wide">
@@ -380,18 +405,17 @@ export default function AddServicePage() {
                   <label className="text-xs font-semibold text-gray-700 mb-1.5 block">
                     Category *
                   </label>
-                  <select
+                  <SearchableSelectField
                     value={form.categoryId}
-                    onChange={(e) => setFormField("categoryId", e.target.value)}
-                    className="w-full px-4 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-orange-400"
-                  >
-                    <option value="">Select category</option>
-                    {categories.map((category) => (
-                      <option key={category.id} value={category.id}>
-                        {category.name}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={(v) => setFormField("categoryId", v)}
+                    options={categories.map((category) => ({
+                      value: category.id,
+                      label: category.name,
+                    }))}
+                    placeholder="Select category"
+                    searchPlaceholder="Search categories..."
+                    emptyLabel="No categories found"
+                  />
                 </div>
 
                 <div>
@@ -432,17 +456,16 @@ export default function AddServicePage() {
                   <label className="text-xs font-semibold text-gray-700 mb-1.5 block">
                     Status *
                   </label>
-                  <select
+                  <SearchableSelectField
                     value={form.status}
-                    onChange={(e) => setFormField("status", e.target.value)}
-                    className="w-full px-4 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-orange-400"
-                  >
-                    {STATUS_OPTIONS.map((statusOption) => (
-                      <option key={statusOption.id} value={statusOption.id}>
-                        {statusOption.name}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={(v) => setFormField("status", v)}
+                    options={STATUS_OPTIONS.map((statusOption) => ({
+                      value: statusOption.id,
+                      label: statusOption.name,
+                    }))}
+                    placeholder="Select status"
+                    searchPlaceholder="Search status..."
+                  />
                 </div>
 
               </div>
@@ -455,37 +478,34 @@ export default function AddServicePage() {
                     <label className="text-xs font-semibold text-gray-700 mb-1.5 block">
                       City *
                     </label>
-                    <select
+                    <SearchableSelectField
                       value={form.city}
-                      onChange={(e) => setFormField("city", e.target.value)}
-                      className="w-full px-4 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-orange-400"
-                    >
-                      <option value="">Select city</option>
-                      {CITIES.map((city) => (
-                        <option key={city.id} value={city.name}>
-                          {city.name}
-                        </option>
-                      ))}
-                    </select>
+                      onChange={(v) => setFormField("city", v)}
+                      options={cities.map((city) => ({
+                        value: city.name,
+                        label: city.name,
+                      }))}
+                      placeholder="Select city"
+                      searchPlaceholder="Search cities..."
+                      emptyLabel="No cities found"
+                    />
                   </div>
 
                   <div>
                     <label className="text-xs font-semibold text-gray-700 mb-1.5 block">
                       Price Unit *
                     </label>
-                    <select
+                    <SearchableSelectField
                       value={form.priceUnit}
-                      onChange={(e) =>
-                        setFormField("priceUnit", e.target.value)
-                      }
-                      className="w-full px-4 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-orange-400"
-                    >
-                      {priceUnits.map((unit) => (
-                        <option key={unit.id} value={unit.code}>
-                          {unit.label}
-                        </option>
-                      ))}
-                    </select>
+                      onChange={(v) => setFormField("priceUnit", v)}
+                      options={priceUnits.map((unit) => ({
+                        value: unit.code,
+                        label: unit.label,
+                      }))}
+                      placeholder="Select price unit"
+                      searchPlaceholder="Search price units..."
+                      emptyLabel="No price units found"
+                    />
                   </div>
                 </div>
 
@@ -597,7 +617,7 @@ export default function AddServicePage() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <div>
               <label className="text-xs font-semibold text-gray-700 mb-2 block">
-                Main Image
+                Main Image <span className="text-red-500">*</span>
               </label>
               <input
                 ref={fileRef}

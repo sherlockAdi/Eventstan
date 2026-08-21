@@ -28,6 +28,7 @@ import {
   ChevronUp,
 } from "lucide-react";
 import { vendorApi } from "@/api/vendorApi";
+import { showError, showSuccess } from "@/lib/toast";
 
 interface PackageService {
   id: string;
@@ -167,7 +168,6 @@ export default function PackageViewPage() {
   >([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState("");
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [toggleConfirm, setToggleConfirm] = useState(false);
   const [showAllInclusions, setShowAllInclusions] = useState(false);
@@ -189,7 +189,6 @@ export default function PackageViewPage() {
     
     try {
       setLoading(true);
-      setError(null);
       
       const [data, categoryRows] = await Promise.all([
         vendorApi.packages.get<ApiPackage>(packageId),
@@ -208,6 +207,7 @@ export default function PackageViewPage() {
         return;
       }
       if (!abortController.signal.aborted) {
+        showError(err instanceof Error ? err.message : "Failed to load package details");
         setError(err instanceof Error ? err.message : "Failed to load package details");
       }
     } finally {
@@ -237,12 +237,10 @@ export default function PackageViewPage() {
     try {
       await vendorApi.packages.updateStatus(pkg.id, newStatus);
       setPkg({ ...pkg, status: newStatus });
-      setSuccess(`Package ${newStatus === "ACTIVE" ? "activated" : "deactivated"} successfully`);
+      showSuccess(`Package ${newStatus === "ACTIVE" ? "activated" : "deactivated"} successfully`);
       setToggleConfirm(false);
-      setTimeout(() => setSuccess(""), 3000);
     } catch {
-      setError("Failed to update package status.");
-      setTimeout(() => setError(null), 4000);
+      showError("Failed to update package status.");
     }
   };
 
@@ -250,10 +248,10 @@ export default function PackageViewPage() {
     if (!pkg) return;
     try {
       await vendorApi.packages.delete(pkg.id);
+      showSuccess("Package deleted successfully.");
       router.push("/vendor/packages");
     } catch {
-      setError("Failed to delete package.");
-      setTimeout(() => setError(null), 4000);
+      showError("Failed to delete package.");
     }
   };
 
@@ -390,17 +388,6 @@ export default function PackageViewPage() {
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-6">
-      {success && (
-        <div className="flex items-center gap-2 bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-xl text-sm mb-4">
-          <CheckCircle2 size={15} /> {success}
-        </div>
-      )}
-      {error && (
-        <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm mb-4">
-          <AlertTriangle size={15} /> {error}
-        </div>
-      )}
-
       <div className="flex items-center justify-between mb-6">
         <Link 
           href="/vendor/packages"

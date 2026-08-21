@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { vendorApi } from "@/api/vendorApi";
 import { clearSession, getToken, getUser, isLoggedIn, isVendorProfileComplete, saveSession, updateSessionUser, type VendorUser } from "@/lib/auth";
+import { showError, showSuccess } from "@/lib/toast";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -66,7 +67,6 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isLoggedIn()) return;
@@ -93,7 +93,6 @@ export default function LoginPage() {
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    setError(null);
     setLoading(true);
 
     try {
@@ -102,15 +101,15 @@ export default function LoginPage() {
 
       if (isSuccess(res) && token && res.user?.role === "VENDOR") {
         saveSession(token, res.user as VendorUser);
+        showSuccess("Login successful! Welcome back.");
         window.location.href = isVendorProfileComplete(res.user as VendorUser) ? "/vendor/dashboard" : "/vendor/profile";
       } else if (res.user?.role && res.user.role !== "VENDOR") {
-        setError("This portal is only available to vendor accounts.");
+        showError("This portal is only available to vendor accounts.");
       } else {
-        const errorMsg = res.message || "Login failed. Please check your credentials.";
-        setError(errorMsg);
+        showError(res.message || "Login failed. Please check your credentials.");
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to reach server. Check your connection.");
+      showError(err instanceof Error ? err.message : "Unable to reach server. Check your connection.");
     } finally {
       setLoading(false);
     }
@@ -200,15 +199,6 @@ export default function LoginPage() {
               <h2 className="text-xl sm:text-2xl font-semibold text-black">Welcome Back</h2>
               <p className="text-gray-500 text-xs sm:text-sm mt-1">Enter your credentials to continue</p>
             </div>
-
-            {error && (
-              <div className="mb-5 sm:mb-6 bg-red-50 border-l-4 border-red-500 text-red-700 text-xs sm:text-sm rounded-lg px-3 sm:px-4 py-2 sm:py-3">
-                <div className="flex items-center gap-2">
-                  <div className="w-1 h-1 bg-red-500 rounded-full" />
-                  <span>{error}</span>
-                </div>
-              </div>
-            )}
 
             <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-5">
               <div>

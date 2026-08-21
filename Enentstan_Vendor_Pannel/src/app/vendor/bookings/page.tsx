@@ -3,6 +3,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import { Booking, BookingStatus } from '@/lib/types';
 import { vendorApi } from '@/api/vendorApi';
+import { showError, showSuccess } from '@/lib/toast';
 import { normalizeBooking, type ApiBooking } from '@/lib/vendorData';
 import {
   Search, CheckCircle2, XCircle, Eye, Calendar, Users,
@@ -55,7 +56,13 @@ export default function BookingsPage() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionId, setActionId] = useState<string | null>(null);
-  const [error, setError] = useState('');
+  const [error, _setError] = useState('');
+  // Wrapping the raw setter means every existing setError(...) call
+  // further down also pops an error toast that holds until closed.
+  const setError = (msg: string) => {
+    _setError(msg);
+    if (msg) showError(msg);
+  };
   const [tab, setTab] = useState<BookingStatus | 'All'>('All');
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<Booking | null>(null);
@@ -178,8 +185,6 @@ export default function BookingsPage() {
           <Download size={15} /> Export
         </button>
       </div>
-
-      {error && <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
 
       {/* Summary cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">

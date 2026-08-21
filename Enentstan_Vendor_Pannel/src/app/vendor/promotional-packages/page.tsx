@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
-  AlertTriangle,
   BadgePercent,
   CheckCircle2,
   Edit3,
@@ -22,6 +21,7 @@ import {
   CalendarDays,
 } from "lucide-react";
 import { vendorApi } from "@/api/vendorApi";
+import { showError, showSuccess } from "@/lib/toast";
 import Pagination from "@/components/vendor/Pagination";
 
 interface PackageService {
@@ -186,7 +186,13 @@ function PromotionModal({
   onSaved: (pkg: ApiPackage) => void;
 }) {
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
+  const [error, _setError] = useState("");
+  // Wrapping the raw setter means every existing setError(...) call in this
+  // modal also pops an error toast that holds until the user closes it.
+  const setError = (msg: string) => {
+    _setError(msg);
+    if (msg) showError(msg);
+  };
   const [enabled, setEnabled] = useState(false);
   const [discountType, setDiscountType] = useState<"FLAT" | "PERCENTAGE">(
     "PERCENTAGE",
@@ -313,12 +319,6 @@ function PromotionModal({
             <p className="text-sm text-gray-500">{pkg.title}</p>
           </div>
         </div>
-
-        {error && (
-          <div className="mb-4 flex items-center gap-2 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-            <AlertTriangle size={15} /> {error}
-          </div>
-        )}
 
         <div className="space-y-4">
           <div className="rounded-2xl border border-orange-100 bg-orange-50/70 p-4">
@@ -494,8 +494,6 @@ function PromotionModal({
 export default function PromotionalPackagesPage() {
   const [packages, setPackages] = useState<ApiPackage[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<ApiPackage | null>(null);
   const [sortKey, setSortKey] = useState<SortKey>("title");
@@ -506,10 +504,9 @@ export default function PromotionalPackagesPage() {
   const fetchPackages = async () => {
     try {
       setLoading(true);
-      setError("");
       setPackages(await vendorApi.packages.list<ApiPackage[]>());
     } catch (cause) {
-      setError(
+      showError(
         cause instanceof Error ? cause.message : "Failed to load packages.",
       );
     } finally {
@@ -626,18 +623,6 @@ export default function PromotionalPackagesPage() {
           <PackageIcon size={16} /> Open All Packages
         </Link>
       </div>
-
-      {success && (
-        <div className="flex items-center gap-2 rounded-2xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
-          <CheckCircle2 size={15} /> {success}
-        </div>
-      )}
-
-      {error && (
-        <div className="flex items-center gap-2 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          <AlertTriangle size={15} /> {error}
-        </div>
-      )}
 
       {/* Stats Cards with Click Filters */}
       <div className="grid gap-4 sm:grid-cols-3">
@@ -928,8 +913,7 @@ export default function PromotionalPackagesPage() {
           setPackages((current) =>
             current.map((item) => (item.id === updated.id ? updated : item)),
           );
-          setSuccess(`"${updated.title}" promotional settings saved.`);
-          window.setTimeout(() => setSuccess(""), 3000);
+          showSuccess(`"${updated.title}" promotional settings saved.`);
         }}
       />
     </div>

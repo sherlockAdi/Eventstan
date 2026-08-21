@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { getUser } from '@/lib/auth';
 import { vendorApi } from '@/api/vendorApi';
+import { showError, showSuccess } from '@/lib/toast';
 import { normalizeBooking, type ApiBooking } from '@/lib/vendorData';
 import {
   DollarSign, CalendarCheck, Clock,
@@ -48,7 +49,13 @@ export default function DashboardPage() {
   });
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [error, _setError] = useState('');
+  // Wrapping the raw setter means every existing setError(...) call
+  // further down also pops an error toast that holds until closed.
+  const setError = (msg: string) => {
+    _setError(msg);
+    if (msg) showError(msg);
+  };
   
   const recentBookings = bookings.slice(0, 5);
 
@@ -151,8 +158,6 @@ export default function DashboardPage() {
           <p className="text-gray-500 text-sm mt-1">Here&apos;s what&apos;s happening with your business today.</p>
         </div>
       </div>
-
-      {error && <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
 
       {/* Stats Grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">

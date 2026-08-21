@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { vendorApi } from "@/api/vendorApi";
 import { getUser } from "@/lib/auth";
+import { showError, showSuccess } from "@/lib/toast";
 
 interface PriceUnitMaster {
   id: string;
@@ -231,7 +232,14 @@ export default function AddPackagePage() {
   const [loadingCities, setLoadingCities] = useState(false);
   const [loadingCountries, setLoadingCountries] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [formError, setFormError] = useState("");
+  const [formError, _setFormError] = useState("");
+  // Wrapping the raw setter means every existing setFormError(...) call in
+  // this file also pops an error toast that stays on screen until the user
+  // closes it — no need to touch each call site individually.
+  const setFormError = (msg: string) => {
+    _setFormError(msg);
+    if (msg) showError(msg);
+  };
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
@@ -834,10 +842,7 @@ export default function AddPackagePage() {
 
       await vendorApi.packages.create(packageData);
 
-      sessionStorage.setItem(
-        "pkg_success",
-        `Package "${form.title}" created successfully!`,
-      );
+      showSuccess(`Package "${form.title}" created successfully!`);
       router.push("/vendor/packages");
     } catch (error) {
       setFormError(
@@ -881,12 +886,6 @@ export default function AddPackagePage() {
           </p>
         </div>
       </div>
-
-      {formError && (
-        <div className="flex items-center gap-2 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          <AlertTriangle size={15} /> {formError}
-        </div>
-      )}
 
       <div className="max-w-4xl">
         <section className="rounded-[22px] border border-gray-100 bg-white p-4 shadow-sm">

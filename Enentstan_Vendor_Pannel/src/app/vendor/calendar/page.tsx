@@ -3,10 +3,11 @@
 import { useState, useMemo, useEffect } from 'react';
 import {
   ChevronLeft, ChevronRight, Lock, Unlock,
-  X, AlertTriangle, CheckCircle2, Clock, CalendarDays, Info, Loader2,
+  X, AlertTriangle, Clock, CalendarDays, Info, Loader2,
   Sunrise, Sun, Sunset, Moon, MoonStar, CalendarRange, type LucideIcon,
 } from 'lucide-react';
 import { vendorApi } from '@/api/vendorApi'; // adjust import path to match your project
+import { showError, showSuccess } from '@/lib/toast';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -156,7 +157,9 @@ export default function CalendarPage() {
         if (!cancelled) setSLOTS(buildSlotsFromApi(data));
       } catch (err) {
         if (!cancelled) {
-          setSlotsError(err instanceof Error ? err.message : 'Failed to load slots');
+          const msg = err instanceof Error ? err.message : 'Failed to load slots';
+          setSlotsError(msg);
+          showError(msg);
           setSLOTS([]); // nothing to derive Whole Day from if the API call itself failed
         }
       } finally {
@@ -184,7 +187,6 @@ export default function CalendarPage() {
   const [modalDate, setModalDate] = useState<string | null>(null);
   const [modalMode, setModalMode] = useState<'block' | 'unblock' | 'info'>('block');
   const [selectedSlots, setSelectedSlots] = useState<Set<SlotKey>>(new Set());
-  const [successMsg, setSuccessMsg] = useState('');
 
   const year  = viewDate.getFullYear();
   const month = viewDate.getMonth();
@@ -261,7 +263,7 @@ export default function CalendarPage() {
       }
       return { ...prev, [modalDate]: { ...entry, blocked: newBlocked } };
     });
-    showSuccess(`${selectedSlots.size} slot(s) blocked for ${formatDateLabel(modalDate)}`);
+    showSuccessToast(`${selectedSlots.size} slot(s) blocked for ${formatDateLabel(modalDate)}`);
     closeModal();
   };
 
@@ -272,13 +274,12 @@ export default function CalendarPage() {
       const newBlocked = new Set([...entry.blocked].filter(s => !selectedSlots.has(s)));
       return { ...prev, [modalDate]: { ...entry, blocked: newBlocked } };
     });
-    showSuccess(`${selectedSlots.size} slot(s) unblocked for ${formatDateLabel(modalDate)}`);
+    showSuccessToast(`${selectedSlots.size} slot(s) unblocked for ${formatDateLabel(modalDate)}`);
     closeModal();
   };
 
-  const showSuccess = (msg: string) => {
-    setSuccessMsg(msg);
-    setTimeout(() => setSuccessMsg(''), 3500);
+  const showSuccessToast = (msg: string) => {
+    showSuccess(msg);
   };
 
   const formatDateLabel = (key: string) => {
@@ -327,20 +328,6 @@ export default function CalendarPage() {
         <h1 className="text-2xl font-bold text-gray-900">Availability Calendar</h1>
         <p className="text-sm text-gray-500 mt-0.5">Block time slots to manage your availability. Click any date to manage it.</p>
       </div>
-
-      {/* Success toast */}
-      {successMsg && (
-        <div className="flex items-center gap-2 bg-green-50 border border-green-200 text-green-700 text-sm px-4 py-3 rounded-xl">
-          <CheckCircle2 size={16} /> {successMsg}
-        </div>
-      )}
-
-      {/* Slots load error banner */}
-      {slotsError && (
-        <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-xl">
-          <AlertTriangle size={16} /> Couldn't load time slots: {slotsError}
-        </div>
-      )}
 
       {/* Info banner */}
       <div className="bg-blue-50 border border-blue-100 rounded-2xl p-4 flex items-start gap-3">

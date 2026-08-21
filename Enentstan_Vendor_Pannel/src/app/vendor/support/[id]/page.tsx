@@ -7,6 +7,7 @@ import {
   ArrowLeft, FileImage, Loader2, Paperclip, Send, ShieldAlert, UserCircle2
 } from "lucide-react";
 import { vendorApi } from "@/api/vendorApi";
+import { showError } from "@/lib/toast";
 import { getUser } from "@/lib/auth";
 
 type SupportStatus = "OPEN" | "IN_PROGRESS" | "WAITING_FOR_ADMIN" | "WAITING_FOR_VENDOR" | "RESOLVED" | "CLOSED";
@@ -67,7 +68,13 @@ export default function VendorSupportDetailPage() {
   const [reply, setReply] = useState("");
   const [files, setFiles] = useState<File[]>([]);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
+  const [error, _setError] = useState("");
+  // Wrapping the raw setter means every existing setError(...) call
+  // further down also pops an error toast that holds until closed.
+  const setError = (msg: string) => {
+    _setError(msg);
+    if (msg) showError(msg);
+  };
 
   const isMine = useMemo(() => user?.role === "VENDOR", [user]);
 
@@ -231,7 +238,6 @@ export default function VendorSupportDetailPage() {
       <form onSubmit={handleReply} className="rounded-3xl bg-white border border-gray-100 shadow-sm p-6 space-y-4">
         <h2 className="text-lg font-semibold text-gray-900">Reply</h2>
 
-        {error && <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
 
         <textarea
           value={reply}

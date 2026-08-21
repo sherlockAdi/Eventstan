@@ -33,3 +33,18 @@ select{
 textarea{
   color:#000 !important;
 }
+
+@keyframes toast-enter {
+  0% { opacity: 0; transform: translate3d(0, -8px, 0) scale(0.96); }
+  100% { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+}
+@keyframes toast-leave {
+  0% { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(0.9); }
+}
+.animate-enter {
+  animation: toast-enter 0.2s ease-out;
+}
+.animate-leave {
+  animation: toast-leave 0.15s ease-in forwards;
+}

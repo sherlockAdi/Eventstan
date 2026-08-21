@@ -24,8 +24,6 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   try {
     response = await fetch(`${API_BASE_URL}/${path}`, {
       ...options,
-      // Respect a caller-provided signal if one was passed in, otherwise
-      // fall back to our own timeout-driven controller.
       signal: options.signal ?? controller.signal,
     });
   } catch (cause) {
@@ -38,11 +36,6 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   }
 
   if (!response.ok) {
-    // Read as text first — a 502/504 from a proxy or gateway usually comes
-    // back as an HTML error page (e.g. "Cannot GET /502.shtml"), not JSON.
-    // Parsing that with response.json() throws inside the catch and the
-    // caught error ends up empty, so instead we read text and only try to
-    // JSON.parse it, falling back to a clean status-based message.
     const rawText = await response.text().catch(() => '');
     let errorBody: { message?: string; error?: string } | null = null;
     try {
@@ -215,7 +208,6 @@ export const vendorApi = {
     categories: <T = unknown[]>() => cachedRequest<T>('categories', 'master-data/categories'),
     priceUnits: <T = unknown[]>() => cachedRequest<T>('price-units', 'master-data/price-units'),
     visaTypes: <T = unknown[]>() => cachedRequest<T>('visa-types', 'master-data/visa-types'),
-    // NEW: dynamic event slots (Morning/Afternoon/Evening/Night/...) from backend
     eventSlots: <T = unknown[]>() => cachedRequest<T>('event-slots', 'master-data/event-slots'),
     states: <T = unknown[]>(countryId?: number) =>
       cachedRequest<T>(
