@@ -192,7 +192,9 @@ function SearchableSelect({
           </div>
           <div className="max-h-56 overflow-y-auto py-1">
             {filteredOptions.length === 0 && (
-              <p className="px-4 py-2.5 text-sm text-gray-400">No results found.</p>
+              <p className="px-4 py-2.5 text-sm text-gray-400">
+                No results found.
+              </p>
             )}
             {filteredOptions.map((option) => (
               <button
@@ -294,7 +296,9 @@ export default function AddPackagePage() {
           vendorApi.masterData.priceUnits<PriceUnitMaster[]>(),
           vendorApi.masterData.categories<ApiCategory[]>(),
         ]);
-        const activePriceUnits = fetchedPriceUnits.filter((unit) => unit.isActive);
+        const activePriceUnits = fetchedPriceUnits.filter(
+          (unit) => unit.isActive,
+        );
         setPriceUnits(activePriceUnits);
         const activeRows = rows.filter(
           (service) => service.status === "ACTIVE",
@@ -327,17 +331,25 @@ export default function AddPackagePage() {
 
         let vendorAddress = "";
         let vendorPhoneNumber = "";
+        let vendorPhoneCountryCode = "";
         try {
           const profile = await vendorApi.profile.get();
+
           if (profile) {
             vendorAddress =
               (profile as any).businessLocation ||
               (profile as any).address ||
               "";
+
             vendorPhoneNumber =
               (profile as any).phone ||
               (profile as any).primaryMobile ||
               (profile as any).telephone ||
+              "";
+
+            vendorPhoneCountryCode =
+              (profile as any).phoneCountryCode ||
+              (profile as any).primaryMobileCountryCode ||
               "";
           }
         } catch (error) {
@@ -361,16 +373,18 @@ export default function AddPackagePage() {
         const fetchedCountries = await loadCountries();
         let matchedCountryCode = "AE";
         let displayPhone = vendorPhoneNumber;
-        if (vendorPhoneNumber && fetchedCountries.length > 0) {
-          const sortedByLength = [...fetchedCountries].sort(
-            (a, b) => (b.phoneCode?.length || 0) - (a.phoneCode?.length || 0),
+
+        if (vendorPhoneCountryCode && fetchedCountries.length > 0) {
+          const normalizedCode = vendorPhoneCountryCode.startsWith("+")
+            ? vendorPhoneCountryCode
+            : `+${vendorPhoneCountryCode}`;
+
+          const match = fetchedCountries.find(
+            (country) => country.phoneCode === normalizedCode,
           );
-          const match = sortedByLength.find(
-            (country) => country.phoneCode && vendorPhoneNumber.startsWith(country.phoneCode),
-          );
+
           if (match) {
             matchedCountryCode = match.code;
-            displayPhone = vendorPhoneNumber.slice(match.phoneCode.length).trim();
           }
         }
 
@@ -378,9 +392,7 @@ export default function AddPackagePage() {
           setForm((current) => ({
             ...current,
             priceUnit:
-              current.priceUnit ||
-              activePriceUnits[0]?.code ||
-              "per event",
+              current.priceUnit || activePriceUnits[0]?.code || "per event",
             rentalLocation: vendorAddress || "",
             vendorPhone: displayPhone || "",
             vendorCountryCode: matchedCountryCode,
@@ -410,7 +422,10 @@ export default function AddPackagePage() {
   async function loadCities() {
     try {
       setLoadingCities(true);
-      const fetchedCities = await vendorApi.masterData.cities<City[]>(1, 'cmryken0n06s7pzsoxhdw44op');
+      const fetchedCities = await vendorApi.masterData.cities<City[]>(
+        1,
+        "cmryken0n06s7pzsoxhdw44op",
+      );
       setCities(fetchedCities);
     } catch (error) {
       console.error("Failed to load cities:", error);
@@ -422,8 +437,11 @@ export default function AddPackagePage() {
   async function loadCountries() {
     try {
       setLoadingCountries(true);
-      const fetchedCountries = await vendorApi.masterData.countries<CountryMaster[]>();
-      setCountries(fetchedCountries.filter((country) => country.isActive !== false));
+      const fetchedCountries =
+        await vendorApi.masterData.countries<CountryMaster[]>();
+      setCountries(
+        fetchedCountries.filter((country) => country.isActive !== false),
+      );
       return fetchedCountries;
     } catch (error) {
       console.error("Failed to load countries:", error);
@@ -486,7 +504,7 @@ export default function AddPackagePage() {
   };
 
   const handleCitySelect = (cityId: string) => {
-    const selectedCity = cities.find(city => city.id === cityId);
+    const selectedCity = cities.find((city) => city.id === cityId);
     if (selectedCity) {
       setForm((current) => ({
         ...current,
@@ -589,7 +607,8 @@ export default function AddPackagePage() {
   const selectedPriceUnit = findPriceUnit(priceUnits, form.priceUnit);
   const codeRangeType = getRangeType(selectedPriceUnit?.code);
   const rangeType: RangeType =
-    selectedPriceUnit?.requireRange || (form.isRental && codeRangeType === "day")
+    selectedPriceUnit?.requireRange ||
+    (form.isRental && codeRangeType === "day")
       ? codeRangeType
       : null;
 
@@ -831,8 +850,12 @@ export default function AddPackagePage() {
 
       packageData.minHours = showHourFields ? Number(form.minHours) : null;
       packageData.maxHours = showHourFields ? Number(form.maxHours) : null;
-      packageData.minPersons = showPersonFields ? Number(form.minPersons) : null;
-      packageData.maxPersons = showPersonFields ? Number(form.maxPersons) : null;
+      packageData.minPersons = showPersonFields
+        ? Number(form.minPersons)
+        : null;
+      packageData.maxPersons = showPersonFields
+        ? Number(form.maxPersons)
+        : null;
       packageData.minDays = showDayFields ? Number(form.minDays) : null;
       packageData.maxDays = showDayFields ? Number(form.maxDays) : null;
       if (showPieceFields) {
@@ -920,8 +943,7 @@ export default function AddPackagePage() {
                 />
                 {form.isRental && (
                   <p className="mt-1 text-xs text-orange-600">
-                    Rental category selected - delivery/pickup options
-                    available
+                    Rental category selected - delivery/pickup options available
                   </p>
                 )}
               </div>
@@ -942,8 +964,8 @@ export default function AddPackagePage() {
                       currency:
                         nextService?.price?.currency || current.currency,
                       priceUnit:
-                        findPriceUnit(priceUnits, nextService?.price_unit)?.code ||
-                        current.priceUnit,
+                        findPriceUnit(priceUnits, nextService?.price_unit)
+                          ?.code || current.priceUnit,
                     }));
                     setFormError("");
                   }}
@@ -1251,15 +1273,18 @@ export default function AddPackagePage() {
                       <SearchableSelect
                         value={form.rentalLocationId}
                         onChange={handleCitySelect}
-                        placeholder={loadingCities ? "Loading cities..." : "Select city"}
+                        placeholder={
+                          loadingCities ? "Loading cities..." : "Select city"
+                        }
                         options={cityOptions}
                         disabled={loadingCities}
                       />
                     </div>
-                    
+
                     <div>
                       <label className="mb-1.5 block text-xs font-semibold tracking-wide text-gray-600">
-                        Delivery Fee Type <span className="text-red-500">*</span>
+                        Delivery Fee Type{" "}
+                        <span className="text-red-500">*</span>
                       </label>
                       <SearchableSelect
                         value={form.deliveryFeeType}
