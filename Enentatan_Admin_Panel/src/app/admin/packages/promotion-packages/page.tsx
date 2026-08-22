@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Eye, RefreshCw, Package, Check, X, Megaphone } from "lucide-react";
 import Button from "@/components/admin/Button";
 import Pagination from "@/components/admin/Pagination";
+import SearchableSelect from "@/components/admin/SearchableSelect";
 import { adminApi } from "@/api/adminApi";
 import toast from "react-hot-toast";
 
@@ -291,19 +292,16 @@ export default function PromotionPackagesPage() {
       <div className="flex justify-end">
         <div className="w-full sm:w-64">
           <label className="block text-xs font-medium text-gray-700 mb-1">Filter by Vendor</label>
-          <select
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+          <SearchableSelect
+            options={[{ id: "", label: "All Vendors" }, ...uniqueVendors.map(vendor => ({ id: vendor.id, label: vendor.name }))]}
             value={selectedVendorId}
-            onChange={(e) => {
-              setSelectedVendorId(e.target.value);
+            onChange={(id) => {
+              setSelectedVendorId(String(id));
               setCurrentPage(1);
             }}
-          >
-            <option value="">All Vendors</option>
-            {uniqueVendors.map(vendor => (
-              <option key={vendor.id} value={vendor.id}>{vendor.name}</option>
-            ))}
-          </select>
+            placeholder="All Vendors"
+            searchPlaceholder="Search vendors..."
+          />
         </div>
       </div>
 

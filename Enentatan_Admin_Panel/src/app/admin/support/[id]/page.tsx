@@ -7,6 +7,7 @@ import {
   ArrowLeft, FileImage, Loader2, Paperclip, Send, ShieldCheck, UserCircle2
 } from "lucide-react";
 import { adminApi } from "@/api/adminApi";
+import SearchableSelect from "@/components/admin/SearchableSelect";
 
 type SupportStatus = "OPEN" | "IN_PROGRESS" | "WAITING_FOR_ADMIN" | "WAITING_FOR_VENDOR" | "RESOLVED" | "CLOSED";
 
@@ -182,15 +183,14 @@ export default function AdminSupportDetailPage() {
           <div>
             <label className="text-xs font-semibold uppercase tracking-wide text-gray-500">Ticket status</label>
             <div className="mt-2 flex gap-3">
-              <select
-                value={status}
-                onChange={(e) => setStatus(e.target.value as SupportStatus)}
-                className="w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100"
-              >
-                {statusOptions.map((option) => (
-                  <option key={option} value={option}>{option.replaceAll("_", " ")}</option>
-                ))}
-              </select>
+              <div className="w-full">
+                <SearchableSelect
+                  options={statusOptions.map((option) => ({ id: option, label: option.replaceAll("_", " ") }))}
+                  value={status}
+                  onChange={(id) => setStatus(id as SupportStatus)}
+                  searchPlaceholder="Search..."
+                />
+              </div>
               <button
                 type="button"
                 onClick={handleStatusSave}

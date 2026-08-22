@@ -3,6 +3,7 @@ import { useAuth } from "@/lib/AuthContext";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
+import { showSuccess } from "@/lib/toast";
 
 type Tab = "personal" | "bookings";
 
@@ -61,10 +62,7 @@ export default function ProfilePage() {
   const handleLogout = () => {
     logout();
     setShowLogoutModal(false);
-    toast.success("Logged out successfully!", {
-      icon: "👋",
-      style: { borderRadius: "12px", fontWeight: "600" },
-    });
+    showSuccess("Logged out successfully!");
     router.push("/");
   };
 

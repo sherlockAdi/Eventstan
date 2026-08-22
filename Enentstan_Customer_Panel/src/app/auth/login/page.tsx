@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/AuthContext";
 import { Suspense } from "react";
-import toast from "react-hot-toast";
+import { showError, showSuccess } from "@/lib/toast";
 import { customerApi } from "@/api/customerApi";
 
 type Mode = "login" | "forgot" | "reset";
@@ -50,15 +50,11 @@ function LoginForm() {
     const res = await login(email.trim(), password);
     setLoading(false);
     if (res.ok) {
-      toast.success(`Welcome back, ${res.name ?? email.trim().split("@")[0]}! 👋`, {
-        style: { borderRadius: "12px", fontWeight: "600" },
-      });
+      showSuccess(`Welcome back, ${res.name ?? email.trim().split("@")[0]}! 👋`);
       router.push(redirectTo);
     } else {
       setError(res.error || "Login failed.");
-      toast.error(res.error || "Login failed.", {
-        style: { borderRadius: "12px", fontWeight: "600" },
-      });
+      showError(res.error || "Login failed.");
       setShake(true);
       setTimeout(() => setShake(false), 500);
     }
@@ -70,11 +66,11 @@ function LoginForm() {
     try {
       await customerApi.auth.forgotPassword(forgotEmail.trim());
       setForgotSent(true);
-      toast.success("Reset link sent! Check your email.");
+      showSuccess("Reset link sent! Check your email.");
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Something went wrong.";
       setForgotError(msg);
-      toast.error(msg);
+      showError(msg);
     } finally {
       setForgotLoading(false);
     }
@@ -101,7 +97,7 @@ function LoginForm() {
     try {
       await customerApi.auth.resetPassword(resetToken, newPassword);
       setResetDone(true);
-      toast.success("Password reset successfully!");
+      showSuccess("Password reset successfully!");
       setTimeout(() => {
         router.replace("/auth/login");
         setMode("login");
@@ -109,7 +105,7 @@ function LoginForm() {
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Something went wrong.";
       setResetError(msg);
-      toast.error(msg);
+      showError(msg);
     } finally {
       setResetLoading(false);
     }

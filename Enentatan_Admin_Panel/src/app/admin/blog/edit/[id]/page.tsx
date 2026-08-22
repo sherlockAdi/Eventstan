@@ -9,6 +9,7 @@ import toast from 'react-hot-toast';
 import { adminApi } from '@/api/adminApi';
 import { mapBlogFromApi, mapBlogToApi } from '@/lib/blog';
 import RichTextEditor from '@/components/admin/RichTextEditor';
+import SearchableSelect from '@/components/admin/SearchableSelect';
 
 interface Service {
   id: string;
@@ -450,15 +451,12 @@ export default function EditBlogPost() {
             
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">Status</label>
-              <select 
-                value={form.status} 
-                onChange={e => setForm({ ...form, status: e.target.value as any })} 
-                className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm bg-gray-50/50 focus:outline-none focus:ring-2 focus:ring-orange-400"
-              >
-                <option value="draft">Draft</option>
-                <option value="published">Published</option>
-                <option value="archived">Archived</option>
-              </select>
+              <SearchableSelect
+                options={[{ id: 'draft', label: 'Draft' }, { id: 'published', label: 'Published' }, { id: 'archived', label: 'Archived' }]}
+                value={form.status}
+                onChange={id => setForm({ ...form, status: id as any })}
+                searchPlaceholder="Search..."
+              />
             </div>
             
             <div className="flex items-center gap-2 pt-6">
@@ -504,17 +502,13 @@ export default function EditBlogPost() {
               <label className="block text-sm font-medium text-gray-700 mb-1.5">Related Services</label>
               <div className="flex gap-2">
                 <div className="flex-1 relative">
-                  <select 
-                    value={relatedServiceInput} 
-                    onChange={e => setRelatedServiceInput(e.target.value)} 
-                    className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm bg-gray-50/50 focus:outline-none focus:ring-2 focus:ring-orange-400 appearance-none"
-                    style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23666' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 1rem center', backgroundSize: '1rem' }}
-                  >
-                    <option value="">Select a service</option>
-                    {services.filter(s => !form.related_services.includes(s.id)).map(service => (
-                      <option key={service.id} value={service.id}>{service.name}</option>
-                    ))}
-                  </select>
+                  <SearchableSelect
+                    options={services.filter(s => !form.related_services.includes(s.id)).map(service => ({ id: service.id, label: service.name }))}
+                    value={relatedServiceInput}
+                    onChange={id => setRelatedServiceInput(String(id))}
+                    placeholder="Select a service"
+                    searchPlaceholder="Search services..."
+                  />
                 </div>
                 <Button type="button" variant="secondary" onClick={() => addRelatedService(relatedServiceInput)} className="!px-4">
                   <Plus size={16} />
@@ -533,17 +527,13 @@ export default function EditBlogPost() {
               <label className="block text-sm font-medium text-gray-700 mb-1.5">Related Packages</label>
               <div className="flex gap-2">
                 <div className="flex-1 relative">
-                  <select 
-                    value={relatedPackageInput} 
-                    onChange={e => setRelatedPackageInput(e.target.value)} 
-                    className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm bg-gray-50/50 focus:outline-none focus:ring-2 focus:ring-orange-400 appearance-none"
-                    style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23666' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 1rem center', backgroundSize: '1rem' }}
-                  >
-                    <option value="">Select a package</option>
-                    {packages.filter(p => !form.related_packages.includes(p.id)).map(pkg => (
-                      <option key={pkg.id} value={pkg.id}>{pkg.name}</option>
-                    ))}
-                  </select>
+                  <SearchableSelect
+                    options={packages.filter(p => !form.related_packages.includes(p.id)).map(pkg => ({ id: pkg.id, label: pkg.name }))}
+                    value={relatedPackageInput}
+                    onChange={id => setRelatedPackageInput(String(id))}
+                    placeholder="Select a package"
+                    searchPlaceholder="Search packages..."
+                  />
                 </div>
                 <Button type="button" variant="secondary" onClick={() => addRelatedPackage(relatedPackageInput)} className="!px-4">
                   <Plus size={16} />

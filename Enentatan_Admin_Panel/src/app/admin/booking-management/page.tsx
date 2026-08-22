@@ -7,6 +7,7 @@ import { adminApi } from '@/api/adminApi';
 import Button from '@/components/admin/Button';
 import Modal from '@/components/admin/Modal';
 import Pagination from '@/components/admin/Pagination';
+import SearchableSelect from '@/components/admin/SearchableSelect';
 import Table from '@/components/admin/Table';
 import { Column } from '@/lib/types';
 
@@ -59,7 +60,7 @@ export default function BookingManagementPage() {
 
   return <div className="space-y-6">
     <div className="flex flex-wrap items-center justify-between gap-3"><div><h1 className="text-xl font-bold">Booking Management</h1><p className="text-sm text-gray-500">{bookings.length} live bookings</p></div>
-      <div className="flex gap-2"><select value={status} onChange={(e) => { setStatus(e.target.value); setPage(1); }} className="rounded-xl border px-3 py-2 text-sm"><option value="">All statuses</option>{['PENDING_PAYMENT','VENDOR_REVIEW','CUSTOMER_CONFIRMATION','CONFIRMED','IN_PROGRESS','COMPLETED','CANCELLED','REFUNDED'].map((item) => <option key={item}>{item}</option>)}</select><Button variant="secondary" onClick={() => void load()}><RefreshCw size={15} />Refresh</Button></div>
+      <div className="flex gap-2"><div className="w-56"><SearchableSelect options={[{ id: '', label: 'All statuses' }, ...['PENDING_PAYMENT','VENDOR_REVIEW','CUSTOMER_CONFIRMATION','CONFIRMED','IN_PROGRESS','COMPLETED','CANCELLED','REFUNDED'].map((item) => ({ id: item, label: item }))]} value={status} onChange={(id) => { setStatus(String(id)); setPage(1); }} placeholder="All statuses" searchPlaceholder="Search..." /></div><Button variant="secondary" onClick={() => void load()}><RefreshCw size={15} />Refresh</Button></div>
     </div>
     <div className="rounded-2xl border bg-white shadow-sm">{loading ? <div className="flex justify-center p-12"><Loader2 className="animate-spin" /></div> : <Table columns={columns} data={paged} />}<Pagination currentPage={page} totalPages={Math.max(1, Math.ceil(bookings.length / perPage))} totalItems={bookings.length} itemsPerPage={perPage} onPageChange={setPage} /></div>
     <Modal isOpen={Boolean(selected)} onClose={() => setSelected(null)} title="Booking Details" size="lg">{selected && <div className="space-y-4 text-sm">

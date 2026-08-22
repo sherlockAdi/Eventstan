@@ -8,6 +8,7 @@ import ConfirmModal from '@/components/admin/ConfirmModal';
 import Input from '@/components/admin/Input';
 import Modal from '@/components/admin/Modal';
 import Pagination from '@/components/admin/Pagination';
+import SearchableSelect from '@/components/admin/SearchableSelect';
 import Table from '@/components/admin/Table';
 import { Column } from '@/lib/types';
 import toast from 'react-hot-toast';
@@ -129,13 +130,13 @@ export default function SubservicesPage() {
       </div>
       <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} title={selected ? 'Edit Subservice' : 'Add Subservice'} size="lg">
         <form onSubmit={save} className="space-y-4">
-          <select value={form.serviceId} onChange={e => setForm({ ...form, serviceId: e.target.value })} disabled={!!selected} className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm bg-gray-50/50">{services.map(s => <option key={s.id} value={s.id}>{s.title}</option>)}</select>
+          <SearchableSelect options={services.map(s => ({ id: s.id, label: s.title }))} value={form.serviceId} onChange={id => setForm({ ...form, serviceId: String(id) })} disabled={!!selected} searchPlaceholder="Search services..." />
           <Input label="Subservice Title" value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} required />
           <Input label="Price" type="number" value={form.amount} onChange={e => setForm({ ...form, amount: e.target.value })} required />
           <textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} placeholder="Description" className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm bg-gray-50/50 min-h-24" />
           <input type="file" accept="image/*" onChange={e => upload(e.target.files?.[0])} className="text-sm" />
           {form.imageUrl && <img src={form.imageUrl} alt="Preview" className="w-20 h-20 rounded-xl object-cover" />}
-          <select value={form.status} onChange={e => setForm({ ...form, status: e.target.value })} className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm bg-gray-50/50"><option value="ACTIVE">ACTIVE</option><option value="INACTIVE">INACTIVE</option></select>
+          <SearchableSelect options={[{ id: 'ACTIVE', label: 'ACTIVE' }, { id: 'INACTIVE', label: 'INACTIVE' }]} value={form.status} onChange={id => setForm({ ...form, status: String(id) })} searchPlaceholder="Search..." />
           <div className="flex justify-end gap-3"><Button type="button" variant="secondary" onClick={() => setModalOpen(false)}>Cancel</Button><Button type="submit">Save</Button></div>
         </form>
       </Modal>

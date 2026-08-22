@@ -1,7 +1,6 @@
 "use client";
 import { useEffect, useState, useMemo } from "react";
 import { useMarketplace } from "@/lib/useMarketplace";
-import { customerApi, ApiCategory } from "@/api/customerApi";
 import {
   isPromotionalPackage,
   packageToPromotion,
@@ -10,7 +9,148 @@ import {
 import { Promotion } from "@/types";
 import { useCart } from "@/lib/CartContext";
 import BookingModal from "@/components/ui/BookingModal";
-import ConfigureCartModal from "@/components/ui/Configurecartmodal";
+
+/* ── Inlined to avoid separate file dependency ── */
+function ConfigureCartModal({
+  pkg,
+  service,
+  onClose,
+}: {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  pkg: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  service: any;
+  onClose: () => void;
+}) {
+  const [days, setDays] = useState(1);
+  const { addPackage } = useCart();
+  const total = (pkg.price ?? 0) * days;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div
+        className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+        onClick={onClose}
+      />
+      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm z-10">
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors"
+        >
+          <svg
+            className="w-5 h-5"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M6 18L18 6M6 6l12 12"
+            />
+          </svg>
+        </button>
+        <div className="p-6">
+          <h2 className="text-lg font-bold text-gray-900 mb-5">
+            Configure &amp; Add to Cart
+          </h2>
+          <div className="bg-gray-50 rounded-xl px-4 py-3 mb-5">
+            <p className="font-semibold text-gray-900 text-sm">{pkg.name}</p>
+            <p className="text-xs text-gray-400 mt-0.5">
+              {service.vendor_name} · {service.category}
+            </p>
+          </div>
+          <div className="mb-5">
+            <p className="text-sm font-medium text-gray-700 mb-2">Days</p>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setDays((d) => Math.max(1, d - 1))}
+                className="w-9 h-9 rounded-lg border border-gray-200 flex items-center justify-center text-gray-500 hover:border-orange-400 hover:text-orange-500 transition-all"
+              >
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M20 12H4"
+                  />
+                </svg>
+              </button>
+              <span className="w-12 text-center border border-gray-200 rounded-lg py-1.5 text-sm font-semibold text-gray-900">
+                {days}
+              </span>
+              <button
+                onClick={() => setDays((d) => d + 1)}
+                className="w-9 h-9 rounded-lg border border-gray-200 flex items-center justify-center text-gray-500 hover:border-orange-400 hover:text-orange-500 transition-all"
+              >
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 4v16m8-8H4"
+                  />
+                </svg>
+              </button>
+            </div>
+          </div>
+          <div className="bg-orange-50 rounded-xl px-4 py-3 mb-5 space-y-2">
+            <div className="flex items-center justify-between text-sm text-gray-600">
+              <span>
+                {days} × ${pkg.price?.toLocaleString()}{" "}
+                {pkg.price_unit ? `per ${pkg.price_unit}` : ""}
+              </span>
+              <span>${total.toLocaleString()}</span>
+            </div>
+            <div className="flex items-center justify-between text-sm font-bold">
+              <span className="text-gray-900">Cart Price</span>
+              <span className="text-orange-500 text-base">
+                ${total.toLocaleString()}
+              </span>
+            </div>
+          </div>
+          <div className="flex gap-3">
+            <button
+              onClick={onClose}
+              className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-600 hover:border-gray-300 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => {
+                (addPackage as any)(pkg, service);
+                onClose();
+              }}
+              className="flex-1 py-2.5 rounded-xl bg-orange-500 text-white text-sm font-semibold hover:bg-orange-600 transition-colors"
+            >
+              Add to Cart
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const CATEGORIES = [
+  "All",
+  "Venue",
+  "Decor",
+  "Catering",
+  "Entertainment",
+  "Rentals",
+];
 
 const BADGE_COLORS: Record<string, string> = {
   Entertainment: "bg-purple-500",
@@ -299,26 +439,23 @@ function PromoDetailModal({
             disabled={inCart}
             className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-sm font-semibold border transition-all ${
               inCart
-                ? "bg-white text-gray-500 border-gray-200 cursor-default"
+                ? "bg-green-50 text-green-600 border-green-200 cursor-default"
                 : "bg-white text-gray-700 border-gray-200 hover:border-orange-400 hover:text-orange-500"
             }`}
           >
             <svg
-              className={`w-4 h-4 ${inCart ? "text-orange-400" : ""}`}
+              className="w-4 h-4"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
             >
               {inCart ? (
-                <>
-                  <circle cx="12" cy="12" r="9" strokeWidth={1.6} />
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={1.6}
-                    d="M9 12l2 2 4-4"
-                  />
-                </>
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2.5}
+                  d="M5 13l4 4L19 7"
+                />
               ) : (
                 <path
                   strokeLinecap="round"
@@ -352,25 +489,17 @@ function PromotionCard({
   promo: Promotion;
   onBook: (p: Promotion) => void;
 }) {
-  const { items, addPackage } = useCart();
+  const { items } = useCart();
   const [showConfigure, setShowConfigure] = useState(false);
   const [showDetail, setShowDetail] = useState(false);
-  // Match on the real package id (stored on the cart item's `pkg`), not a
-  // fabricated local id — the backend only knows about the real id.
-  const inCart = items.some((i) => i.pkg?.id === promo.id);
-  // "per event" packages are a flat, one-off price — no day/quantity
-  // picker makes sense, so skip the configure modal and add directly.
-  const isPerEvent = (promo.price_unit || "").toLowerCase() === "per event";
+  const inCart = items.some((i) => i.id === `pkg-promo-${promo.id}`);
   const promoImage =
     typeof promo.image_url === "string" ? promo.image_url.trim() : "";
   const hasImage = promoImage.length > 0;
 
-  // Adapt promo to the shape ConfigureCartModal expects via pkg/service props.
-  // IMPORTANT: id must be the real backend package id — this is sent
-  // straight through to POST /customer/cart as `packageId`. Prefixing it
-  // (e.g. "promo-<id>") breaks that call with "Package not found".
+  // Adapt promo to the shape ConfigureCartModal expects via pkg/service props
   const promoAsPkg = {
-    id: promo.id,
+    id: `promo-${promo.id}`,
     service_id: promo.service_id,
     name: promo.title,
     description: promo.short_desc,
@@ -379,23 +508,6 @@ function PromotionCard({
     features: promo.inclusions,
     max_guests: promo.max_guests,
     duration_hours: promo.duration_hours,
-    is_rental: promo.is_rental,
-    delivery_available: promo.delivery_available,
-    delivery_fee: promo.delivery_fee,
-    min_days: promo.min_days,
-    max_days: promo.max_days,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    min_hours: (promo as any).min_hours,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    max_hours: (promo as any).max_hours,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    min_persons: (promo as any).min_persons,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    max_persons: (promo as any).max_persons,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    min_pieces: (promo as any).min_pieces,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    max_pieces: (promo as any).max_pieces,
   };
 
   const promoAsService = {
@@ -403,14 +515,6 @@ function PromotionCard({
     category: promo.category,
     vendor_name: promo.vendor_name,
     image_url: promo.image_url,
-  };
-
-  const handleAddToCart = () => {
-    if (isPerEvent) {
-      addPackage(promoAsPkg as any, promoAsService as any, 1);
-    } else {
-      setShowConfigure(true);
-    }
   };
 
   return (
@@ -573,30 +677,27 @@ function PromotionCard({
           {/* CTA Buttons */}
           <div className="flex gap-2">
             <button
-              onClick={() => !inCart && handleAddToCart()}
+              onClick={() => !inCart && setShowConfigure(true)}
               disabled={inCart}
               className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-sm font-semibold border transition-all active:scale-95 ${
                 inCart
-                  ? "bg-white text-gray-500 border-gray-200 cursor-default"
+                  ? "bg-green-50 text-green-600 border-green-200 cursor-default"
                   : "bg-white text-gray-700 border-gray-200 hover:border-orange-400 hover:text-orange-500 hover:bg-orange-50"
               }`}
             >
               <svg
-                className={`w-4 h-4 ${inCart ? "text-orange-400" : ""}`}
+                className="w-4 h-4"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
               >
                 {inCart ? (
-                  <>
-                    <circle cx="12" cy="12" r="9" strokeWidth={1.6} />
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={1.6}
-                      d="M9 12l2 2 4-4"
-                    />
-                  </>
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2.5}
+                    d="M5 13l4 4L19 7"
+                  />
                 ) : (
                   <path
                     strokeLinecap="round"
@@ -633,7 +734,7 @@ function PromotionCard({
         <PromoDetailModal
           promo={promo}
           onClose={() => setShowDetail(false)}
-          onAddToCart={handleAddToCart}
+          onAddToCart={() => setShowConfigure(true)}
           onBook={() => onBook(promo)}
           inCart={inCart}
         />
@@ -643,50 +744,11 @@ function PromotionCard({
 }
 
 export default function PromotionsPage() {
-  const { services, packages, loading, error } = useMarketplace();
+  const { packages, loading, error } = useMarketplace();
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("All");
   const [sortBy, setSortBy] = useState("featured");
   const [booking, setBooking] = useState<Promotion | null>(null);
-  const [categories, setCategories] = useState<ApiCategory[]>([]);
-  const [categoriesLoading, setCategoriesLoading] = useState(true);
-
-  // Categories are fetched live from /master-data/categories so the filter
-  // pills always reflect what's actually configured on the backend, instead
-  // of a hardcoded list that can drift out of sync (e.g. new categories
-  // added, or names/slugs changed).
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const data = await customerApi.masterData.getCategories();
-        if (!cancelled) setCategories(data);
-      } finally {
-        if (!cancelled) setCategoriesLoading(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  const CATEGORIES = useMemo(
-    () => ["All", ...categories.map((c) => c.name)],
-    [categories],
-  );
-
-  // service.id -> service.category, sourced live from /services — the
-  // authoritative place a package's real category lives (the /packages
-  // response often doesn't embed it). Used so the category badge on each
-  // promotion card is dynamic instead of defaulting to "Venue".
-  const categoryByServiceId = useMemo(
-    () =>
-      services.reduce<Record<string, string>>((acc, s) => {
-        if (s.id && s.category) acc[s.id] = s.category;
-        return acc;
-      }, {}),
-    [services],
-  );
 
   // Only packages flagged as promotional (isPromotional/is_promotional) on the
   // /packages API response are shown here — this is the live "Promotions" feed.
@@ -694,8 +756,8 @@ export default function PromotionsPage() {
     () =>
       (packages as RawApiPackage[])
         .filter(isPromotionalPackage)
-        .map((pkg) => packageToPromotion(pkg, categoryByServiceId)),
-    [packages, categoryByServiceId],
+        .map(packageToPromotion),
+    [packages],
   );
 
   const filtered = useMemo(() => {
@@ -776,23 +838,19 @@ export default function PromotionsPage() {
       </div>
 
       <div className="flex flex-wrap gap-2 mb-5">
-        {categoriesLoading ? (
-          <span className="text-sm text-gray-400">Loading categories…</span>
-        ) : (
-          CATEGORIES.map((cat) => (
-            <button
-              key={cat}
-              onClick={() => setCategory(cat)}
-              className={`px-4 py-2 rounded-full text-sm font-medium border transition-all ${
-                category === cat
-                  ? "bg-orange-500 text-white border-orange-500"
-                  : "bg-white text-gray-600 border-gray-200 hover:border-orange-300 hover:text-orange-500"
-              }`}
-            >
-              {cat}
-            </button>
-          ))
-        )}
+        {CATEGORIES.map((cat) => (
+          <button
+            key={cat}
+            onClick={() => setCategory(cat)}
+            className={`px-4 py-2 rounded-full text-sm font-medium border transition-all ${
+              category === cat
+                ? "bg-orange-500 text-white border-orange-500"
+                : "bg-white text-gray-600 border-gray-200 hover:border-orange-300 hover:text-orange-500"
+            }`}
+          >
+            {cat}
+          </button>
+        ))}
       </div>
 
       {loading ? (
@@ -805,40 +863,75 @@ export default function PromotionsPage() {
         </div>
       ) : (
         <>
-          <p className="text-sm text-gray-400 mb-5">
+          {/* <p className="text-sm text-gray-400 mb-5">
             {filtered.length} promotion{filtered.length !== 1 ? "s" : ""}{" "}
             available
-          </p>
+          </p> */}
 
-          {filtered.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-              {filtered.map((promo) => (
-                <PromotionCard
-                  key={promo.id}
-                  promo={promo}
-                  onBook={setBooking}
-                />
-              ))}
+          {/* {filtered.length > 0 ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+          {filtered.map(promo => (
+            <PromotionCard key={promo.id} promo={promo} onBook={setBooking}/>
+          ))}
+        </div>
+      ) : (
+        <div className="text-center py-20">
+          <div className="text-5xl mb-4">🎟️</div>
+          <h3 className="text-xl font-bold text-gray-900 mb-2">No promotions found</h3>
+          <p className="text-gray-400 mb-5">Try adjusting your filters or search term.</p>
+          <button
+            onClick={() => { setSearch(""); setCategory("All"); }}
+            className="bg-orange-500 text-white px-6 py-2.5 rounded-full font-semibold hover:bg-orange-600 transition-colors"
+          >
+            Clear Filters
+          </button>
+        </div>
+      )} */}
+          {loading ? (
+            <div className="text-center py-20 text-gray-400">
+              Loading promotions…
+            </div>
+          ) : error ? (
+            <div className="text-center py-20 text-red-400">
+              Failed to load promotions: {error}
             </div>
           ) : (
-            <div className="text-center py-20">
-              <div className="text-5xl mb-4">🎟️</div>
-              <h3 className="text-xl font-bold text-gray-900 mb-2">
-                No promotions found
-              </h3>
-              <p className="text-gray-400 mb-5">
-                Try adjusting your filters or search term.
+            <>
+              <p className="text-sm text-gray-400 mb-5">
+                0 promotions available
               </p>
-              <button
-                onClick={() => {
-                  setSearch("");
-                  setCategory("All");
-                }}
-                className="bg-orange-500 text-white px-6 py-2.5 rounded-full font-semibold hover:bg-orange-600 transition-colors"
-              >
-                Clear Filters
-              </button>
-            </div>
+
+              <div className="text-center py-20">
+                <svg
+                  className="w-14 h-14 text-gray-300 mx-auto mb-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={1.5}
+                    d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a2 2 0 012-2h2z"
+                  />
+                </svg>
+                <h3 className="text-xl font-bold text-gray-900 mb-2">
+                  No promotions found
+                </h3>
+                <p className="text-gray-400 mb-5">
+                  Check back soon or try different filters
+                </p>
+                <button
+                  onClick={() => {
+                    setSearch("");
+                    setCategory("All");
+                  }}
+                  className="border border-gray-200 text-gray-700 px-6 py-2.5 rounded-full font-semibold hover:bg-gray-50 transition-colors bg-white"
+                >
+                  Clear Filters
+                </button>
+              </div>
+            </>
           )}
         </>
       )}
@@ -847,7 +940,7 @@ export default function PromotionsPage() {
         <BookingModal
           pkg={
             {
-              id: booking.id,
+              id: `promo-${booking.id}`,
               service_id: booking.service_id,
               title: booking.title,
               description: booking.short_desc,

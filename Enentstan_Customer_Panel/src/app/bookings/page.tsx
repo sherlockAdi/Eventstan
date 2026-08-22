@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { customerApi } from "@/api/customerApi";
 import { useAuth } from "@/lib/AuthContext";
+import { showError } from "@/lib/toast";
 
 interface ApiBooking {
   id: string;
@@ -44,7 +45,11 @@ export default function BookingsPage() {
     }
     customerApi.bookings.list<ApiBooking[]>()
       .then((result) => setBookings(Array.isArray(result) ? result : []))
-      .catch((cause: unknown) => setError(cause instanceof Error ? cause.message : "Unable to load bookings"))
+      .catch((cause: unknown) => {
+        const msg = cause instanceof Error ? cause.message : "Unable to load bookings";
+        setError(msg);
+        showError(msg);
+      })
       .finally(() => setLoading(false));
   }, [authLoading, router, user]);
 

@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
-import { Building2, Check, ChevronDown, Edit, Plus, RotateCcw, Search, ToggleLeft, ToggleRight, Trash2 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Building2, Edit, Plus, RotateCcw, ToggleLeft, ToggleRight, Trash2 } from "lucide-react";
 import { adminApi } from "@/api/adminApi";
 import Button from "@/components/admin/Button";
 import ConfirmModal from "@/components/admin/ConfirmModal";
@@ -10,6 +9,7 @@ import Input from "@/components/admin/Input";
 import Modal from "@/components/admin/Modal";
 import Pagination from "@/components/admin/Pagination";
 import Table from "@/components/admin/Table";
+import SearchableSelect, { SearchOption } from "@/components/admin/SearchableSelect";
 import { Column } from "@/lib/types";
 import toast from "react-hot-toast";
 
@@ -43,149 +43,6 @@ const emptyCity: Partial<City> = {
   status: "Active",
 };
 
-interface SearchOption {
-  id: string | number;
-  label: string;
-  sublabel?: string;
-}
-
-function SearchSelect({
-  options,
-  value,
-  onChange,
-  placeholder = "Select",
-  disabled = false,
-}: {
-  options: SearchOption[];
-  value: string | number | "";
-  onChange: (id: string | number) => void;
-  placeholder?: string;
-  disabled?: boolean;
-}) {
-  const [open, setOpen] = useState(false);
-  const [query, setQuery] = useState("");
-  const [coords, setCoords] = useState<{ top: number; left: number; width: number } | null>(null);
-  const buttonRef = useRef<HTMLButtonElement>(null);
-  const panelRef = useRef<HTMLDivElement>(null);
-
-  const selectedOption = options.find(option => option.id === value);
-  const filtered = options.filter(option =>
-    `${option.label} ${option.sublabel || ""}`.toLowerCase().includes(query.toLowerCase())
-  );
-
-  const updateCoords = () => {
-    const rect = buttonRef.current?.getBoundingClientRect();
-    if (!rect) return;
-    const spaceBelow = window.innerHeight - rect.bottom;
-    const openUpward = spaceBelow < 260 && rect.top > 260;
-    setCoords({
-      top: openUpward ? rect.top - 6 : rect.bottom + 6,
-      left: rect.left,
-      width: rect.width,
-    });
-    (buttonRef.current as any).__openUpward = openUpward;
-  };
-
-  const toggleOpen = () => {
-    if (disabled) return;
-    if (!open) updateCoords();
-    setOpen(prev => !prev);
-  };
-
-  useEffect(() => {
-    if (!open) return;
-
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        buttonRef.current && !buttonRef.current.contains(event.target as Node) &&
-        panelRef.current && !panelRef.current.contains(event.target as Node)
-      ) {
-        setOpen(false);
-        setQuery("");
-      }
-    };
-    const handleReposition = () => updateCoords();
-
-    document.addEventListener("mousedown", handleClickOutside);
-    window.addEventListener("scroll", handleReposition, true);
-    window.addEventListener("resize", handleReposition);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-      window.removeEventListener("scroll", handleReposition, true);
-      window.removeEventListener("resize", handleReposition);
-    };
-  }, [open]);
-
-  const openUpward = (buttonRef.current as any)?.__openUpward;
-
-  return (
-    <>
-      <button
-        ref={buttonRef}
-        type="button"
-        disabled={disabled}
-        onClick={toggleOpen}
-        className={`w-full flex items-center justify-between px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm bg-gray-50/50 focus:outline-none focus:ring-2 focus:ring-orange-400 text-left ${disabled ? "opacity-50 cursor-not-allowed" : ""}`}
-      >
-        <span className={selectedOption ? "text-gray-900" : "text-gray-400"}>
-          {selectedOption ? (selectedOption.sublabel ? `${selectedOption.label} (${selectedOption.sublabel})` : selectedOption.label) : placeholder}
-        </span>
-        <ChevronDown size={16} className="text-gray-400 shrink-0" />
-      </button>
-
-      {open && coords && typeof document !== "undefined" &&
-        createPortal(
-          <div
-            ref={panelRef}
-            style={{
-              position: "fixed",
-              top: openUpward ? undefined : coords.top,
-              bottom: openUpward ? window.innerHeight - coords.top : undefined,
-              left: coords.left,
-              width: coords.width,
-            }}
-            className="z-[9999] bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden"
-          >
-            <div className="flex items-center gap-2 px-3 py-2 border-b border-gray-100">
-              <Search size={14} className="text-gray-400 shrink-0" />
-              <input
-                autoFocus
-                value={query}
-                onChange={event => setQuery(event.target.value)}
-                placeholder="Search..."
-                className="w-full text-sm outline-none bg-transparent placeholder:text-gray-400"
-              />
-            </div>
-            <div className="max-h-56 overflow-y-auto py-1">
-              {filtered.length === 0 && (
-                <p className="px-3.5 py-2.5 text-sm text-gray-400">No results found</p>
-              )}
-              {filtered.map(option => (
-                <button
-                  key={option.id}
-                  type="button"
-                  onClick={() => {
-                    onChange(option.id);
-                    setOpen(false);
-                    setQuery("");
-                  }}
-                  className="w-full flex items-center justify-between px-3.5 py-2 text-sm text-left hover:bg-orange-50 transition-colors"
-                >
-                  <span className="text-gray-800">
-                    {option.label}{" "}
-                    {option.sublabel && <span className="text-gray-400 font-mono text-xs">({option.sublabel})</span>}
-                  </span>
-                  {option.id === value && <Check size={14} className="text-orange-600" />}
-                </button>
-              ))}
-            </div>
-          </div>,
-          document.body
-        )}
-    </>
-  );
-}
-
 export default function CitiesPage() {
   const [cities, setCities] = useState<City[]>([]);
   const [countries, setCountries] = useState<Country[]>([]);
@@ -215,11 +72,15 @@ export default function CitiesPage() {
   };
 
   const load = async () => {
+    if (!countryFilter || !stateFilter) {
+      setCities([]);
+      return;
+    }
     setLoading(true);
     try {
       const [citiesData, statesData] = await Promise.all([
-        adminApi.cities.list(countryFilter ? Number(countryFilter) : undefined, stateFilter || undefined),
-        adminApi.states.list(countryFilter ? Number(countryFilter) : undefined),
+        adminApi.cities.list(Number(countryFilter), stateFilter),
+        adminApi.states.list(Number(countryFilter)),
       ]);
       setCities(citiesData);
       setStates(statesData);
@@ -239,6 +100,16 @@ export default function CitiesPage() {
     void load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [countryFilter, stateFilter]);
+
+  // Load states for the state filter dropdown as soon as a country is picked,
+  // even before a state is chosen (so the state dropdown has options).
+  useEffect(() => {
+    if (!countryFilter) {
+      setStates([]);
+      return;
+    }
+    adminApi.states.list(Number(countryFilter)).then(setStates).catch(() => setStates([]));
+  }, [countryFilter]);
 
   // States available for the form's selected country
   const [formStates, setFormStates] = useState<StateItem[]>([]);
@@ -419,7 +290,9 @@ export default function CitiesPage() {
         <div>
           <h1 className="text-xl font-bold text-gray-900">Cities Management</h1>
           <p className="text-sm text-gray-500 mt-0.5">
-            {cities.length} cities - {cities.filter(city => city.status === "Active").length} active
+            {!countryFilter || !stateFilter
+              ? "Select country and state to load cities"
+              : `${cities.length} cities - ${cities.filter(city => city.status === "Active").length} active`}
           </p>
         </div>
         <Button onClick={openAdd}>
@@ -431,7 +304,7 @@ export default function CitiesPage() {
       <div className="flex items-center gap-3 flex-wrap">
         <label className="text-sm font-medium text-gray-700 shrink-0">Filter by Country</label>
         <div className="w-64">
-          <SearchSelect
+          <SearchableSelect
             options={countryOptions}
             value={countryFilter}
             onChange={id => {
@@ -445,7 +318,7 @@ export default function CitiesPage() {
 
         <label className="text-sm font-medium text-gray-700 shrink-0">Filter by State</label>
         <div className="w-64">
-          <SearchSelect
+          <SearchableSelect
             options={stateOptionsForFilter}
             value={stateFilter}
             onChange={id => {
@@ -472,7 +345,13 @@ export default function CitiesPage() {
       </div>
 
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm">
-        {loading ? (
+        {!countryFilter || !stateFilter ? (
+          <div className="flex h-48 flex-col items-center justify-center gap-1 text-center text-sm text-gray-500">
+            <Building2 size={22} className="text-gray-300 mb-1" />
+            <p className="font-medium text-gray-600">Select a country and state to view cities</p>
+            <p className="text-xs text-gray-400">Use the filters above to get started</p>
+          </div>
+        ) : loading ? (
           <div className="flex h-48 items-center justify-center text-sm text-gray-500">Loading cities...</div>
         ) : (
           <>
@@ -503,7 +382,7 @@ export default function CitiesPage() {
               <label className="block text-sm font-medium text-gray-700 mb-1.5">
                 Country <span className="text-red-500">*</span>
               </label>
-              <SearchSelect
+              <SearchableSelect
                 options={countryOptions}
                 value={form.countryId || ""}
                 onChange={id => setForm({ ...form, countryId: Number(id), stateId: "" })}
@@ -513,7 +392,7 @@ export default function CitiesPage() {
               <label className="block text-sm font-medium text-gray-700 mb-1.5">
                 State <span className="text-red-500">*</span>
               </label>
-              <SearchSelect
+              <SearchableSelect
                 options={stateOptionsForForm}
                 value={form.stateId || ""}
                 onChange={id => setForm({ ...form, stateId: String(id) })}
@@ -523,14 +402,12 @@ export default function CitiesPage() {
             </div>
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-1.5">Status</label>
-              <select
+              <SearchableSelect
+                options={[{ id: "Active", label: "Active" }, { id: "Inactive", label: "Inactive" }]}
                 value={form.status || "Active"}
-                onChange={event => setForm({ ...form, status: event.target.value })}
-                className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm bg-gray-50/50 focus:outline-none focus:ring-2 focus:ring-orange-400"
-              >
-                <option>Active</option>
-                <option>Inactive</option>
-              </select>
+                onChange={id => setForm({ ...form, status: String(id) })}
+                searchPlaceholder="Search..."
+              />
             </div>
           </div>
           <div className="flex justify-end gap-3">

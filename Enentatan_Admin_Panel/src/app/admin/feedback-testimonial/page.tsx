@@ -7,6 +7,7 @@ import { adminApi } from '@/api/adminApi';
 import Button from '@/components/admin/Button';
 import Modal from '@/components/admin/Modal';
 import Pagination from '@/components/admin/Pagination';
+import SearchableSelect from '@/components/admin/SearchableSelect';
 import Table from '@/components/admin/Table';
 import { Column } from '@/lib/types';
 
@@ -55,7 +56,7 @@ export default function FeedbackPage() {
 
   return <div className="space-y-6">
     <div className="flex items-center justify-between"><div><h1 className="text-xl font-bold">Feedback & Testimonials</h1><p className="text-sm text-gray-500">{items.length} customer reviews</p></div>
-      <select value={filter} onChange={(e) => { setFilter(e.target.value); setPage(1); }} className="rounded-xl border px-3 py-2 text-sm"><option value="">All statuses</option><option>PENDING</option><option>PUBLISHED</option><option>REJECTED</option></select>
+      <div className="w-48"><SearchableSelect options={[{ id: '', label: 'All statuses' }, { id: 'PENDING', label: 'PENDING' }, { id: 'PUBLISHED', label: 'PUBLISHED' }, { id: 'REJECTED', label: 'REJECTED' }]} value={filter} onChange={(id) => { setFilter(String(id)); setPage(1); }} placeholder="All statuses" searchPlaceholder="Search..." /></div>
     </div>
     <div className="rounded-2xl border bg-white shadow-sm">{loading ? <div className="flex justify-center p-12"><Loader2 className="animate-spin" /></div> : <Table columns={columns} data={paged} />}
       <Pagination currentPage={page} totalPages={Math.max(1, Math.ceil(filtered.length / perPage))} totalItems={filtered.length} itemsPerPage={perPage} onPageChange={setPage} /></div>

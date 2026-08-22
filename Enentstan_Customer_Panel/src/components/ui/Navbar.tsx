@@ -5,7 +5,7 @@ import { useState, useEffect, useRef } from "react";
 import { useCart } from "@/lib/CartContext";
 import { useAuth } from "@/lib/AuthContext";
 import Image from 'next/image';
-import toast from "react-hot-toast";
+import { showSuccess } from "@/lib/toast";
 
 export default function Navbar() {
   const pathname = usePathname();
@@ -58,10 +58,7 @@ export default function Navbar() {
     setShowLogoutModal(false);
     setUserDropOpen(false);
     setMenuOpen(false);
-    toast.success("Logged out successfully!", {
-      icon: "👋",
-      style: { borderRadius: "12px", fontWeight: "600" },
-    });
+    showSuccess("Logged out successfully!");
     router.push("/");
   };
 

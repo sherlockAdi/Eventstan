@@ -8,6 +8,7 @@ import ConfirmModal from '@/components/admin/ConfirmModal';
 import Input from '@/components/admin/Input';
 import Modal from '@/components/admin/Modal';
 import Pagination from '@/components/admin/Pagination';
+import SearchableSelect from '@/components/admin/SearchableSelect';
 import Table from '@/components/admin/Table';
 import { adminApi } from '@/api/adminApi';
 import { Column } from '@/lib/types';
@@ -243,6 +244,16 @@ export default function PriceUnitsPage() {
               required
               disabled={loading}
             />
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Status</label>
+              <SearchableSelect
+                options={[{ id: 'Active', label: 'Active' }, { id: 'Inactive', label: 'Inactive' }]}
+                value={form.isActive ? 'Active' : 'Inactive'}
+                onChange={(id) => setForm((current) => ({ ...current, isActive: id === 'Active' }))}
+                searchPlaceholder="Search..."
+                disabled={loading}
+              />
+            </div>
             <Input
               label="Label"
               value={form.label}
@@ -260,15 +271,6 @@ export default function PriceUnitsPage() {
               }
               disabled={loading}
             />
-            <label className="flex items-center gap-2 text-sm text-gray-700">
-              <input
-                type="checkbox"
-                checked={form.isActive}
-                onChange={(event) => setForm((current) => ({ ...current, isActive: event.target.checked }))}
-                className="h-4 w-4 rounded border-gray-300 text-orange-500 focus:ring-orange-400"
-              />
-              Active
-            </label>
             <label className="flex items-center gap-2 rounded-xl border border-gray-100 bg-gray-50 p-4 text-sm text-gray-700">
               <input
                 type="checkbox"

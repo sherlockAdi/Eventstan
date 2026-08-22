@@ -19,6 +19,7 @@ import ConfirmModal from "@/components/admin/ConfirmModal";
 import Pagination from "@/components/admin/Pagination";
 import Button from "@/components/admin/Button";
 import StatsCard from "@/components/admin/StatsCard";
+import SearchableSelect from "@/components/admin/SearchableSelect";
 import { Column } from "@/lib/types";
 import toast from "react-hot-toast";
 import Link from "next/link";
@@ -153,21 +154,25 @@ export default function BlogPage() {
       key: "status",
       label: "Status",
       render: (v: string, row: BlogPost) => (
-        <select
-          value={v}
-          onChange={(e) => requestStatusChange(row, e.target.value)}
-          className={`px-2 py-1 rounded-full text-xs font-medium border-0 cursor-pointer ${
-            v === "PUBLISHED"
-              ? "bg-green-100 text-green-700"
-              : v === "DRAFT"
-                ? "bg-yellow-100 text-yellow-700"
-                : "bg-gray-100 text-gray-700"
-          }`}
-        >
-          <option value="DRAFT">Draft</option>
-          <option value="PUBLISHED">Published</option>
-          <option value="ARCHIVED">Archived</option>
-        </select>
+        <div className="w-32">
+          <SearchableSelect
+            options={[
+              { id: "DRAFT", label: "Draft" },
+              { id: "PUBLISHED", label: "Published" },
+              { id: "ARCHIVED", label: "Archived" },
+            ]}
+            value={v}
+            onChange={(id) => requestStatusChange(row, String(id))}
+            searchPlaceholder="Search..."
+            className={`!py-1 !px-2 rounded-full text-xs font-medium border-0 ${
+              v === "PUBLISHED"
+                ? "!bg-green-100 text-green-700"
+                : v === "DRAFT"
+                  ? "!bg-yellow-100 text-yellow-700"
+                  : "!bg-gray-100 text-gray-700"
+            }`}
+          />
+        </div>
       ),
     },
     {

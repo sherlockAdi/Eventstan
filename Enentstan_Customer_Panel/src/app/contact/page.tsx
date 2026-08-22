@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { customerApi } from "@/api/customerApi";
 import type { Country } from "@/api/customerApi";
+import { showError, showSuccess } from "@/lib/toast";
 import {
   categoryService,
   type Category,
@@ -491,13 +492,15 @@ export default function ContactPage() {
       setAdditionalDetails("");
       setBudgetLabel(null);
       setServices([]);
+      showSuccess("Your request has been submitted successfully!");
     } catch (err) {
       setStatus("error");
-      setErrorMsg(
+      const msg =
         err instanceof Error
           ? err.message
-          : "Something went wrong. Please try again."
-      );
+          : "Something went wrong. Please try again.";
+      setErrorMsg(msg);
+      showError(msg);
     }
   };
 

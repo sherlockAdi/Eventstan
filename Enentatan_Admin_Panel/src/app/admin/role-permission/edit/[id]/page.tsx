@@ -6,6 +6,7 @@ import { ArrowLeft, Save } from 'lucide-react';
 import Link from 'next/link';
 import Button from '@/components/admin/Button';
 import Input from '@/components/admin/Input';
+import SearchableSelect from '@/components/admin/SearchableSelect';
 import { adminApi } from '@/api/adminApi';
 import type { RolePermission } from '@/lib/types';
 import toast from 'react-hot-toast';
@@ -139,14 +140,12 @@ export default function EditRolePage() {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">Status</label>
-              <select
+              <SearchableSelect
+                options={[{ id: 'Active', label: 'Active' }, { id: 'Inactive', label: 'Inactive' }]}
                 value={form.status}
-                onChange={(e) => setForm({ ...form, status: e.target.value })}
-                className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm bg-gray-50/50 focus:outline-none focus:ring-2 focus:ring-orange-400"
-              >
-                <option>Active</option>
-                <option>Inactive</option>
-              </select>
+                onChange={(id) => setForm({ ...form, status: String(id) })}
+                searchPlaceholder="Search..."
+              />
             </div>
 
             <div className="flex justify-end gap-3 pt-4">

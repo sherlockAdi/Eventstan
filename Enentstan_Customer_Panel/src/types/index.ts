@@ -1,5 +1,6 @@
 export interface Service {
   id: string;
+  vendorId?: string;
   slug?: string;
   title: string;
   category: "Venue" | "Decor" | "Catering" | "Entertainment";
@@ -14,6 +15,7 @@ export interface Service {
   vendor_name: string;
   vendor_email: string;
   vendor_phone: string;
+  vendor_phone_country_code?: string;
   tags: string[];
   gallery: string[];
   features: string[];

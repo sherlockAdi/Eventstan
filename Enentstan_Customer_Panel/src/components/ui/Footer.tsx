@@ -121,7 +121,7 @@ export default function Footer() {
               {[
                 { href: "/services", label: "Browse Services" },
                 { href: "/about", label: "About Us" },
-                { href: "/bookings", label: "My Bookings" },
+                { href: "/contact", label: "Contact-Us" },
                 { href: "/vendor-partners", label: "Vendor Portal" },
                 { href: "/event-types", label: "Event Types" },
               ].map((link) => (

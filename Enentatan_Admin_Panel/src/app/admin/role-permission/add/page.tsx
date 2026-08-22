@@ -6,6 +6,7 @@ import { ArrowLeft, Save } from 'lucide-react';
 import Link from 'next/link';
 import Button from '@/components/admin/Button';
 import Input from '@/components/admin/Input';
+import SearchableSelect from '@/components/admin/SearchableSelect';
 import { adminApi } from '@/api/adminApi';
 import type { RolePermission } from '@/lib/types';
 import toast from 'react-hot-toast';
@@ -130,17 +131,12 @@ export default function AddRolePage() {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">Role</label>
-              <select
+              <SearchableSelect
+                options={roleOptions.map((option) => ({ id: option, label: option.replace(/_/g, ' ') }))}
                 value={role}
-                onChange={(e) => setRole(e.target.value as (typeof roleOptions)[number])}
-                className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm bg-gray-50/50 focus:outline-none focus:ring-2 focus:ring-orange-400"
-              >
-                {roleOptions.map((option) => (
-                  <option key={option} value={option}>
-                    {option.replace(/_/g, ' ')}
-                  </option>
-                ))}
-              </select>
+                onChange={(id) => setRole(String(id) as (typeof roleOptions)[number])}
+                searchPlaceholder="Search roles..."
+              />
             </div>
 
             <Input
@@ -164,14 +160,12 @@ export default function AddRolePage() {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">Status</label>
-              <select
+              <SearchableSelect
+                options={[{ id: 'Active', label: 'Active' }, { id: 'Inactive', label: 'Inactive' }]}
                 value={form.status}
-                onChange={(e) => setForm({ ...form, status: e.target.value })}
-                className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm bg-gray-50/50 focus:outline-none focus:ring-2 focus:ring-orange-400"
-              >
-                <option>Active</option>
-                <option>Inactive</option>
-              </select>
+                onChange={(id) => setForm({ ...form, status: String(id) })}
+                searchPlaceholder="Search..."
+              />
             </div>
 
             <div className="flex justify-end gap-3 pt-4">

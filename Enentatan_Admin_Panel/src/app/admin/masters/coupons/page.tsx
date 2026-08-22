@@ -8,6 +8,7 @@ import ConfirmModal from '@/components/admin/ConfirmModal';
 import Pagination from '@/components/admin/Pagination';
 import Button from '@/components/admin/Button';
 import Input from '@/components/admin/Input';
+import SearchableSelect from '@/components/admin/SearchableSelect';
 import StatsCard from '@/components/admin/StatsCard';
 import { Column } from '@/lib/types';
 import { adminApi } from '@/api/adminApi';
@@ -418,14 +419,32 @@ export default function CouponsPage() {
 
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-1.5">Coupon Type</label>
-              <select 
-                value={form.type} 
-                onChange={e => setForm({ ...form, type: e.target.value })} 
-                className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm bg-gray-50/50 focus:outline-none focus:ring-2 focus:ring-orange-400"
-              >
-                <option value="PERCENTAGE">Percentage (%)</option>
-                <option value="FLAT">Flat (AED)</option>
-              </select>
+              <SearchableSelect
+                options={[{ id: 'PERCENTAGE', label: 'Percentage (%)' }, { id: 'FLAT', label: 'Flat (AED)' }]}
+                value={form.type || 'PERCENTAGE'}
+                onChange={id => setForm({ ...form, type: String(id) })}
+                searchPlaceholder="Search..."
+              />
+            </div>
+
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Currency</label>
+              <SearchableSelect
+                options={[{ id: 'AED', label: 'AED' }, { id: 'SAR', label: 'SAR' }, { id: 'USD', label: 'USD' }]}
+                value={form.currency || 'AED'}
+                onChange={id => setForm({ ...form, currency: String(id) })}
+                searchPlaceholder="Search..."
+              />
+            </div>
+
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Status</label>
+              <SearchableSelect
+                options={[{ id: 'Active', label: 'Active' }, { id: 'Inactive', label: 'Inactive' }]}
+                value={form.active ? 'Active' : 'Inactive'}
+                onChange={id => setForm({ ...form, active: id === 'Active' })}
+                searchPlaceholder="Search..."
+              />
             </div>
 
             <Input 
@@ -460,31 +479,6 @@ export default function CouponsPage() {
               onChange={e => setForm({ ...form, expiresAt: e.target.value })} 
               required 
             />
-
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Currency</label>
-              <select 
-                value={form.currency} 
-                onChange={e => setForm({ ...form, currency: e.target.value })} 
-                className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm bg-gray-50/50 focus:outline-none focus:ring-2 focus:ring-orange-400"
-              >
-                <option value="AED">AED</option>
-                <option value="SAR">SAR</option>
-                <option value="USD">USD</option>
-              </select>
-            </div>
-
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Status</label>
-              <select 
-                value={form.active ? 'Active' : 'Inactive'} 
-                onChange={e => setForm({ ...form, active: e.target.value === 'Active' })} 
-                className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm bg-gray-50/50 focus:outline-none focus:ring-2 focus:ring-orange-400"
-              >
-                <option value="Active">Active</option>
-                <option value="Inactive">Inactive</option>
-              </select>
-            </div>
           </div>
           
           <div className="flex justify-end gap-3 pt-2">

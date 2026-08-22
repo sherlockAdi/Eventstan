@@ -8,6 +8,7 @@ import ConfirmModal from '@/components/admin/ConfirmModal';
 import Input from '@/components/admin/Input';
 import Modal from '@/components/admin/Modal';
 import Pagination from '@/components/admin/Pagination';
+import SearchableSelect from '@/components/admin/SearchableSelect';
 import Table from '@/components/admin/Table';
 import { Column } from '@/lib/types';
 import toast from 'react-hot-toast';
@@ -89,11 +90,14 @@ export default function EventSlotsPage() {
       <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} title={selected ? 'Edit Event Slot' : 'Add Event Slot'}>
         <form onSubmit={save}>
           <Input label="Slot Name" value={form.name ?? ''} onChange={e => setForm({ ...form, name: e.target.value })} required />
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">Status</label>
+            <SearchableSelect options={[{ id: 'Active', label: 'Active' }, { id: 'Inactive', label: 'Inactive' }]} value={form.status ?? 'Active'} onChange={id => setForm({ ...form, status: String(id) })} searchPlaceholder="Search..." />
+          </div>
           <div className="grid grid-cols-2 gap-x-4">
             <Input label="Start Time" type="time" value={form.startTime ?? ''} onChange={e => setForm({ ...form, startTime: e.target.value })} required />
             <Input label="End Time" type="time" value={form.endTime ?? ''} onChange={e => setForm({ ...form, endTime: e.target.value })} required />
           </div>
-          <select value={form.status ?? 'Active'} onChange={e => setForm({ ...form, status: e.target.value })} className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm bg-gray-50/50 mb-4"><option>Active</option><option>Inactive</option></select>
           <div className="flex justify-end gap-3"><Button type="button" variant="secondary" onClick={() => setModalOpen(false)}>Cancel</Button><Button type="submit">Save</Button></div>
         </form>
       </Modal>

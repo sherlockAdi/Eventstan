@@ -19,6 +19,7 @@ import {
 import Table from "@/components/admin/Table";
 import Button from "@/components/admin/Button";
 import Pagination from "@/components/admin/Pagination";
+import SearchableSelect from "@/components/admin/SearchableSelect";
 import StatsCard from "@/components/admin/StatsCard";
 import { Column } from "@/lib/types";
 import { adminApi } from "@/api/adminApi";
@@ -290,21 +291,18 @@ export default function VendorLeadsPage() {
           <Search size={16} className="absolute left-3 top-2.5 text-gray-400" />
         </div>
 
-        <select
-          value={filterStatus}
-          onChange={(e) => {
-            setFilterStatus(e.target.value);
-            setCurrentPage(1);
-          }}
-          className="px-4 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white"
-        >
-          <option value="">All Status</option>
-          {statusOptions.map((status) => (
-            <option key={status} value={status}>
-              {status}
-            </option>
-          ))}
-        </select>
+        <div className="w-48">
+          <SearchableSelect
+            options={[{ id: "", label: "All Status" }, ...statusOptions.map((status) => ({ id: status, label: status }))]}
+            value={filterStatus}
+            onChange={(id) => {
+              setFilterStatus(String(id));
+              setCurrentPage(1);
+            }}
+            placeholder="All Status"
+            searchPlaceholder="Search..."
+          />
+        </div>
       </div>
 
       {loading ? (

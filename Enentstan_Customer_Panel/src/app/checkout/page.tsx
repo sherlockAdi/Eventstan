@@ -5,6 +5,7 @@ import { useCart } from "@/lib/CartContext";
 import { useAuth } from "@/lib/AuthContext";
 import { customerApi } from "@/api/customerApi";
 import { CartItem } from "@/types";
+import { showError, showSuccess } from "@/lib/toast";
 
 interface EventDetails {
   name: string;
@@ -97,8 +98,11 @@ export default function CheckoutPage() {
       });
       clearCart();
       setConfirmed(true);
+      showSuccess("Booking request submitted successfully!");
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Unable to complete checkout.");
+      const msg = cause instanceof Error ? cause.message : "Unable to complete checkout.";
+      setError(msg);
+      showError(msg);
     } finally {
       setSubmitting(false);
     }

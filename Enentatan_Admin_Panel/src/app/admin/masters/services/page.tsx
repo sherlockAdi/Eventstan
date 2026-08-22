@@ -8,6 +8,7 @@ import ConfirmModal from "@/components/admin/ConfirmModal";
 import Input from "@/components/admin/Input";
 import Modal from "@/components/admin/Modal";
 import Pagination from "@/components/admin/Pagination";
+import SearchableSelect from "@/components/admin/SearchableSelect";
 import Table from "@/components/admin/Table";
 import { Column } from "@/lib/types";
 import toast from "react-hot-toast";
@@ -560,66 +561,50 @@ export default function ServicesPage() {
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Vendor
             </label>
-            <select
+            <SearchableSelect
+              options={[{ id: "", label: "All Vendors" }, ...vendors.map((vendor) => ({ id: vendor.id, label: `${vendor.companyName}${vendor.city ? ` (${vendor.city})` : ""}` }))]}
               value={filterVendor}
-              onChange={(e) => setFilterVendor(e.target.value)}
-              className="w-full px-3.5 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white"
-            >
-              <option value="">All Vendors</option>
-              {vendors.map((vendor) => (
-                <option key={vendor.id} value={vendor.id}>
-                  {vendor.companyName} {vendor.city ? `(${vendor.city})` : ""}
-                </option>
-              ))}
-            </select>
+              onChange={(id) => setFilterVendor(String(id))}
+              placeholder="All Vendors"
+              searchPlaceholder="Search vendors..."
+            />
           </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               City
             </label>
-            <select
+            <SearchableSelect
+              options={[{ id: "", label: "All Cities" }, ...allCities.filter((city): city is string => !!city).map((city) => ({ id: city, label: city }))]}
               value={filterCity}
-              onChange={(e) => setFilterCity(e.target.value)}
-              className="w-full px-3.5 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white"
-            >
-              <option value="">All Cities</option>
-              {allCities.map((city) => (
-                <option key={city} value={city}>
-                  {city}
-                </option>
-              ))}
-            </select>
+              onChange={(id) => setFilterCity(String(id))}
+              placeholder="All Cities"
+              searchPlaceholder="Search cities..."
+            />
           </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Status
             </label>
-            <select
+            <SearchableSelect
+              options={[{ id: "ALL", label: "All Status" }, { id: "ACTIVE", label: "Active" }, { id: "INACTIVE", label: "Inactive" }]}
               value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
-              className="w-full px-3.5 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white"
-            >
-              <option value="ALL">All Status</option>
-              <option value="ACTIVE">Active</option>
-              <option value="INACTIVE">Inactive</option>
-            </select>
+              onChange={(id) => setFilterStatus(String(id))}
+              searchPlaceholder="Search..."
+            />
           </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Show on Homepage
             </label>
-            <select
+            <SearchableSelect
+              options={[{ id: "ALL", label: "All" }, { id: "YES", label: "Yes" }, { id: "NO", label: "No" }]}
               value={filterHomepage}
-              onChange={(e) => setFilterHomepage(e.target.value)}
-              className="w-full px-3.5 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white"
-            >
-              <option value="ALL">All</option>
-              <option value="YES">Yes</option>
-              <option value="NO">No</option>
-            </select>
+              onChange={(id) => setFilterHomepage(String(id))}
+              searchPlaceholder="Search..."
+            />
           </div>
         </div>
       </div>
@@ -879,40 +864,28 @@ export default function ServicesPage() {
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Vendor *
             </label>
-            <select
+            <SearchableSelect
+              options={vendors.map((v) => ({ id: v.id, label: `${v.companyName}${v.city ? ` (${v.city})` : ""}` }))}
               value={form.vendorId}
-              onChange={(e) => setForm({ ...form, vendorId: e.target.value })}
-              className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm bg-gray-50/50 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-              required
+              onChange={(id) => setForm({ ...form, vendorId: String(id) })}
+              placeholder="Select vendor"
+              searchPlaceholder="Search vendors..."
               disabled={loading}
-            >
-              <option value="">Select vendor</option>
-              {vendors.map((v) => (
-                <option key={v.id} value={v.id}>
-                  {v.companyName} {v.city ? `(${v.city})` : ""}
-                </option>
-              ))}
-            </select>
+            />
           </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Category *
             </label>
-            <select
+            <SearchableSelect
+              options={categories.map((c) => ({ id: c.id, label: c.name }))}
               value={form.categoryId}
-              onChange={(e) => setForm({ ...form, categoryId: e.target.value })}
-              className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm bg-gray-50/50 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-              required
+              onChange={(id) => setForm({ ...form, categoryId: String(id) })}
+              placeholder="Select category"
+              searchPlaceholder="Search categories..."
               disabled={loading}
-            >
-              <option value="">Select category</option>
-              {categories.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
+            />
           </div>
 
           <Input
@@ -995,15 +968,13 @@ export default function ServicesPage() {
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Status
             </label>
-            <select
+            <SearchableSelect
+              options={[{ id: "ACTIVE", label: "ACTIVE" }, { id: "INACTIVE", label: "INACTIVE" }]}
               value={form.status}
-              onChange={(e) => setForm({ ...form, status: e.target.value })}
-              className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm bg-gray-50/50 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+              onChange={(id) => setForm({ ...form, status: String(id) })}
+              searchPlaceholder="Search..."
               disabled={loading}
-            >
-              <option value="ACTIVE">ACTIVE</option>
-              <option value="INACTIVE">INACTIVE</option>
-            </select>
+            />
           </div>
 
           {/* Show on Homepage Toggle */}

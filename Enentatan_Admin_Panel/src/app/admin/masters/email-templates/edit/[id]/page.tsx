@@ -7,6 +7,7 @@ import Link from "next/link";
 import { adminApi } from "@/api/adminApi";
 import Button from "@/components/admin/Button";
 import Input from "@/components/admin/Input";
+import SearchableSelect from "@/components/admin/SearchableSelect";
 import toast from "react-hot-toast";
 
 const emptyForm = {
@@ -255,14 +256,12 @@ The Eventstan Team`
             <label className="block text-sm font-medium text-gray-700 mb-1.5">
               Status
             </label>
-            <select 
-              value={form.status} 
-              onChange={event => setForm({ ...form, status: event.target.value })} 
-              className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-orange-500"
-            >
-              <option value="Active">Active</option>
-              <option value="Inactive">Inactive</option>
-            </select>
+            <SearchableSelect
+              options={[{ id: "Active", label: "Active" }, { id: "Inactive", label: "Inactive" }]}
+              value={form.status}
+              onChange={id => setForm({ ...form, status: String(id) })}
+              searchPlaceholder="Search..."
+            />
           </div>
 
           {/* Body */}

@@ -22,13 +22,15 @@ interface Vendor {
   primaryEmail?: string;
   phone?: string;
   primaryMobile?: string;
+  phoneCountryCode?: string;
+  primaryMobileCountryCode?: string;
   about?: string;
   firstName?: string;
   lastName?: string;
   userName?: string;
   telephone?: string;
   status?: string;
-  vendorType?: string; // FREELANCER or PERMANENT
+  vendorType?: string;
   vendorProfileImage?: string;
   tradeLicenseNumber?: string;
   tradeLicenseExpiry?: string;
@@ -44,6 +46,10 @@ interface Vendor {
   businessLocation?: string;
   location?: string;
   address?: string;
+  addressLine1?: string;
+  addressLine2?: string;
+  landmark?: string;
+  poBox?: string;
   visaType?: string;
   cities?: string[];
   capacityPerDay?: number;
@@ -183,12 +189,20 @@ export default function ViewVendorPage() {
   const StatusColor = statusColors[status] || statusColors.PENDING;
   const StatusIcon = StatusColor.icon;
   const email = vendor.primaryEmail || vendor.email || '';
-  const phone = vendor.primaryMobile || vendor.phone || '';
+  const primaryMobileCode = vendor.primaryMobileCountryCode || vendor.countryCode || '';
+  const primaryMobileNumber = vendor.primaryMobile || '';
+  const phone = primaryMobileNumber
+    ? (primaryMobileCode ? `${primaryMobileCode} ${primaryMobileNumber}` : primaryMobileNumber)
+    : (vendor.phone || '');
   const businessLocation = vendor.businessLocation || vendor.location || '';
+  const vendorTypeLabel = vendor.vendorType === 'PERMANENT'
+    ? 'Service Provider'
+    : vendor.vendorType === 'FREELANCER'
+      ? 'Professional'
+      : vendor.vendorType || '';
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <button
@@ -223,7 +237,6 @@ export default function ViewVendorPage() {
         </div>
       </div>
 
-      {/* Vendor Profile Header */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
         <div className="p-6 bg-gradient-to-r from-orange-50 to-transparent border-b border-gray-100">
           <div className="flex items-center gap-6">
@@ -247,7 +260,7 @@ export default function ViewVendorPage() {
                 </span>
                 {vendor.vendorType && (
                   <span className="px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
-                    {vendor.vendorType}
+                    {vendorTypeLabel}
                   </span>
                 )}
                 {vendor.isVerified && (
@@ -282,7 +295,7 @@ export default function ViewVendorPage() {
                 {vendor.telephone && (
                   <span className="flex items-center gap-1">
                     <Phone size={14} />
-                    {vendor.telephone} (Tel)
+                    {vendor.telephone}
                   </span>
                 )}
               </div>
@@ -291,7 +304,6 @@ export default function ViewVendorPage() {
         </div>
 
         <div className="p-6 space-y-6">
-          {/* Personal Information */}
           <div>
             <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
               <User size={18} className="text-orange-500" />
@@ -323,25 +335,24 @@ export default function ViewVendorPage() {
             </div>
           </div>
 
-          {/* Business Information */}
           <div>
             <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
               <Building size={18} className="text-orange-500" />
               Business Information
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pl-6">
-              <div>
-                <label className="text-xs text-gray-500 uppercase tracking-wide">Trade License Number</label>
-                <p className="text-sm text-gray-900 mt-1">
-                  {vendor.vendorType === 'FREELANCER' && !vendor.tradeLicenseNumber
-                    ? 'N/A (Freelancer)'
-                    : (vendor.tradeLicenseNumber || 'Not provided')}
-                </p>
-              </div>
-              <div>
-                <label className="text-xs text-gray-500 uppercase tracking-wide">Trade License Expiry</label>
-                <p className="text-sm text-gray-900 mt-1">{formatDate(vendor.tradeLicenseExpiry)}</p>
-              </div>
+              {vendor.vendorType !== 'FREELANCER' && (
+                <>
+                  <div>
+                    <label className="text-xs text-gray-500 uppercase tracking-wide">Trade License Number</label>
+                    <p className="text-sm text-gray-900 mt-1">{vendor.tradeLicenseNumber || 'Not provided'}</p>
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-500 uppercase tracking-wide">Trade License Expiry</label>
+                    <p className="text-sm text-gray-900 mt-1">{formatDate(vendor.tradeLicenseExpiry)}</p>
+                  </div>
+                </>
+              )}
               <div>
                 <label className="text-xs text-gray-500 uppercase tracking-wide">VAT Number</label>
                 <p className="text-sm text-gray-900 mt-1">{vendor.vatNumber || 'Not provided'}</p>
@@ -358,14 +369,25 @@ export default function ViewVendorPage() {
                 <label className="text-xs text-gray-500 uppercase tracking-wide">Passport Expiry</label>
                 <p className="text-sm text-gray-900 mt-1">{formatDate(vendor.passportExpiry)}</p>
               </div>
-              <div className="md:col-span-2">
-                <label className="text-xs text-gray-500 uppercase tracking-wide">Address</label>
-                <p className="text-sm text-gray-900 mt-1">{vendor.address || 'Not provided'}</p>
+              <div>
+                <label className="text-xs text-gray-500 uppercase tracking-wide">Address Line 1</label>
+                <p className="text-sm text-gray-900 mt-1">{vendor.addressLine1 || vendor.address || 'Not provided'}</p>
+              </div>
+              <div>
+                <label className="text-xs text-gray-500 uppercase tracking-wide">Address Line 2</label>
+                <p className="text-sm text-gray-900 mt-1">{vendor.addressLine2 || 'Not provided'}</p>
+              </div>
+              <div>
+                <label className="text-xs text-gray-500 uppercase tracking-wide">Landmark</label>
+                <p className="text-sm text-gray-900 mt-1">{vendor.landmark || 'Not provided'}</p>
+              </div>
+              <div>
+                <label className="text-xs text-gray-500 uppercase tracking-wide">PO Box</label>
+                <p className="text-sm text-gray-900 mt-1">{vendor.poBox || 'Not provided'}</p>
               </div>
             </div>
           </div>
 
-          {/* Documents */}
           {(vendor.tradeLicenseFileUrl || vendor.passportFileUrl || vendor.agreementFileUrl) && (
             <div>
               <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
@@ -410,7 +432,6 @@ export default function ViewVendorPage() {
             </div>
           )}
 
-          {/* Operating Cities */}
           {vendor.cities && vendor.cities.length > 0 && (
             <div>
               <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
@@ -427,7 +448,6 @@ export default function ViewVendorPage() {
             </div>
           )}
 
-          {/* Professional Plan */}
           <div>
             <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
               <Calendar size={18} className="text-orange-500" />
@@ -453,7 +473,6 @@ export default function ViewVendorPage() {
             </div>
           </div>
 
-          {/* Bank Details */}
           {(vendor.bankName || vendor.accountFullName || vendor.ibanNo || vendor.accountNumber || vendor.swift) && (
             <div>
               <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
@@ -501,7 +520,6 @@ export default function ViewVendorPage() {
             </div>
           )}
 
-          {/* Account & System Info */}
           <div>
             <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
               <Info size={18} className="text-orange-500" />
@@ -565,7 +583,6 @@ export default function ViewVendorPage() {
         </div>
       </div>
 
-      {/* Modals */}
       <ConfirmModal
         isOpen={isStatusModalOpen}
         onClose={() => {

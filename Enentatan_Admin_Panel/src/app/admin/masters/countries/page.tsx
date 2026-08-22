@@ -8,6 +8,7 @@ import ConfirmModal from "@/components/admin/ConfirmModal";
 import Input from "@/components/admin/Input";
 import Modal from "@/components/admin/Modal";
 import Pagination from "@/components/admin/Pagination";
+import SearchableSelect from "@/components/admin/SearchableSelect";
 import Table from "@/components/admin/Table";
 import { Column } from "@/lib/types";
 import toast from "react-hot-toast";
@@ -231,10 +232,7 @@ export default function CountriesPage() {
             <Input label="Flag / Icon" value={form.flag || ""} onChange={event => setForm({ ...form, flag: event.target.value })} />
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-1.5">Status</label>
-              <select value={form.status || "Active"} onChange={event => setForm({ ...form, status: event.target.value })} className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm bg-gray-50/50 focus:outline-none focus:ring-2 focus:ring-orange-400">
-                <option>Active</option>
-                <option>Inactive</option>
-              </select>
+              <SearchableSelect options={[{ id: "Active", label: "Active" }, { id: "Inactive", label: "Inactive" }]} value={form.status || "Active"} onChange={id => setForm({ ...form, status: String(id) })} searchPlaceholder="Search..." />
             </div>
           </div>
           <div className="flex justify-end gap-3">

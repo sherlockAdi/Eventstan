@@ -8,6 +8,7 @@ import ConfirmModal from '@/components/admin/ConfirmModal';
 import Input from '@/components/admin/Input';
 import Modal from '@/components/admin/Modal';
 import Pagination from '@/components/admin/Pagination';
+import SearchableSelect from '@/components/admin/SearchableSelect';
 import Table from '@/components/admin/Table';
 import { Column } from '@/lib/types';
 import toast from 'react-hot-toast';
@@ -84,7 +85,7 @@ export default function VisaTypesPage() {
       <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} title={selected ? 'Edit Visa Type' : 'Add Visa Type'}>
         <form onSubmit={save}>
           <Input label="Visa Type Name" value={form.name ?? ''} onChange={e => setForm({ ...form, name: e.target.value })} required placeholder="e.g., UAE Work Visa" />
-          <select value={form.status ?? 'Active'} onChange={e => setForm({ ...form, status: e.target.value })} className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm bg-gray-50/50 mb-4"><option>Active</option><option>Inactive</option></select>
+          <div className="mb-4"><SearchableSelect options={[{ id: 'Active', label: 'Active' }, { id: 'Inactive', label: 'Inactive' }]} value={form.status ?? 'Active'} onChange={id => setForm({ ...form, status: String(id) })} searchPlaceholder="Search..." /></div>
           <div className="flex justify-end gap-3"><Button type="button" variant="secondary" onClick={() => setModalOpen(false)}>Cancel</Button><Button type="submit">Save</Button></div>
         </form>
       </Modal>

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { ArrowRight, Filter, LifeBuoy, Loader2, Search, ShieldCheck, MessageSquare } from "lucide-react";
 import { adminApi } from "@/api/adminApi";
+import SearchableSelect from "@/components/admin/SearchableSelect";
 
 type SupportStatus = "OPEN" | "IN_PROGRESS" | "WAITING_FOR_ADMIN" | "WAITING_FOR_VENDOR" | "RESOLVED" | "CLOSED";
 
@@ -139,19 +140,13 @@ export default function AdminSupportPage() {
             />
           </div>
 
-          <div className="relative">
-            <Filter size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
-            <select
+          <div className="relative min-w-56">
+            <SearchableSelect
+              options={statusOptions.map((item) => ({ id: item, label: item === "ALL" ? "All statuses" : item.replaceAll("_", " ") }))}
               value={status}
-              onChange={(e) => setStatus(e.target.value as SupportStatus | "ALL")}
-              className="min-w-56 appearance-none rounded-2xl border border-gray-200 pl-10 pr-10 py-3 text-sm outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100"
-            >
-              {statusOptions.map((item) => (
-                <option key={item} value={item}>
-                  {item === "ALL" ? "All statuses" : item.replaceAll("_", " ")}
-                </option>
-              ))}
-            </select>
+              onChange={(id) => setStatus(id as SupportStatus | "ALL")}
+              searchPlaceholder="Search..."
+            />
           </div>
 
           <button onClick={() => void fetchTickets()} className="rounded-2xl bg-gray-900 px-4 py-3 text-sm font-semibold text-white hover:bg-gray-800 transition">

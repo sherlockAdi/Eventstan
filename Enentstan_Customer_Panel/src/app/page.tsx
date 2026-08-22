@@ -554,7 +554,7 @@ export default function LandingPage() {
 
       {/* API DATA */}
       {/* Featured Services */}
-      <section className="py-8 px-4 max-w-7xl mx-auto">
+      {/* <section className="py-8 px-4 max-w-7xl mx-auto">
         <div className="flex items-end justify-between mb-6">
           <div>
             <h2 className="text-3xl font-bold text-gray-900">
@@ -600,11 +600,11 @@ export default function LandingPage() {
             </p>
           </div>
         )}
-      </section>
+      </section> */}
       {/* API DATA */}
 
       {/* Featured Services */}
-      {/* <section className="py-8 px-4 max-w-7xl mx-auto">
+      <section className="py-8 px-4 max-w-7xl mx-auto">
         <div className="flex items-end justify-between mb-6">
           <div>
             <h2 className="text-3xl font-bold text-gray-900">
@@ -657,7 +657,7 @@ export default function LandingPage() {
             </Link>
           </div>
         </div>
-      </section> */}
+      </section>
 
       {/* How It Works */}
       <section className="py-12 px-4 bg-gray-50">

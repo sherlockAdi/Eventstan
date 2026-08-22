@@ -8,6 +8,7 @@ import Button from '@/components/admin/Button';
 import Input from '@/components/admin/Input';
 import Modal from '@/components/admin/Modal';
 import Pagination from '@/components/admin/Pagination';
+import SearchableSelect from '@/components/admin/SearchableSelect';
 import Table from '@/components/admin/Table';
 import { Column } from '@/lib/types';
 
@@ -148,10 +149,13 @@ export default function UsersPage() {
 
       <div className="grid gap-3 md:grid-cols-[1fr_220px]">
         <input value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} placeholder="Search name, email, or phone" className="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm" />
-        <select value={role} onChange={(e) => { setRole(e.target.value); setPage(1); }} className="rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm">
-          <option value="">All roles</option>
-          {['CUSTOMER', 'VENDOR', 'ADMIN', 'SUPER_ADMIN'].map((item) => <option key={item}>{item}</option>)}
-        </select>
+        <SearchableSelect
+          options={[{ id: '', label: 'All roles' }, ...['CUSTOMER', 'VENDOR', 'ADMIN', 'SUPER_ADMIN'].map((item) => ({ id: item, label: item }))]}
+          value={role}
+          onChange={(id) => { setRole(String(id)); setPage(1); }}
+          placeholder="All roles"
+          searchPlaceholder="Search roles..."
+        />
       </div>
 
       <div className="rounded-2xl border border-gray-100 bg-white shadow-sm">
@@ -166,9 +170,14 @@ export default function UsersPage() {
           <Input label="Phone" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
           {!selected && <Input label="Temporary Password" type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} required />}
           <label className="mb-1.5 block text-sm font-medium text-gray-700">Role</label>
-          <select value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value as UserRole })} className="mb-5 w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm">
-            {['CUSTOMER', 'VENDOR', 'ADMIN', 'SUPER_ADMIN'].map((item) => <option key={item}>{item}</option>)}
-          </select>
+          <div className="mb-5">
+            <SearchableSelect
+              options={['CUSTOMER', 'VENDOR', 'ADMIN', 'SUPER_ADMIN'].map((item) => ({ id: item, label: item }))}
+              value={form.role}
+              onChange={(id) => setForm({ ...form, role: String(id) as UserRole })}
+              searchPlaceholder="Search roles..."
+            />
+          </div>
           <div className="flex justify-end gap-3"><Button type="button" variant="secondary" onClick={() => setFormOpen(false)}>Cancel</Button><Button type="submit">Save</Button></div>
         </form>
       </Modal>

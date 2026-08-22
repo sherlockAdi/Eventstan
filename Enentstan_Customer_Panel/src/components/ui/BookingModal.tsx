@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { customerApi } from "@/api/customerApi";
 import { useAuth } from "@/lib/AuthContext";
 import { Package, Service } from "@/types";
+import { showError, showSuccess } from "@/lib/toast";
 
 interface Props {
   pkg?: Package;
@@ -97,8 +98,11 @@ export default function BookingModal({ pkg, service, onClose }: Props) {
       });
       setBookingId(res.data.bookingId);
       setSubmitted(true);
+      showSuccess("Booking confirmed successfully!");
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Unable to confirm booking.");
+      const msg = cause instanceof Error ? cause.message : "Unable to confirm booking.";
+      setError(msg);
+      showError(msg);
     } finally {
       setSubmitting(false);
     }
